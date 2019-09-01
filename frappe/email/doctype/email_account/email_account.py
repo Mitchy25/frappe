@@ -421,7 +421,7 @@ class EmailAccount(Document):
 		it will create a new parent transaction (e.g. Issue)"""
 		parent = None
 
-		parent = self.find_parent_from_in_reply_to(communication, email)
+		#parent = self.find_parent_from_in_reply_to(communication, email)
 		
 		frappe.log_error(parent)
 
