@@ -459,8 +459,12 @@ class EmailAccount(Document):
 	def find_parent_based_on_subject_and_sender(self, communication, email):
 		'''Find parent document based on subject and sender match'''
 		parent = None
-
-		if self.append_to and self.sender_field:
+		
+		frappe.log_error(self.append_to)
+		frappe.log_error(self.sender_field)
+		
+		#if self.append_to and self.sender_field:
+		if self.append_to:
 			if self.subject_field:
 				# try and match by subject and sender
 				# if sent by same sender with same subject,
