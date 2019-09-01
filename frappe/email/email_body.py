@@ -53,7 +53,7 @@ class EMail:
 	"""
 	def __init__(self, sender='', recipients=(), subject='', alternative=0, reply_to=None, cc=(), bcc=(), email_account=None, expose_recipients=None):
 		from email import charset as Charset
-		#Charset.add_charset('utf-8', Charset.QP, Charset.QP, 'utf-8')
+		Charset.add_charset('utf-8', Charset.QP, Charset.QP, 'utf-8')
 
 		if isinstance(recipients, string_types):
 			recipients = recipients.replace(';', ',').replace('\n', '')
