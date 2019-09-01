@@ -422,19 +422,14 @@ class EmailAccount(Document):
 		parent = None
 
 		#parent = self.find_parent_from_in_reply_to(communication, email)
-		
-		frappe.log_error(parent)
 
 		if not parent and self.append_to:
-			frappe.log_error("1")
 			self.set_sender_field_and_subject_field()
 
 		if not parent and self.append_to:
-			rappe.log_error("2")
 			parent = self.find_parent_based_on_subject_and_sender(communication, email)
 
 		if not parent and self.append_to and self.append_to!="Communication":
-			frappe.log_error("3")
 			parent = self.create_new_parent(communication, email)
 
 		if parent:
