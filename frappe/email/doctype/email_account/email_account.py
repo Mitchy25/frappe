@@ -427,12 +427,15 @@ class EmailAccount(Document):
 			self.set_sender_field_and_subject_field()
 
 		if not parent and self.append_to:
+			frappe.log_error("1")
 			parent = self.find_parent_based_on_subject_and_sender(communication, email)
 
 		if not parent and self.append_to and self.append_to!="Communication":
+			frappe.log_error("2")
 			parent = self.create_new_parent(communication, email)
 
 		if parent:
+			frappe.log_error("3")
 			communication.reference_doctype = parent.doctype
 			communication.reference_name = parent.name
 
@@ -460,9 +463,6 @@ class EmailAccount(Document):
 		'''Find parent document based on subject and sender match'''
 		parent = None
 		
-		frappe.log_error(self.append_to)
-		frappe.log_error(self.sender_field)
-		
 		#if self.append_to and self.sender_field:
 		if self.append_to:
 			if self.subject_field:
@@ -471,14 +471,12 @@ class EmailAccount(Document):
 				# append it to old coversation
 				subject = frappe.as_unicode(strip(re.sub(r"(^\s*(fw|fwd|wg)[^:]*:|\s*(re|aw)[^:]*:\s*)*",
 					"", email.subject, 0, flags=re.IGNORECASE)))
-				frappe.log_error(subject)
 
 				parent = frappe.db.get_all(self.append_to, filters={
 					#self.sender_field: email.from_email,
 					self.subject_field: ("like", "%{0}%".format(subject)),
 					"creation": (">", (get_datetime() - relativedelta(days=60)).strftime(DATE_FORMAT))
 				}, fields="name")
-				frappe.log_error(parent)
 
 				# match only subject field
 				# when the from_email is of a user in the system
@@ -491,6 +489,7 @@ class EmailAccount(Document):
 
 			if parent:
 				parent = frappe._dict(doctype=self.append_to, name=parent[0].name)
+				frappe.log_error(parent)
 				return parent
 
 	def create_new_parent(self, communication, email):
