@@ -492,6 +492,7 @@ class EmailAccount(Document):
 		# no parent found, but must be tagged
 		# insert parent type doc
 		parentValue = frappe.db.sql("SELECT c.name,cu.area_manager, u.email, dl.link_name FROM `tabContact` as c LEFT JOIN `tabDynamic Link` dl ON c.name = dl.parent LEFT JOIN `tabCustomer` cu ON cu.name = dl.link_name LEFT JOIN `tabUser` u ON u.full_name = cu.area_manager WHERE dl.parenttype = 'Contact' and c.email_id='" + email.from_email + "'")
+		frappe.log_error(parentValue)
 		if len(parentValue)>0:
 			parent = frappe.new_doc(self.append_to)
 			parent.set(self.subject_field, frappe.as_unicode(email.subject)[:140])
