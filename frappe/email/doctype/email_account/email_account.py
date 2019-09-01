@@ -440,6 +440,20 @@ class EmailAccount(Document):
 		if parent:
 			communication.reference_doctype = parent.doctype
 			communication.reference_name = parent.name
+			#Add Interaction
+			parentValue = frappe.db.sql("SELECT c.name,cu.area_manager, u.email, dl.link_name FROM `tabContact` as c LEFT JOIN `tabDynamic Link` dl ON c.name = dl.parent LEFT JOIN `tabCustomer` cu ON cu.name = dl.link_name LEFT JOIN `tabUser` u ON u.full_name = cu.area_manager WHERE dl.parenttype = 'Contact' and c.email_id='" + email.from_email + "'")
+			if len(parentValue)>0:
+				newInteraction = frappe.new_doc("Interactions")
+				newInteraction.set(self.subject_field, frappe.as_unicode(email.subject)[:140])
+				newInteraction.set('interaction_type', 'Email')
+				newInteraction.set('customer',parentValue[0][3])
+				newInteraction.set('contact',parentValue[0][0])
+				if parentValue[0][2] != "":
+					newInteraction.set('interaction_owner',parentValue[0][2])
+				try:
+					newInteraction.insert(ignore_permissions=True)
+				except frappe.DuplicateEntryError:
+					frappe.log_error("Email attaching error")
 
 		# check if message is notification and disable notifications for this message
 		isnotification = email.mail.get("isnotification")
@@ -516,14 +530,14 @@ class EmailAccount(Document):
 			parent.flags.ignore_mandatory = True
 
 			try:
-							parent.insert(ignore_permissions=True)
+				parent.insert(ignore_permissions=True)
 			except frappe.DuplicateEntryError:
-							# try and find matching parent
-							parent_name = frappe.db.get_value(self.append_to, {self.sender_field: email.from_email})
-							if parent_name:
-											parent.name = parent_name
-							else:
-											parent = None
+				# try and find matching parent
+				parent_name = frappe.db.get_value(self.append_to, {self.sender_field: email.from_email})
+				if parent_name:
+					parent.name = parent_name
+				else:
+					parent = None
 
 			# NOTE if parent isn't found and there's no subject match, it is likely that it is a new conversation thread and hence is_first = True
 			communication.is_first = True
