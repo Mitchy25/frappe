@@ -467,12 +467,14 @@ class EmailAccount(Document):
 				# append it to old coversation
 				subject = frappe.as_unicode(strip(re.sub(r"(^\s*(fw|fwd|wg)[^:]*:|\s*(re|aw)[^:]*:\s*)*",
 					"", email.subject, 0, flags=re.IGNORECASE)))
+				frappe.log_error(subject)
 
 				parent = frappe.db.get_all(self.append_to, filters={
-					self.sender_field: email.from_email,
+					#self.sender_field: email.from_email,
 					self.subject_field: ("like", "%{0}%".format(subject)),
 					"creation": (">", (get_datetime() - relativedelta(days=60)).strftime(DATE_FORMAT))
 				}, fields="name")
+				frappe.log_error(parent)
 
 				# match only subject field
 				# when the from_email is of a user in the system
