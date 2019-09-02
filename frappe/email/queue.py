@@ -66,8 +66,10 @@ def send(recipients=None, sender=None, subject=None, message=None, text_content=
 
 			try:
 				newInteraction = parent.insert(ignore_permissions=True)
-				
-	frappe.log_error(newInteraction)
+				frappe.log_error(newInteraction)
+			except:
+				frappe.log_error("Error")
+	
 	if newInteraction != None:
 		reference_doctype = "Interactions"
 		reference_name = newInteraction.name
