@@ -101,6 +101,7 @@ class EMail:
 		"""
 		from email.mime.text import MIMEText
 		part = MIMEText(message, 'plain', 'utf-8')
+		part['Subject'] = Header(message, 'utf-8')
 		self.msg_alternative.attach(part)
 
 	def set_part_html(self, message, inline_images):
@@ -116,6 +117,8 @@ class EMail:
 			msg_related = MIMEMultipart('related')
 
 			html_part = MIMEText(message, 'html', 'utf-8')
+			html_part['Subject'] = Header(message, 'utf-8')
+
 			msg_related.attach(html_part)
 
 			for image in _inline_images:
