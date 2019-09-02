@@ -427,7 +427,6 @@ class EmailAccount(Document):
 			self.set_sender_field_and_subject_field()
 
 		if not parent and self.append_to:
-			frappe.log_error("1")
 			parent = self.find_parent_based_on_subject_and_sender(communication, email)
 
 		if not parent and self.append_to and self.append_to!="Communication":
