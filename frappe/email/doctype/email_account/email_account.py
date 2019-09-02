@@ -416,12 +416,11 @@ class EmailAccount(Document):
 		"""Appends communication to parent based on thread ID. Will extract
 		parent communication and will link the communication to the reference of that
 		communication. Also set the status of parent transaction to Open or Replied.
-
 		If no thread id is found and `append_to` is set for the email account,
 		it will create a new parent transaction (e.g. Issue)"""
 		parent = None
 
-		#parent = self.find_parent_from_in_reply_to(communication, email)
+		parent = self.find_parent_from_in_reply_to(communication, email)
 
 		if not parent and self.append_to:
 			self.set_sender_field_and_subject_field()
@@ -459,9 +458,8 @@ class EmailAccount(Document):
 	def find_parent_based_on_subject_and_sender(self, communication, email):
 		'''Find parent document based on subject and sender match'''
 		parent = None
-		
-		#if self.append_to and self.sender_field:
-		if self.append_to:
+
+		if self.append_to and self.sender_field:
 			if self.subject_field:
 				# try and match by subject and sender
 				# if sent by same sender with same subject,
@@ -470,7 +468,7 @@ class EmailAccount(Document):
 					"", email.subject, 0, flags=re.IGNORECASE)))
 
 				parent = frappe.db.get_all(self.append_to, filters={
-					#self.sender_field: email.from_email,
+					self.sender_field: email.from_email,
 					self.subject_field: ("like", "%{0}%".format(subject)),
 					"creation": (">", (get_datetime() - relativedelta(days=60)).strftime(DATE_FORMAT))
 				}, fields="name")
@@ -490,47 +488,39 @@ class EmailAccount(Document):
 
 	def create_new_parent(self, communication, email):
 		'''If no parent found, create a new reference document'''
+
 		# no parent found, but must be tagged
 		# insert parent type doc
-		parentValue = frappe.db.sql("SELECT c.name,cu.area_manager, u.email, dl.link_name FROM `tabContact` as c LEFT JOIN `tabDynamic Link` dl ON c.name = dl.parent LEFT JOIN `tabCustomer` cu ON cu.name = dl.link_name LEFT JOIN `tabUser` u ON u.full_name = cu.area_manager WHERE dl.parenttype = 'Contact' and c.email_id='" + email.from_email + "'")
-		if len(parentValue)>0:
-			parent = frappe.new_doc(self.append_to)
+		parent = frappe.new_doc(self.append_to)
+
+		if self.subject_field:
 			parent.set(self.subject_field, frappe.as_unicode(email.subject)[:140])
-			parent.set('interaction_type', 'Email')
-			parent.set('customer',parentValue[0][3])
-			parent.set('contact',parentValue[0][0])
-			if parentValue[0][2] != "":
-				parent.set('interaction_owner',parentValue[0][2])
 
-			#if self.sender_field:
-			#             parent.set(self.sender_field, frappe.as_unicode(email.from_email))
+		if self.sender_field:
+			parent.set(self.sender_field, frappe.as_unicode(email.from_email))
 
-			#if parent.meta.has_field("email_account"):
-			#             parent.email_account = self.name						
+		if parent.meta.has_field("email_account"):
+			parent.email_account = self.name
 
-			parent.flags.ignore_mandatory = True
+		parent.flags.ignore_mandatory = True
 
-			try:
-				parent.insert(ignore_permissions=True)
-			except frappe.DuplicateEntryError:
-				# try and find matching parent
-				parent_name = frappe.db.get_value(self.append_to, {self.sender_field: email.from_email})
-				if parent_name:
-					parent.name = parent_name
-				else:
-					parent = None
+		try:
+			parent.insert(ignore_permissions=True)
+		except frappe.DuplicateEntryError:
+			# try and find matching parent
+			parent_name = frappe.db.get_value(self.append_to, {self.sender_field: email.from_email})
+			if parent_name:
+				parent.name = parent_name
+			else:
+				parent = None
 
-			# NOTE if parent isn't found and there's no subject match, it is likely that it is a new conversation thread and hence is_first = True
-			communication.is_first = True
-		else:
-			parent = ""
+		# NOTE if parent isn't found and there's no subject match, it is likely that it is a new conversation thread and hence is_first = True
+		communication.is_first = True
 
-		return parent 
-
+		return parent
 
 	def find_parent_from_in_reply_to(self, communication, email):
 		'''Returns parent reference if embedded in In-Reply-To header
-
 		Message-ID is formatted as `{message_id}@{site}`'''
 		parent = None
 		in_reply_to = (email.mail.get("In-Reply-To") or "").strip(" <>")
@@ -663,7 +653,6 @@ def get_append_to(doctype=None, txt=None, searchfield=None, start=None, page_len
 
 def test_internet(host="8.8.8.8", port=53, timeout=3):
 	"""Returns True if internet is connected
-
 	Host: 8.8.8.8 (google-public-dns-a.google.com)
 	OpenPort: 53/tcp
 	Service: domain (DNS/TCP)
@@ -725,7 +714,6 @@ def pull(now=False):
 				enqueue(pull_from_email_account, 'short', event='all', job_name=job_name,
 					email_account=email_account.name)
 
-@frappe.whitelist()
 def pull_from_email_account(email_account):
 	'''Runs within a worker process'''
 	email_account = frappe.get_doc("Email Account", email_account)
