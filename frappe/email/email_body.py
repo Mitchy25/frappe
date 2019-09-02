@@ -129,7 +129,8 @@ class EMail:
 
 			self.msg_alternative.attach(msg_related)
 		else:
-			self.msg_alternative.attach(MIMEText(message, 'html', 'utf-8'))
+			#self.msg_alternative.attach(MIMEText(message, 'html', 'utf-8'))
+			self.msg_alternative.attach(MIMEText(message, 'html'))
 
 	def set_html_as_text(self, html):
 		"""Set plain text from HTML"""
