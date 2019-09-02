@@ -321,8 +321,10 @@ def add_attachment(fname, fcontent, content_type=None,
 	if maintype == 'text':
 		# Note: we should handle calculating the charset
 		if isinstance(fcontent, text_type):
-			fcontent = fcontent.encode("utf-8")
-		part = MIMEText(fcontent, _subtype=subtype, _charset="utf-8")
+			#fcontent = fcontent.encode("utf-8")
+			fcontent = fcontent
+		#part = MIMEText(fcontent, _subtype=subtype, _charset="utf-8")
+		part = MIMEText(fcontent, _subtype=subtype)
 	elif maintype == 'image':
 		part = MIMEImage(fcontent, _subtype=subtype)
 	elif maintype == 'audio':
