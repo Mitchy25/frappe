@@ -69,6 +69,8 @@ def send(recipients=None, sender=None, subject=None, message=None, text_content=
 				frappe.log_error(newInteraction)
 			except:
 				frappe.log_error("Error")
+	else:
+		newInteraction == None:
 	
 	if newInteraction != None:
 		reference_doctype = "Interactions"
