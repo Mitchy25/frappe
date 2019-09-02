@@ -70,7 +70,7 @@ def send(recipients=None, sender=None, subject=None, message=None, text_content=
 			except:
 				frappe.log_error("Error")
 	else:
-		newInteraction == None:
+		newInteraction = None
 	
 	if newInteraction != None:
 		reference_doctype = "Interactions"
