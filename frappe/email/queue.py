@@ -48,10 +48,11 @@ def send(recipients=None, sender=None, subject=None, message=None, text_content=
 	:param header: Append header in email (boolean)
 	"""
 	
-	if reference_doctype == "Customer" or reference_doctype == "Interactions":
+	newInteraction = None
+	
+	if reference_doctype == "Customer":
 		#Create Interaction
 		parentValue = frappe.db.sql("SELECT c.name,cu.area_manager, u.email, dl.link_name FROM `tabContact` as c LEFT JOIN `tabDynamic Link` dl ON c.name = dl.parent LEFT JOIN `tabCustomer` cu ON cu.name = dl.link_name LEFT JOIN `tabUser` u ON u.full_name = cu.area_manager WHERE dl.parenttype = 'Contact' and cu.name ='" + reference_name + "'")
-		
 		frappe.log_error(parentValue)
 		if len(parentValue)>0:
 			parent = frappe.new_doc("Interactions")
@@ -69,12 +70,11 @@ def send(recipients=None, sender=None, subject=None, message=None, text_content=
 				frappe.log_error(newInteraction)
 			except:
 				frappe.log_error("Error")
-	else:
-		newInteraction = None
 	
 	if newInteraction != None:
 		reference_doctype = "Interactions"
 		reference_name = newInteraction.name
+			
 	
 	if not unsubscribe_method:
 		unsubscribe_method = "/api/method/frappe.email.queue.unsubscribe"
