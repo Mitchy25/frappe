@@ -24,7 +24,6 @@ def send(recipients=None, sender=None, subject=None, message=None, text_content=
 		queue_separately=False, is_notification=False, add_unsubscribe_link=1, inline_images=None,
 		header=None, print_letterhead=False):
 	"""Add email to sending queue (Email Queue)
-
 	:param recipients: List of recipients.
 	:param sender: Email sender.
 	:param subject: Email subject.
@@ -47,35 +46,6 @@ def send(recipients=None, sender=None, subject=None, message=None, text_content=
 	:param inline_images: List of inline images as {"filename", "filecontent"}. All src properties will be replaced with random Content-Id
 	:param header: Append header in email (boolean)
 	"""
-	
-	newInteraction = None
-	
-	if reference_doctype == "Customer":
-		#Create Interaction
-		parentValue = frappe.db.sql("SELECT c.name,cu.area_manager, u.email, dl.link_name FROM `tabContact` as c LEFT JOIN `tabDynamic Link` dl ON c.name = dl.parent LEFT JOIN `tabCustomer` cu ON cu.name = dl.link_name LEFT JOIN `tabUser` u ON u.full_name = cu.area_manager WHERE dl.parenttype = 'Contact' and cu.name ='" + reference_name + "'")
-		frappe.log_error(parentValue)
-		if len(parentValue)>0:
-			parent = frappe.new_doc("Interactions")
-			parent.set('subject', subject)
-			parent.set('interaction_type', 'Email')
-			parent.set('customer',parentValue[0][3])
-			parent.set('contact',parentValue[0][0])
-			if parentValue[0][2] != "":
-				parent.set('interaction_owner',parentValue[0][2])
-
-			parent.flags.ignore_mandatory = True
-
-			try:
-				newInteraction = parent.insert(ignore_permissions=True)
-				frappe.log_error(newInteraction)
-			except:
-				frappe.log_error("Error")
-	
-	if newInteraction != None:
-		reference_doctype = "Interactions"
-		reference_name = newInteraction.name
-			
-	
 	if not unsubscribe_method:
 		unsubscribe_method = "/api/method/frappe.email.queue.unsubscribe"
 
