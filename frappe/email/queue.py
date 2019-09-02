@@ -48,7 +48,7 @@ def send(recipients=None, sender=None, subject=None, message=None, text_content=
 	:param header: Append header in email (boolean)
 	"""
 	
-	if reference_doctype == "Customer":
+	if reference_doctype == "Customer" or reference_doctype == "Interactions":
 		#Create Interaction
 		parentValue = frappe.db.sql("SELECT c.name,cu.area_manager, u.email, dl.link_name FROM `tabContact` as c LEFT JOIN `tabDynamic Link` dl ON c.name = dl.parent LEFT JOIN `tabCustomer` cu ON cu.name = dl.link_name LEFT JOIN `tabUser` u ON u.full_name = cu.area_manager WHERE dl.parenttype = 'Contact' and cu.name ='" + reference_name + "'")
 		
