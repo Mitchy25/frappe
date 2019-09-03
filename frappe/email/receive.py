@@ -179,7 +179,7 @@ class EmailServer:
 
 			self.imap.select("Inbox", readonly=readonly)
 			response, message = self.imap.uid('search', None, self.settings.email_sync_rule)
-			frappe.log_error("Checking messages: " + str(response))
+			frappe.log_error("Checking messages: " + str(message))
 			if message[0]:
 				email_list =  message[0].split()
 		else:
@@ -190,7 +190,6 @@ class EmailServer:
 	def check_imap_uidvalidity(self):
 		# compare the UIDVALIDITY of email account and imap server
 		uid_validity = self.settings.uid_validity
-		frappe.log_error("Using Imap - Checking UID Validaity - " + str(uid_validity))
 
 		response, message = self.imap.status("Inbox", "(UIDVALIDITY UIDNEXT)")
 		current_uid_validity = self.parse_imap_response("UIDVALIDITY", message[0]) or 0
