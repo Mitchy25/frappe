@@ -97,13 +97,11 @@ class EmailServer:
 	def get_messages(self):
 		"""Returns new email messages in a list."""
 		if not self.check_mails():
-			frappe.log_error("Exit nothing to do")
 			return # nothing to do
 
 		frappe.db.commit()
 
 		if not self.connect():
-			frappe.log_error("Failed to connect")
 			return
 
 		uid_list = []
@@ -116,7 +114,6 @@ class EmailServer:
 			self.uid_reindexed = False
 
 			uid_list = email_list = self.get_new_mails()
-			frappe.log_error("Email list: " + str(uid_list))
 
 			if not email_list:
 				return
@@ -192,14 +189,20 @@ class EmailServer:
 	def check_imap_uidvalidity(self):
 		# compare the UIDVALIDITY of email account and imap server
 		uid_validity = self.settings.uid_validity
+		frappe.log_error("Using Imap - Checking UID Validaity - " + str(uid_validity))
 
 		response, message = self.imap.status("Inbox", "(UIDVALIDITY UIDNEXT)")
+		frappe.log_error("Using Imap - Checking Response - " + str(response))
 		current_uid_validity = self.parse_imap_response("UIDVALIDITY", message[0]) or 0
-
+		
+		frappe.log_error("Using Imap - Checking Current UID Validity - " + str(current_uid_validity))
+		
 		uidnext = int(self.parse_imap_response("UIDNEXT", message[0]) or "1")
+		frappe.log_error("Using Imap - Checking Next UID Validity - " + str(uidnext))
 		frappe.db.set_value("Email Account", self.settings.email_account, "uidnext", uidnext)
 
 		if not uid_validity or uid_validity != current_uid_validity:
+			frappe.log_error("Using Imap - Inside here")
 			# uidvalidity changed & all email uids are reindexed by server
 			frappe.db.sql(
 				"""update `tabCommunication` set uid=-1 where communication_medium='Email'
