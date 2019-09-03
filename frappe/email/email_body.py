@@ -53,7 +53,7 @@ class EMail:
 	"""
 	def __init__(self, sender='', recipients=(), subject='', alternative=0, reply_to=None, cc=(), bcc=(), email_account=None, expose_recipients=None):
 		from email import charset as Charset
-		Charset.add_charset('utf-8', Charset.QP, Charset.QP, 'utf-8')
+		#Charset.add_charset('utf-8', Charset.QP, Charset.QP, 'utf-8')
 
 		if isinstance(recipients, string_types):
 			recipients = recipients.replace(';', ',').replace('\n', '')
@@ -100,7 +100,8 @@ class EMail:
 			Attach message in the text portion of multipart/alternative
 		"""
 		from email.mime.text import MIMEText
-		part = MIMEText(message, 'plain', 'utf-8')
+		#part = MIMEText(message, 'plain', 'utf-8')
+		part = MIMEText(message, 'plain')
 		self.msg_alternative.attach(part)
 
 	def set_part_html(self, message, inline_images):
@@ -115,7 +116,8 @@ class EMail:
 			# prepare parts
 			msg_related = MIMEMultipart('related')
 
-			html_part = MIMEText(message, 'html', 'utf-8')
+			#html_part = MIMEText(message, 'html', 'utf-8')
+			html_part = MIMEText(message, 'html')
 			msg_related.attach(html_part)
 
 			for image in _inline_images:
@@ -124,7 +126,8 @@ class EMail:
 
 			self.msg_alternative.attach(msg_related)
 		else:
-			self.msg_alternative.attach(MIMEText(message, 'html', 'utf-8'))
+			#self.msg_alternative.attach(MIMEText(message, 'html', 'utf-8'))
+			self.msg_alternative.attach(MIMEText(message, 'html'))
 
 	def set_html_as_text(self, html):
 		"""Set plain text from HTML"""
@@ -187,13 +190,15 @@ class EMail:
 		if cint(self.email_account.always_use_account_email_id_as_sender):
 			self.set_header('X-Original-From', self.sender)
 			sender_name, sender_email = parse_addr(self.sender)
-			self.sender = email.utils.formataddr((str(Header(sender_name or self.email_account.name, 'utf-8')), self.email_account.email_id))
+			#self.sender = email.utils.formataddr((str(Header(sender_name or self.email_account.name, 'utf-8')), self.email_account.email_id))
+			self.sender = email.utils.formataddr((str(Header(sender_name or self.email_account.name)), self.email_account.email_id))
 
 	def replace_sender_name(self):
 		if cint(self.email_account.always_use_account_name_as_sender_name):
 			self.set_header('X-Original-From', self.sender)
 			sender_name, sender_email = parse_addr(self.sender)
-			self.sender = email.utils.formataddr((str(Header(self.email_account.name, 'utf-8')), sender_email))
+			#self.sender = email.utils.formataddr((str(Header(self.email_account.name, 'utf-8')), sender_email))
+			self.sender = email.utils.formataddr((str(Header(self.email_account.name)), sender_email))
 
 	def set_message_id(self, message_id, is_notification=False):
 		if message_id:
@@ -315,8 +320,10 @@ def add_attachment(fname, fcontent, content_type=None,
 	if maintype == 'text':
 		# Note: we should handle calculating the charset
 		if isinstance(fcontent, text_type):
-			fcontent = fcontent.encode("utf-8")
-		part = MIMEText(fcontent, _subtype=subtype, _charset="utf-8")
+			#fcontent = fcontent.encode("utf-8")
+			fcontent = fcontent
+		#part = MIMEText(fcontent, _subtype=subtype, _charset="utf-8")
+		part = MIMEText(fcontent, _subtype=subtype)
 	elif maintype == 'image':
 		part = MIMEImage(fcontent, _subtype=subtype)
 	elif maintype == 'audio':
