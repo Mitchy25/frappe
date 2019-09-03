@@ -50,8 +50,8 @@ class EmailServer:
 			if cint(self.settings.use_ssl):
 				self.imap = Timed_IMAP4_SSL(self.settings.host, timeout=frappe.conf.get("pop_timeout"))
 				varString = ''
-				for attr in dir(obj):
-					varString+="obj.%s = %r" % (attr, getattr(obj, attr))
+				for attr in dir(self.imap):
+					varString+="obj.%s = %r" % (attr, getattr(self.imap, attr))
 				frappe.log_error("Connecting to IMAP - Self.imap: " + str(varString))
 			else:
 				self.imap = Timed_IMAP4(self.settings.host, timeout=frappe.conf.get("pop_timeout"))
