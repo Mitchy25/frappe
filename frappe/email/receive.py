@@ -179,7 +179,6 @@ class EmailServer:
 
 			self.imap.select("Inbox", readonly=readonly)
 			response, message = self.imap.uid('search', None, self.settings.email_sync_rule)
-			frappe.log_error("Checking messages: " + str(message))
 			if message[0]:
 				email_list =  message[0].split()
 		else:
