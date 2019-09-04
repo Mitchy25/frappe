@@ -752,6 +752,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 	}
 
 	setup_events() {
+		console.log(this)
 		this.setup_filterable();
 		this.setup_list_click();
 		this.setup_tag_event();
