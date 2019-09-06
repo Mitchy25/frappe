@@ -506,7 +506,7 @@ def prepare_message(email, recipient, recipients_list):
 		message = message.replace("<!--recipient-->", recipient)
 
 	#message = (message and message.encode('utf8')) or ''
-	message = safe_decode(message)
+	#message = safe_decode(message)
 	if not email.attachments:
 		return message
 
