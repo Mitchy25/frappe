@@ -126,8 +126,6 @@ def send(recipients=None, sender=None, subject=None, message=None, text_content=
 		email_account=email_account, header=header,
 		unsubscribe_link=unsubscribe_link)
 
-	frappe.log_error(email_content)
-	frappe.log_error(email_text_context)
 	# add to queue
 	add(recipients, sender, subject,
 		formatted=email_content,
@@ -507,7 +505,7 @@ def prepare_message(email, recipient, recipients_list):
 
 		message = message.replace("<!--recipient-->", recipient)
 
-	message = (message and message.encode('utf8')) or ''
+	#message = (message and message.encode('utf8')) or ''
 	message = safe_decode(message)
 	if not email.attachments:
 		return message
