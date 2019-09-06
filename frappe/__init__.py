@@ -455,7 +455,7 @@ def sendmail(recipients=[], sender="", subject="No Subject", message="No Message
 
 	message = content or message
 	
-	frappe.log_error(message)
+	log_error(message)
 
 	if as_markdown:
 		message = frappe.utils.md_to_html(message)
