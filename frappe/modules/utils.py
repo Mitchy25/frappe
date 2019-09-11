@@ -240,6 +240,14 @@ def make_boilerplate(template, doc, opts=None):
 		if not opts:
 			opts = {}
 
+		base_class = 'Document'
+		base_class_import = 'from frappe.model.document import Document'
+		
+		#Override whilst there is an error with Reports
+		#if doc.is_tree:
+		#	base_class = 'NestedSet'
+		#	base_class_import = 'from frappe.utils.nestedset import NestedSet'
+
 		with open(target_file_path, 'w') as target:
 			with open(os.path.join(get_module_path("core"), "doctype", scrub(doc.doctype),
 				"boilerplate", template), 'r') as source:
@@ -248,5 +256,7 @@ def make_boilerplate(template, doc, opts=None):
 						app_publisher=app_publisher,
 						year=frappe.utils.nowdate()[:4],
 						classname=doc.name.replace(" ", ""),
+						base_class_import=base_class_import,
+						base_class=base_class,
 						doctype=doc.name, **opts)
 				))
