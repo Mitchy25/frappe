@@ -242,9 +242,11 @@ def make_boilerplate(template, doc, opts=None):
 
 		base_class = 'Document'
 		base_class_import = 'from frappe.model.document import Document'
-		if doc.is_tree:
-			base_class = 'NestedSet'
-			base_class_import = 'from frappe.utils.nestedset import NestedSet'
+		
+		#Override whilst there is an error with Reports
+		#if doc.is_tree:
+		#	base_class = 'NestedSet'
+		#	base_class_import = 'from frappe.utils.nestedset import NestedSet'
 
 		with open(target_file_path, 'w') as target:
 			with open(os.path.join(get_module_path("core"), "doctype", scrub(doc.doctype),

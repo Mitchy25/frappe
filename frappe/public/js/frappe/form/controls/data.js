@@ -122,10 +122,22 @@ frappe.ui.form.ControlData = frappe.ui.form.ControlInput.extend({
 			} else {
 				var invalid_email = false;
 				email_list.forEach(function(email) {
-					if (!validate_email(email)) {
-						frappe.msgprint(__("Invalid Email: {0}", [email]));
+					let email_address = '';
+					if (email.includes("<") && email.includes(">")){
+						let left = email.indexOf("<");
+						let right = email.indexOf(">");
+						email_address = email.substring(left+1, right);
+					}else {
+						email_address = email
+					}
+					if (!validate_email(email_address)) {
+						frappe.msgprint(__("Invalid Email: {0}", [email_address]));
 						invalid_email = true;
 					}
+					// if (!validate_email(email)) {
+					// 	frappe.msgprint(__("Invalid Email: {0}", [email]));
+					// 	invalid_email = true;
+					// }
 				});
 
 				if (invalid_email) {
