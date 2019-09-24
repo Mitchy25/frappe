@@ -190,8 +190,8 @@ class EMail:
 		if cint(self.email_account.always_use_account_email_id_as_sender):
 			self.set_header('X-Original-From', self.sender)
 			sender_name, sender_email = parse_addr(self.sender)
-			#self.sender = email.utils.formataddr((str(Header(sender_name or self.email_account.name, 'utf-8')), self.email_account.email_id))
-			self.sender = email.utils.formataddr((str(Header(sender_name or self.email_account.name)), self.email_account.email_id))
+			self.sender = email.utils.formataddr((str(Header(sender_name or self.email_account.name, 'utf-8')), self.email_account.email_id))
+			#self.sender = email.utils.formataddr((str(Header(sender_name or self.email_account.name)), self.email_account.email_id))
 
 	def replace_sender_name(self):
 		if cint(self.email_account.always_use_account_name_as_sender_name):
