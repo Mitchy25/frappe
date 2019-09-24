@@ -152,6 +152,7 @@ def get_default_outgoing_email_account(raise_exception_not_set=True):
 
 def _get_email_account(filters):
 	name = frappe.db.get_value("Email Account", filters)
+	frappe.log_error(filters)
 	frappe.log_error("Email returned: " + str(name))
 	return frappe.get_doc("Email Account", name) if name else None
 
