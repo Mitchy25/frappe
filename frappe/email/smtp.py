@@ -48,6 +48,8 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 	if not getattr(frappe.local, "outgoing_email_account", None):
 		frappe.local.outgoing_email_account = {}
 
+	frappe.log_error("Local stuff: " + str(frappe.local.outgoing_email_account.__dict__))
+
 	if not (frappe.local.outgoing_email_account.get(append_to)
 		or frappe.local.outgoing_email_account.get(sender_email_id)
 		or frappe.local.outgoing_email_account.get("default")):
@@ -80,6 +82,8 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 			email_account = _get_email_account({"enable_outgoing": 1, "email_id": sender_email_id})
 			frappe.log_error("SQL Result - Email Account: " + str(email_account.__dict__) + " Sender Email ID: " + str(sender_email_id))
 			
+			
+		frappe.log_error("Value of email_account: " +str(email_account.__dict__))
 		if not email_account:
 			# sender don't have the outging email account
 			sender_email_id = None
