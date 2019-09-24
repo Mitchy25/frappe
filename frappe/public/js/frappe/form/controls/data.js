@@ -123,7 +123,6 @@ frappe.ui.form.ControlData = frappe.ui.form.ControlInput.extend({
 				var invalid_email = false;
 				email_list.forEach(function(email) {
 					let email_address = '';
-					/*
 					if (email.includes("<") && email.includes(">")){
 						let left = email.indexOf("<");
 						let right = email.indexOf(">");
@@ -131,7 +130,6 @@ frappe.ui.form.ControlData = frappe.ui.form.ControlInput.extend({
 					}else {
 						email_address = email
 					}
-					*/
 					if (!validate_email(email_address)) {
 						frappe.msgprint(__("Invalid Email: {0}", [email_address]));
 						invalid_email = true;
