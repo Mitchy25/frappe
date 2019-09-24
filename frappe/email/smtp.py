@@ -169,7 +169,7 @@ class SMTPServer:
 			self.password = password
 
 		else:
-			self.setup_email_account(append_to)
+			self.setup_email_account(self,append_to)
 
 	def setup_email_account(self, append_to=None, sender=None):
 		if not sender:
