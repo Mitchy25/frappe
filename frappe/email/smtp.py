@@ -47,10 +47,6 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 	if not getattr(frappe.local, "outgoing_email_account", None):
 		frappe.local.outgoing_email_account = {}
 
-	frappe.log_error("Append to: " + str(frappe.local.outgoing_email_account.get(append_to)))
-	frappe.log_error("Sender email id : " + str(frappe.local.outgoing_email_account.get(sender_email_id)))
-	frappe.log_error("Default: " + str(frappe.local.outgoing_email_account.get("default")))
-
 	if not (frappe.local.outgoing_email_account.get(append_to)
 		or frappe.local.outgoing_email_account.get(sender_email_id)
 		or frappe.local.outgoing_email_account.get("default")):
@@ -76,18 +72,14 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 					"append_to": append_to
 				})
 
-		frappe.log_error("Email Account:" + str(email_account))
-		frappe.log_error("Sender Email ID: "  + str(sender_email_id))
 		if not email_account and sender_email_id:
 			# check if the sender has email account with enable_outgoing
 			email_account = _get_email_account({"enable_outgoing": 1, "email_id": sender_email_id})
-			
-		frappe.log_error("Value of email_account: " +str(email_account))
+
 		if not email_account:
 			# sender don't have the outging email account
 			sender_email_id = None
 			email_account = get_default_outgoing_email_account(raise_exception_not_set=raise_exception_not_set)
-			frappe.log_error("Defaulted to: " + str(email_account.__dict__))
 		if not email_account and raise_exception_not_set and cint(frappe.db.get_single_value('System Settings', 'setup_complete')):
 			frappe.throw(_("Please setup default Email Account from Setup > Email > Email Account"),
 				frappe.OutgoingEmailError)
@@ -156,8 +148,6 @@ def get_default_outgoing_email_account(raise_exception_not_set=True):
 
 def _get_email_account(filters):
 	name = frappe.db.get_value("Email Account", filters)
-	frappe.log_error(filters)
-	frappe.log_error("Email returned: " + str(name))
 	return frappe.get_doc("Email Account", name) if name else None
 
 class SMTPServer:
@@ -180,7 +170,6 @@ class SMTPServer:
 	def setup_email_account(self, append_to=None, sender=None):
 		#self.email_account = get_outgoing_email_account(raise_exception_not_set=False, append_to=append_to, sender=sender)
 		self.email_account = get_outgoing_email_account(raise_exception_not_set=False, sender=sender)
-		frappe.log_error("Outgoing Email Account: " + str(self.email_account.__dict__))
 		if self.email_account:
 			self.server = self.email_account.smtp_server
 			self.login = (getattr(self.email_account, "login_id", None) or self.email_account.email_id)
