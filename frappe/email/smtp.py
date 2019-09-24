@@ -64,6 +64,8 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 				#"append_to": append_to,
 				"email_id": sender_email_id
 			})
+			
+			frappe.log_error("email account is: " +str(email_account))
 
 			# else find the first Email Account with append_to
 			if not email_account:
@@ -96,8 +98,8 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 			email_account.default_sender = email.utils.formataddr((email_account.name, email_account.get("email_id")))
 
 		frappe.local.outgoing_email_account[append_to or sender_email_id or "default"] = email_account
+		frappe.log_error("Testing: " + str(frappe.local.outgoing_email_account[append_to or sender_email_id or "default"]))
 	
-	frappe.log_error(frappe.local.outgoing_email_account.get(sender_email_id))
 	return frappe.local.outgoing_email_account.get(append_to) \
 		or frappe.local.outgoing_email_account.get(sender_email_id) \
 		or frappe.local.outgoing_email_account.get("default")
