@@ -124,8 +124,9 @@ def send(recipients=None, sender=None, subject=None, message=None, text_content=
 	email_content = get_formatted_html(subject, message,
 		email_account=email_account, header=header,
 		unsubscribe_link=unsubscribe_link)
-		
-	frappe.log_error(email_account)
+
+	for attr in dir(email_account):
+		frappe.log_error("emailAccount.%s = %r" % (attr, getattr(email_account, attr)))
 	
 	# add to queue
 	add(recipients, sender, subject,
