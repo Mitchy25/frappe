@@ -172,7 +172,8 @@ class SMTPServer:
 			self.setup_email_account(append_to)
 
 	def setup_email_account(self, append_to=None, sender=None):
-		self.email_account = get_outgoing_email_account(raise_exception_not_set=False, append_to=append_to, sender=sender)
+		#self.email_account = get_outgoing_email_account(raise_exception_not_set=False, append_to=append_to, sender=sender)
+		self.email_account = get_outgoing_email_account(raise_exception_not_set=False, sender=sender)
 		frappe.log_error("Outgoing Email Account: " + str(self.email_account.__dict__))
 		if self.email_account:
 			self.server = self.email_account.smtp_server
