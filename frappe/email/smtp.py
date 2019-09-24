@@ -60,8 +60,8 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 			# narrow it down based on email_id
 			email_account = _get_email_account({
 				"enable_outgoing": 1,
-				"enable_incoming": 1,
-				"append_to": append_to,
+				#"enable_incoming": 1,
+				#"append_to": append_to,
 				"email_id": sender_email_id
 			})
 
