@@ -124,9 +124,6 @@ def send(recipients=None, sender=None, subject=None, message=None, text_content=
 	email_content = get_formatted_html(subject, message,
 		email_account=email_account, header=header,
 		unsubscribe_link=unsubscribe_link)
-
-	for attr in dir(email_account):
-		frappe.log_error("emailAccount.%s = %r" % (attr, getattr(email_account, attr)))
 	
 	# add to queue
 	add(recipients, sender, subject,
@@ -364,6 +361,9 @@ def get_queue():
 
 def send_one(email, smtpserver=None, auto_commit=True, now=False, from_test=False):
 	'''Send Email Queue with given smtpserver'''
+
+	frappe.log_error(smtpserver)
+	frappe.log_error(email)
 
 	email = frappe.db.sql('''select
 			name, status, communication, message, sender, reference_doctype,
