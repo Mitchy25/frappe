@@ -397,7 +397,6 @@ def send_one(email, smtpserver=None, auto_commit=True, now=False, from_test=Fals
 	try:
 		if not frappe.flags.in_test:
 			if not smtpserver: smtpserver = SMTPServer(sender=email.sender)
-			frappe.log_error("Here is the sender is: " + email.sender)
 			smtpserver.setup_email_account(email.reference_doctype, sender=email.sender)
 
 		for recipient in recipients_list:
@@ -478,7 +477,6 @@ def prepare_message(email, recipient, recipients_list):
 		return ""
 
 	# Parse "Email Account" from "Email Sender"
-	frappe.log_error("Prepare - Email Sender: " + str(email.sender))
 	email_account = get_outgoing_email_account(raise_exception_not_set=False, sender=email.sender)
 	if frappe.conf.use_ssl and email_account.track_email_status:
 		# Using SSL => Publically available domain => Email Read Reciept Possible
