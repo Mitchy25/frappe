@@ -65,7 +65,7 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 				"email_id": sender_email_id
 			})
 			
-			frappe.log_error("email account is: " +str(email_account))
+			frappe.log_error("email account is: " +str(email_account.__dict__))
 
 			# else find the first Email Account with append_to
 			if not email_account:
