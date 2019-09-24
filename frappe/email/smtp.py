@@ -168,7 +168,7 @@ class SMTPServer:
 			self.password = password
 
 		else:
-			self.setup_email_account(self,append_to)
+			self.setup_email_account(append_to)
 
 	def setup_email_account(self, append_to=None, sender=None):
 		self.email_account = get_outgoing_email_account(raise_exception_not_set=False, append_to=append_to, sender=sender)
