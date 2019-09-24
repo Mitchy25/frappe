@@ -339,7 +339,7 @@ def flush(from_test=False):
 		if email.name:
 			smtpserver = smtpserver_dict.get(email.sender)
 			if not smtpserver:
-				smtpserver = SMTPServer()
+				smtpserver = SMTPServer(sender=email.sender)
 				smtpserver_dict[email.sender] = smtpserver
 
 			send_one(email.name, smtpserver, auto_commit, from_test=from_test)
