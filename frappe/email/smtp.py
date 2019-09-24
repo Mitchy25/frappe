@@ -40,7 +40,8 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 		outgoing account. If default outgoing account is not found, it will
 		try getting settings from `site_config.json`."""
 
-	frappe.throw("Append_To: " + str(append_to) + " and Sender: " + str(sender))
+	if not sender:
+		frappe.throw("Append_To: " + str(append_to) + " and Sender: " + str(sender))
 	sender_email_id = None
 	if sender:
 		sender_email_id = parse_addr(sender)[1]
