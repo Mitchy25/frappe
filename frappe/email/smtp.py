@@ -48,7 +48,8 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 	if not getattr(frappe.local, "outgoing_email_account", None):
 		frappe.local.outgoing_email_account = {}
 
-	frappe.log_error("Local stuff: " + str(frappe.local.outgoing_email_account.__dict__))
+	for attr in dir(frappe.local.outgoing_email_account):
+		frappe.log_error("obj.%s = %r" % (attr, getattr(frappe.local.outgoing_email_account, attr)))
 
 	if not (frappe.local.outgoing_email_account.get(append_to)
 		or frappe.local.outgoing_email_account.get(sender_email_id)
