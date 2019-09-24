@@ -197,8 +197,8 @@ class EMail:
 		if cint(self.email_account.always_use_account_name_as_sender_name):
 			self.set_header('X-Original-From', self.sender)
 			sender_name, sender_email = parse_addr(self.sender)
-			#self.sender = email.utils.formataddr((str(Header(self.email_account.name, 'utf-8')), sender_email))
-			self.sender = email.utils.formataddr((str(Header(self.email_account.name)), sender_email))
+			self.sender = email.utils.formataddr((str(Header(self.email_account.name, 'utf-8')), sender_email))
+			#self.sender = email.utils.formataddr((str(Header(self.email_account.name)), sender_email))
 
 	def set_message_id(self, message_id, is_notification=False):
 		if message_id:
