@@ -335,8 +335,12 @@ def flush(from_test=False):
 		if cint(frappe.defaults.get_defaults().get("hold_queue"))==1:
 			break
 
+		frappe.log_error("Email " + str(email))
+		frappe.log_error("EmailName " + str(email.name))
+
 		if email.name:
 			smtpserver = smtpserver_dict.get(email.sender)
+			frappe.log_error("SMTP " + str(smtpserver))
 			if not smtpserver:
 				smtpserver = SMTPServer()
 				smtpserver_dict[email.sender] = smtpserver
