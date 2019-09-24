@@ -52,8 +52,8 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 	frappe.log_error("Default: " + str(frappe.local.outgoing_email_account.get("default")))
 
 	if not (frappe.local.outgoing_email_account.get(append_to)
-		or frappe.local.outgoing_email_account.get(sender_email_id))
-		or frappe.local.outgoing_email_account.get("default"):
+		or frappe.local.outgoing_email_account.get(sender_email_id)
+		or frappe.local.outgoing_email_account.get("default")):
 		email_account = None
 
 		if append_to:
