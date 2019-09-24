@@ -53,7 +53,9 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 	for attr in dir(frappe.local.outgoing_email_account.get):
 		stringValue += ("obj.%s = %r \n" % (attr, getattr(frappe.local.outgoing_email_account.get, attr)))
 
-	frappe.log_error(stringValue)
+	frappe.log_error("Append to: " + str(frappe.local.outgoing_email_account.get(append_to)))
+	frappe.log_error("Sender email id : " + str(frappe.local.outgoing_email_account.get(sender_email_id)))
+	frappe.log_error("Default: " + str(frappe.local.outgoing_email_account.get("default")))
 
 	if not (frappe.local.outgoing_email_account.get(append_to)
 		or frappe.local.outgoing_email_account.get(sender_email_id)
