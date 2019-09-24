@@ -363,9 +363,6 @@ def get_queue():
 def send_one(email, smtpserver=None, auto_commit=True, now=False, from_test=False):
 	'''Send Email Queue with given smtpserver'''
 
-	frappe.log_error(smtpserver)
-	frappe.log_error(email)
-
 	email = frappe.db.sql('''select
 			name, status, communication, message, sender, reference_doctype,
 			reference_name, unsubscribe_param, unsubscribe_method, expose_recipients,
@@ -400,7 +397,6 @@ def send_one(email, smtpserver=None, auto_commit=True, now=False, from_test=Fals
 	try:
 		if not frappe.flags.in_test:
 			if not smtpserver: smtpserver = SMTPServer()
-			frappe.log_error("The sender is: " +str(email.sender))
 			smtpserver.setup_email_account(email.reference_doctype, sender=email.sender)
 
 		for recipient in recipients_list:
@@ -411,7 +407,6 @@ def send_one(email, smtpserver=None, auto_commit=True, now=False, from_test=Fals
 			if not frappe.flags.in_test:
 				#smtpserver.sess.sendmail(email.sender, recipient.recipient, encode(message))
 				smtpserver.sess.sendmail(email.sender, recipient.recipient, message)
-				frappe.log_error("Sender is: " + str(email.sender))
 				
 			recipient.status = "Sent"
 			frappe.db.sql("""update `tabEmail Queue Recipient` set status='Sent', modified=%s where name=%s""",
@@ -482,7 +477,7 @@ def prepare_message(email, recipient, recipients_list):
 		return ""
 
 	# Parse "Email Account" from "Email Sender"
-	frappe.log_error("Prepare - Email Sender: " + str(email.sender.__dict__))
+	frappe.log_error("Prepare - Email Sender: " + str(email.sender))
 	email_account = get_outgoing_email_account(raise_exception_not_set=False, sender=email.sender)
 	if frappe.conf.use_ssl and email_account.track_email_status:
 		# Using SSL => Publically available domain => Email Read Reciept Possible
