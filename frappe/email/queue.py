@@ -482,6 +482,7 @@ def prepare_message(email, recipient, recipients_list):
 		return ""
 
 	# Parse "Email Account" from "Email Sender"
+	frappe.log_error("Prepare - Email Sender: " + str(email.sender.__dict__))
 	email_account = get_outgoing_email_account(raise_exception_not_set=False, sender=email.sender)
 	if frappe.conf.use_ssl and email_account.track_email_status:
 		# Using SSL => Publically available domain => Email Read Reciept Possible
