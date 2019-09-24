@@ -40,8 +40,6 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 		outgoing account. If default outgoing account is not found, it will
 		try getting settings from `site_config.json`."""
 
-	if not sender:
-		frappe.throw("Append_To: " + str(append_to) + " and Sender: " + str(sender))
 	sender_email_id = None
 	if sender:
 		sender_email_id = parse_addr(sender)[1]
@@ -97,7 +95,8 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 			email_account.default_sender = email.utils.formataddr((email_account.name, email_account.get("email_id")))
 
 		frappe.local.outgoing_email_account[append_to or sender_email_id or "default"] = email_account
-
+	
+	frappe.log_error(frappe.local.outgoing_email_account.get(sender_email_id))
 	return frappe.local.outgoing_email_account.get(append_to) \
 		or frappe.local.outgoing_email_account.get(sender_email_id) \
 		or frappe.local.outgoing_email_account.get("default")
@@ -172,8 +171,6 @@ class SMTPServer:
 			self.setup_email_account(self,append_to)
 
 	def setup_email_account(self, append_to=None, sender=None):
-		if not sender:
-			frappe.throw("Sender is blank")
 		self.email_account = get_outgoing_email_account(raise_exception_not_set=False, append_to=append_to, sender=sender)
 		frappe.log_error("Outgoing Email Account: " + str(self.email_account.__dict__))
 		if self.email_account:
