@@ -48,6 +48,8 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 	if not getattr(frappe.local, "outgoing_email_account", None):
 		frappe.local.outgoing_email_account = {}
 
+	stringValue = ''
+
 	for attr in dir(frappe.local.outgoing_email_account):
 		stringValue += ("obj.%s = %r \n" % (attr, getattr(frappe.local.outgoing_email_account, attr)))
 
