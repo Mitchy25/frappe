@@ -125,7 +125,7 @@ def send(recipients=None, sender=None, subject=None, message=None, text_content=
 		email_account=email_account, header=header,
 		unsubscribe_link=unsubscribe_link)
 		
-	frappe.errprint(email_account)
+	frappe.log_error(email_account)
 	
 	# add to queue
 	add(recipients, sender, subject,
