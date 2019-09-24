@@ -50,8 +50,8 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 
 	stringValue = ''
 
-	for attr in dir(frappe.local.outgoing_email_account.get):
-		stringValue += ("obj.%s = %r \n" % (attr, getattr(frappe.local.outgoing_email_account.get, attr)))
+	for attr in dir(frappe.local.outgoing_email_account.items):
+		stringValue += ("obj.%s = %r \n" % (attr, getattr(frappe.local.outgoing_email_account.items, attr)))
 
 	frappe.log_error(stringValue)
 
