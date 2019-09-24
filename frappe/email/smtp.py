@@ -83,7 +83,7 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 			frappe.log_error("SQL Result - Email Account: " + str(email_account.__dict__) + " Sender Email ID: " + str(sender_email_id))
 			
 			
-		frappe.log_error("Value of email_account: " +str(email_account.__dict__))
+		frappe.log_error("Value of email_account: " +str(email_account))
 		if not email_account:
 			# sender don't have the outging email account
 			sender_email_id = None
