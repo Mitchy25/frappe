@@ -176,6 +176,7 @@ class SMTPServer:
 		frappe.log_error("Outgoing Email Account: " + str(get_outgoing_email_account(raise_exception_not_set=False, append_to=append_to, sender=sender)))
 		if self.email_account:
 			self.server = self.email_account.smtp_server
+			frappe.log_error("Server: " +str(self.email_account.smtp_server))
 			self.login = (getattr(self.email_account, "login_id", None) or self.email_account.email_id)
 			if not self.email_account.no_smtp_authentication:
 				if self.email_account.ascii_encode_password:
