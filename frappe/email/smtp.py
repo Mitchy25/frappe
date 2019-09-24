@@ -43,7 +43,8 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 	sender_email_id = None
 	if sender:
 		sender_email_id = parse_addr(sender)[1]
-
+		frappe.log_error("This should not be blank!: " + str(sender_email_id))
+	
 	if not getattr(frappe.local, "outgoing_email_account", None):
 		frappe.local.outgoing_email_account = {}
 
