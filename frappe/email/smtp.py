@@ -43,7 +43,7 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 	sender_email_id = None
 	if sender:
 		sender_email_id = parse_addr(sender)[1]
-
+	
 	if not getattr(frappe.local, "outgoing_email_account", None):
 		frappe.local.outgoing_email_account = {}
 
@@ -80,7 +80,6 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 			# sender don't have the outging email account
 			sender_email_id = None
 			email_account = get_default_outgoing_email_account(raise_exception_not_set=raise_exception_not_set)
-
 		if not email_account and raise_exception_not_set and cint(frappe.db.get_single_value('System Settings', 'setup_complete')):
 			frappe.throw(_("Please setup default Email Account from Setup > Email > Email Account"),
 				frappe.OutgoingEmailError)
@@ -94,7 +93,7 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 			email_account.default_sender = email.utils.formataddr((email_account.name, email_account.get("email_id")))
 
 		frappe.local.outgoing_email_account[append_to or sender_email_id or "default"] = email_account
-
+	
 	return frappe.local.outgoing_email_account.get(append_to) \
 		or frappe.local.outgoing_email_account.get(sender_email_id) \
 		or frappe.local.outgoing_email_account.get("default")
@@ -152,7 +151,7 @@ def _get_email_account(filters):
 	return frappe.get_doc("Email Account", name) if name else None
 
 class SMTPServer:
-	def __init__(self, login=None, password=None, server=None, port=None, use_tls=None, append_to=None):
+	def __init__(self, login=None, password=None, server=None, port=None, use_tls=None, append_to=None, sender=None):
 		# get defaults from mail settings
 
 		self._sess = None
@@ -166,10 +165,11 @@ class SMTPServer:
 			self.password = password
 
 		else:
-			self.setup_email_account(append_to)
+			self.setup_email_account(append_to,sender=sender)
 
 	def setup_email_account(self, append_to=None, sender=None):
-		self.email_account = get_outgoing_email_account(raise_exception_not_set=False, append_to=append_to, sender=sender)
+		#self.email_account = get_outgoing_email_account(raise_exception_not_set=False, append_to=append_to, sender=sender)
+		self.email_account = get_outgoing_email_account(raise_exception_not_set=False, sender=sender)
 		if self.email_account:
 			self.server = self.email_account.smtp_server
 			self.login = (getattr(self.email_account, "login_id", None) or self.email_account.email_id)

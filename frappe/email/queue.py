@@ -124,7 +124,7 @@ def send(recipients=None, sender=None, subject=None, message=None, text_content=
 	email_content = get_formatted_html(subject, message,
 		email_account=email_account, header=header,
 		unsubscribe_link=unsubscribe_link)
-
+	
 	# add to queue
 	add(recipients, sender, subject,
 		formatted=email_content,
@@ -319,6 +319,7 @@ def return_unsubscribed_page(email, doctype, name):
 		_("{0} has left the conversation in {1} {2}").format(email, _(doctype), name),
 		indicator_color='green')
 
+@frappe.whitelist()
 def flush(from_test=False):
 	"""flush email queue, every time: called from scheduler"""
 	# additional check
@@ -338,7 +339,7 @@ def flush(from_test=False):
 		if email.name:
 			smtpserver = smtpserver_dict.get(email.sender)
 			if not smtpserver:
-				smtpserver = SMTPServer()
+				smtpserver = SMTPServer(sender=email.sender)
 				smtpserver_dict[email.sender] = smtpserver
 
 			send_one(email.name, smtpserver, auto_commit, from_test=from_test)
@@ -395,7 +396,7 @@ def send_one(email, smtpserver=None, auto_commit=True, now=False, from_test=Fals
 
 	try:
 		if not frappe.flags.in_test:
-			if not smtpserver: smtpserver = SMTPServer()
+			if not smtpserver: smtpserver = SMTPServer(sender=email.sender)
 			smtpserver.setup_email_account(email.reference_doctype, sender=email.sender)
 
 		for recipient in recipients_list:
@@ -406,7 +407,7 @@ def send_one(email, smtpserver=None, auto_commit=True, now=False, from_test=Fals
 			if not frappe.flags.in_test:
 				#smtpserver.sess.sendmail(email.sender, recipient.recipient, encode(message))
 				smtpserver.sess.sendmail(email.sender, recipient.recipient, message)
-
+				
 			recipient.status = "Sent"
 			frappe.db.sql("""update `tabEmail Queue Recipient` set status='Sent', modified=%s where name=%s""",
 				(now_datetime(), recipient.name), auto_commit=auto_commit)
