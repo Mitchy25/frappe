@@ -143,6 +143,7 @@ class AutoEmailReport(Document):
 		self.filters[self.to_date_field] = to_date
 
 	def send(self):
+		self.validate()
 		if self.filter_meta and not self.filters:
 			frappe.throw(_("Please set filters value in Report Filter table."))
 
@@ -194,7 +195,6 @@ def send_now(name):
 	'''Send Auto Email report now'''
 	auto_email_report = frappe.get_doc('Auto Email Report', name)
 	auto_email_report.check_permission()
-	auto_email_report.validate()
 	auto_email_report.send()
 
 def send_daily():
