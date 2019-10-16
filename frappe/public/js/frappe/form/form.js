@@ -861,9 +861,10 @@ frappe.ui.form.Form = class FrappeForm {
 		new frappe.views.CommunicationComposer({
 			doc: this.doc,
 			frm: this,
-			subject: __(this.meta.name) + ': ' + this.docname,
+			//subject: __(this.meta.name) + ': ' + this.docname,
+			subject:'',
 			recipients: this.doc.email || this.doc.email_id || this.doc.contact_email,
-			attach_document_print: true,
+			attach_document_print: false,
 			message: message,
 			real_name: this.doc.real_name || this.doc.contact_display || this.doc.contact_name
 		});

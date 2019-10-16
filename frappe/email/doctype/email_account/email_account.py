@@ -417,7 +417,6 @@ class EmailAccount(Document):
 		"""Appends communication to parent based on thread ID. Will extract
 		parent communication and will link the communication to the reference of that
 		communication. Also set the status of parent transaction to Open or Replied.
-
 		If no thread id is found and `append_to` is set for the email account,
 		it will create a new parent transaction (e.g. Issue)"""
 		parent = None
@@ -523,7 +522,6 @@ class EmailAccount(Document):
 
 	def find_parent_from_in_reply_to(self, communication, email):
 		'''Returns parent reference if embedded in In-Reply-To header
-
 		Message-ID is formatted as `{message_id}@{site}`'''
 		parent = None
 		in_reply_to = (email.mail.get("In-Reply-To") or "").strip(" <>")
@@ -656,7 +654,6 @@ def get_append_to(doctype=None, txt=None, searchfield=None, start=None, page_len
 
 def test_internet(host="8.8.8.8", port=53, timeout=3):
 	"""Returns True if internet is connected
-
 	Host: 8.8.8.8 (google-public-dns-a.google.com)
 	OpenPort: 53/tcp
 	Service: domain (DNS/TCP)
@@ -718,6 +715,7 @@ def pull(now=False):
 				enqueue(pull_from_email_account, 'short', event='all', job_name=job_name,
 					email_account=email_account.name)
 
+@frappe.whitelist()
 def pull_from_email_account(email_account):
 	'''Runs within a worker process'''
 	email_account = frappe.get_doc("Email Account", email_account)
