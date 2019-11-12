@@ -35,7 +35,6 @@ def load_address_and_contact(doc, key=None):
 		["Dynamic Link", "link_doctype", "=", doc.doctype],
 		["Dynamic Link", "link_name", "=", doc.name],
 		["Dynamic Link", "parenttype", "=", "Contact"],
-		["Contact","disabled","=", "0"]
 	]
 	contact_list = frappe.get_all("Contact", filters=filters, fields=["*"])
 
