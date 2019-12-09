@@ -287,12 +287,6 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 	refresh() {
 		this.toggle_message(true);
 		let filters = this.get_filter_values(true);
-		let query = frappe.utils.get_query_string(frappe.get_route_str());
-
-		if(query) {
-			let obj = frappe.utils.get_query_params(query);
-			filters = Object.assign(filters || {}, obj);
-		}
 
 		// only one refresh at a time
 		if (this.last_ajax) {
@@ -457,7 +451,7 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 			this.datatable.refresh(data, this.columns);
 		} else {
 			let datatable_options = {
-				columns: this.columns,
+				columns: this.columns.filter((col) => !col.hidden),
 				data: data,
 				inlineFilters: true,
 				treeView: this.tree_report,
@@ -859,17 +853,20 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		const landscape = print_settings.orientation == 'Landscape';
 
 		const custom_format = this.report_settings.html_format || null;
+		const columns = this.get_columns_for_print(print_settings, custom_format);
 		const data = this.get_data_for_print();
 		const applied_filters = this.get_filter_values();
 
 		const filters_html = this.get_filters_html_for_print();
-		const content = frappe.render_template(print_settings.columns ? 'print_grid' : custom_format, {
+		const template =
+			print_settings.columns || !custom_format ? 'print_grid' : custom_format;
+		const content = frappe.render_template(template, {
 			title: __(this.report_name),
 			subtitle: filters_html,
 			filters: applied_filters,
 			data: data,
 			original_data: this.data,
-			columns: this.get_columns_for_print(print_settings, custom_format),
+			columns: columns,
 			report: this
 		});
 
@@ -978,12 +975,15 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 				return this.data[index];
 			}
 		}).filter(Boolean);
-		let totalRow = this.datatable.bodyRenderer.getTotalRow().reduce((row, cell) => {
-			row[cell.column.id] = cell.content;
-			return row;
-		}, {});
 
-		rows.push(totalRow);
+		if (this.raw_data.add_total_row) {
+			let totalRow = this.datatable.bodyRenderer.getTotalRow().reduce((row, cell) => {
+				row[cell.column.id] = cell.content;
+				return row;
+			}, {});
+
+			rows.push(totalRow);
+		}
 		return rows;
 	}
 
