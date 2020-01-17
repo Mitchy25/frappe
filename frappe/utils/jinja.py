@@ -125,9 +125,6 @@ def set_filters(jenv):
 	jenv.filters["flt"] = flt
 	jenv.filters["abs_url"] = abs_url
 
-<<<<<<< HEAD
-	if frappe.flags.in_setup_help: return
-=======
 	if frappe.flags.in_setup_help:
 		return
 
@@ -152,4 +149,3 @@ def get_jenv_customization(customization_type):
 		out[fn_name] = frappe.get_attr(fn_string)
 
 	return out
->>>>>>> 3dc3bd2be7ea09f887de10a502aeff6dbf9949a6
