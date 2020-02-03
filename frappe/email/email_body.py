@@ -117,7 +117,7 @@ class EMail:
 			msg_related = MIMEMultipart('related')
 
 			html_part = MIMEText(message, 'html', 'utf-8')
-			# html_part = MIMEText(message, 'html')
+
 			msg_related.attach(html_part)
 
 			for image in _inline_images:
@@ -126,8 +126,7 @@ class EMail:
 
 			self.msg_alternative.attach(msg_related)
 		else:
-			#self.msg_alternative.attach(MIMEText(message, 'html', 'utf-8'))
-			self.msg_alternative.attach(MIMEText(message, 'html'))
+			self.msg_alternative.attach(MIMEText(message, 'html', 'utf-8'))
 
 	def set_html_as_text(self, html):
 		"""Set plain text from HTML"""
