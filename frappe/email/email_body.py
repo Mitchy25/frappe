@@ -100,8 +100,8 @@ class EMail:
 			Attach message in the text portion of multipart/alternative
 		"""
 		from email.mime.text import MIMEText
-		#part = MIMEText(message, 'plain', 'utf-8')
-		part = MIMEText(message, 'plain')
+		part = MIMEText(message, 'plain', 'utf-8')
+		# part = MIMEText(message, 'plain')
 		self.msg_alternative.attach(part)
 
 	def set_part_html(self, message, inline_images):
@@ -319,8 +319,8 @@ def add_attachment(fname, fcontent, content_type=None,
 	if maintype == 'text':
 		# Note: we should handle calculating the charset
 		if isinstance(fcontent, text_type):
-			#fcontent = fcontent.encode("utf-8")
-			fcontent = fcontent
+			fcontent = fcontent.encode("utf-8")
+			# fcontent = fcontent
 		#part = MIMEText(fcontent, _subtype=subtype, _charset="utf-8")
 		part = MIMEText(fcontent, _subtype=subtype)
 	elif maintype == 'image':
