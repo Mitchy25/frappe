@@ -224,7 +224,7 @@ frappe.search.SearchDialog = Class.extend({
 			me.add_section_to_summary(set.title, set.results);
 			me.full_lists[set.title] = me.render_full_list(set.title, set.results, set.fetch_type);
 		});
-
+		
 		if(result_sets.length > 1) {
 			$sidebar.prepend($(__(sidebar_item_html, ["All Results"])));
 		}
@@ -289,7 +289,7 @@ frappe.search.SearchDialog = Class.extend({
 
 	render_result: function(type, result) {
 		var $result = $('<div class="result '+ type +'-result"></div>');
-
+		
 		function get_link(result) {
 			var link;
 			if(result.route) {
@@ -325,6 +325,9 @@ frappe.search.SearchDialog = Class.extend({
 			$result_text.append('<p class="small">'+ result.description +'</p>');
 		} else {
 			$result_text.append($(title_html));
+			if (result.details){
+				$result_text.append('<p class="small">'+ result.details +'</p>');
+			}
 			if(result.route_options) {
 				frappe.route_options = result.route_options;
 			}
