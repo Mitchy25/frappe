@@ -28,17 +28,23 @@ class S3BackupSettings(Document):
 
 		bucket_lower = str(self.bucket)
 
+		bucket_name_exist = False
 		try:
-			conn.list_buckets()
+			response = conn.list_buckets()
+			for bucket in response['Buckets']:
+				if bucket['Name'] == bucket_lower:
+					bucket_name_exist = True
+					break
 
 		except ClientError:
 			frappe.throw(_("Invalid Access Key ID or Secret Access Key."))
 
-		try:
-			conn.create_bucket(Bucket=bucket_lower, CreateBucketConfiguration={
-				'LocationConstraint': self.region})
-		except ClientError:
-			frappe.throw(_("Unable to create bucket: {0}. Change it to a more unique name.").format(bucket_lower))
+		if not bucket_name_exist:
+			try:
+				conn.create_bucket(Bucket=bucket_lower, CreateBucketConfiguration={
+					'LocationConstraint': self.region})
+			except ClientError:
+				frappe.throw(_("Unable to create bucket: {0}. Change it to a more unique name.").format(bucket_lower))
 
 
 @frappe.whitelist()
@@ -128,14 +134,14 @@ def backup_to_s3():
 	backup = new_backup(ignore_files=False, backup_path_db=None,
 						backup_path_files=None, backup_path_private_files=None, force=True)
 	db_filename = os.path.join(get_backups_path(), os.path.basename(backup.backup_path_db))
-	files_filename = os.path.join(get_backups_path(), os.path.basename(backup.backup_path_files))
-	private_files = os.path.join(get_backups_path(), os.path.basename(backup.backup_path_private_files))
+	# files_filename = os.path.join(get_backups_path(), os.path.basename(backup.backup_path_files))
+	# private_files = os.path.join(get_backups_path(), os.path.basename(backup.backup_path_private_files))
 	folder = os.path.basename(db_filename)[:15] + '/'
 	# for adding datetime to folder name
 
 	upload_file_to_s3(db_filename, folder, conn, bucket)
-	upload_file_to_s3(private_files, folder, conn, bucket)
-	upload_file_to_s3(files_filename, folder, conn, bucket)
+	# upload_file_to_s3(private_files, folder, conn, bucket)
+	# upload_file_to_s3(files_filename, folder, conn, bucket)
 	delete_old_backups(doc.backup_limit, bucket)
 
 def upload_file_to_s3(filename, folder, conn, bucket):
