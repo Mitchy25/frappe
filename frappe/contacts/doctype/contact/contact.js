@@ -19,17 +19,17 @@ frappe.ui.form.on("Contact", {
 		}
 
 		if(!frm.doc.user && !frm.is_new() && frm.perm[0].write) {
-			frm.add_custom_button(__("Invite as User"), function() {
-				return frappe.call({
-					method: "frappe.contacts.doctype.contact.contact.invite_user",
-					args: {
-						contact: frm.doc.name
-					},
-					callback: function(r) {
-						frm.set_value("user", r.message);
-					}
-				});
-			});
+			// frm.add_custom_button(__("Invite as User"), function() {
+			// 	return frappe.call({
+			// 		method: "frappe.contacts.doctype.contact.contact.invite_user",
+			// 		args: {
+			// 			contact: frm.doc.name
+			// 		},
+			// 		callback: function(r) {
+			// 			frm.set_value("user", r.message);
+			// 		}
+			// 	});
+			// });
 		}
 		frm.set_query('link_doctype', "links", function() {
 			return {
