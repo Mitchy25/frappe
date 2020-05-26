@@ -35,6 +35,11 @@ frappe.listview_settings['ToDo'] = {
 			me.filter_area.add([[me.doctype, "assigned_by", '=', frappe.session.user]]);
 		}, ('.list-link[data-view="Kanban"]'));
 
+		// Allocated to Others
+		me.page.add_sidebar_item(__("Allocated To Others"), function() {
+			me.filter_area.add([[me.doctype, "owner", '!=', frappe.session.user]]);
+		}, ('.list-link[data-view="Kanban"]'));
+
 		me.todo_sidebar_setup = true;
 	},
 }
