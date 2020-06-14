@@ -30,23 +30,17 @@ class S3BackupSettings(Document):
 
 		bucket_lower = str(self.bucket)
 
-		bucket_name_exist = False
 		try:
-			response = conn.list_buckets()
-			for bucket in response['Buckets']:
-				if bucket['Name'] == bucket_lower:
-					bucket_name_exist = True
-					break
+			conn.list_buckets()
 
 		except ClientError:
 			frappe.throw(_("Invalid Access Key ID or Secret Access Key."))
 
-		if not bucket_name_exist:
-			try:
-				conn.create_bucket(Bucket=bucket_lower, CreateBucketConfiguration={
-					'LocationConstraint': self.region})
-			except ClientError:
-				frappe.throw(_("Unable to create bucket: {0}. Change it to a more unique name.").format(bucket_lower))
+		try:
+			conn.create_bucket(Bucket=bucket_lower, CreateBucketConfiguration={
+				'LocationConstraint': self.region})
+		except ClientError:
+			frappe.throw(_("Unable to create bucket: {0}. Change it to a more unique name.").format(bucket_lower))
 
 
 @frappe.whitelist()
@@ -95,30 +89,7 @@ def take_backups_s3(retry_count=0):
 
 def notify():
 	error_message = frappe.get_traceback()
-	frappe.errprint(error_message)
-	send_email(False, "S3 Backup Settings", error_message)
-
-def send_email(success, service_name, error_status=None):
-	if success:
-		if frappe.db.get_value("S3 Backup Settings", None, "send_email_for_successful_backup") == '0':
-			return
-
-		subject = "Backup Upload Successful"
-		message = """<h3>Backup Uploaded Successfully! </h3><p>Hi there, this is just to inform you
-		that your backup was successfully uploaded to your Amazon S3 bucket. So relax!</p> """
-
-	else:
-		subject = "[Warning] Backup Upload Failed"
-		message = """<h3>Backup Upload Failed! </h3><p>Oops, your automated backup to Amazon S3 failed.
-		</p> <p>Error message: %s</p> <p>Please contact your system manager
-		for more information.</p>""" % error_status
-
-	if not frappe.db:
-		frappe.connect()
-
-	if frappe.db.get_value("S3 Backup Settings", None, "notify_email"):
-		recipients = split_emails(frappe.db.get_value("S3 Backup Settings", None, "notify_email"))
-		frappe.sendmail(recipients=recipients, subject=subject, message=message)
+	send_email(False, 'Amazon S3', "S3 Backup Settings", "notify_email", error_message)
 
 
 def backup_to_s3():
@@ -136,17 +107,25 @@ def backup_to_s3():
 			endpoint_url=doc.endpoint_url or 'https://s3.amazonaws.com'
 			)
 
-	backup = new_backup(ignore_files=False, backup_path_db=None,
-						backup_path_files=None, backup_path_private_files=None, force=True)
-	db_filename = os.path.join(get_backups_path(), os.path.basename(backup.backup_path_db))
-	# files_filename = os.path.join(get_backups_path(), os.path.basename(backup.backup_path_files))
-	# private_files = os.path.join(get_backups_path(), os.path.basename(backup.backup_path_private_files))
+	if frappe.flags.create_new_backup:
+		backup = new_backup(ignore_files=False, backup_path_db=None,
+							backup_path_files=None, backup_path_private_files=None, force=True)
+		db_filename = os.path.join(get_backups_path(), os.path.basename(backup.backup_path_db))
+		if backup_files:
+			files_filename = os.path.join(get_backups_path(), os.path.basename(backup.backup_path_files))
+			private_files = os.path.join(get_backups_path(), os.path.basename(backup.backup_path_private_files))
+	else:
+		if backup_files:
+			db_filename, files_filename, private_files = get_latest_backup_file(with_files=backup_files)
+		else:
+			db_filename = get_latest_backup_file()
 	folder = os.path.basename(db_filename)[:15] + '/'
 	# for adding datetime to folder name
 
 	upload_file_to_s3(db_filename, folder, conn, bucket)
-	# upload_file_to_s3(private_files, folder, conn, bucket)
-	# upload_file_to_s3(files_filename, folder, conn, bucket)
+	if backup_files:
+		upload_file_to_s3(private_files, folder, conn, bucket)
+		upload_file_to_s3(files_filename, folder, conn, bucket)
 	delete_old_backups(doc.backup_limit, bucket)
 
 
