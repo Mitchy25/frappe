@@ -264,7 +264,7 @@ Object.assign(frappe.utils, {
 			if(has_words(["Pending", "Review", "Medium", "Not Approved"], text)) {
 				style = "warning";
 				colour = "orange";
-			} else if(has_words(["Open", "Urgent", "High"], text)) {
+			} else if(has_words(["Open", "Urgent", "High", "Failed", "Rejected", "Error"], text)) {
 				style = "danger";
 				colour = "red";
 			} else if(has_words(["Closed", "Finished", "Converted", "Completed", "Confirmed",
@@ -670,7 +670,9 @@ Object.assign(frappe.utils, {
 		return __(frappe.utils.to_title_case(route[0], true));
 	},
 	report_column_total: function(values, column, type) {
-		if (values.length > 0) {
+		if (column.column.disable_total) {
+			return '';
+		} else if (values.length > 0) {
 			if (column.column.fieldtype == "Percent" || type === "mean") {
 				return values.reduce((a, b) => a + flt(b)) / values.length;
 			} else if (column.column.fieldtype == "Int") {

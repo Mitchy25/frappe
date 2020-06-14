@@ -8,11 +8,13 @@ import os.path
 import frappe
 import boto3
 from frappe import _
+from frappe.integrations.offsite_backup_utils import get_latest_backup_file, send_email, validate_file_size
 from frappe.model.document import Document
-from frappe.utils import cint, split_emails
+from frappe.utils import cint
 from frappe.utils.background_jobs import enqueue
 from rq.timeouts import JobTimeoutException
 from botocore.exceptions import ClientError
+
 
 class S3BackupSettings(Document):
 
@@ -49,7 +51,7 @@ class S3BackupSettings(Document):
 
 @frappe.whitelist()
 def take_backup():
-	"Enqueue longjob for taking backup to s3"
+	"""Enqueue longjob for taking backup to s3"""
 	enqueue("frappe.integrations.doctype.s3_backup_settings.s3_backup_settings.take_backups_s3", queue='long', timeout=1500)
 	frappe.msgprint(_("Queued for backup. It may take a few minutes to an hour."))
 
@@ -75,12 +77,13 @@ def take_backups_if(freq):
 @frappe.whitelist()
 def take_backups_s3(retry_count=0):
 	try:
+		validate_file_size()
 		backup_to_s3()
-		send_email(True, "S3 Backup Settings")
+		send_email(True, "Amazon S3", "S3 Backup Settings", "notify_email")
 	except JobTimeoutException:
 		if retry_count < 2:
 			args = {
-				"retry_count" :retry_count + 1
+				"retry_count": retry_count + 1
 			}
 			enqueue("frappe.integrations.doctype.s3_backup_settings.s3_backup_settings.take_backups_s3",
 				queue='long', timeout=1500, **args)
@@ -88,6 +91,7 @@ def take_backups_s3(retry_count=0):
 			notify()
 	except Exception:
 		notify()
+
 
 def notify():
 	error_message = frappe.get_traceback()
@@ -123,6 +127,7 @@ def backup_to_s3():
 
 	doc = frappe.get_single("S3 Backup Settings")
 	bucket = doc.bucket
+	backup_files = cint(doc.backup_files)
 
 	conn = boto3.client(
 			's3',
@@ -144,8 +149,8 @@ def backup_to_s3():
 	# upload_file_to_s3(files_filename, folder, conn, bucket)
 	delete_old_backups(doc.backup_limit, bucket)
 
-def upload_file_to_s3(filename, folder, conn, bucket):
 
+def upload_file_to_s3(filename, folder, conn, bucket):
 	destpath = os.path.join(folder, os.path.basename(filename))
 	try:
 		print("Uploading file:", filename)
@@ -157,7 +162,7 @@ def upload_file_to_s3(filename, folder, conn, bucket):
 
 
 def delete_old_backups(limit, bucket):
-	all_backups = list()
+	all_backups = []
 	doc = frappe.get_single("S3 Backup Settings")
 	backup_limit = int(limit)
 
