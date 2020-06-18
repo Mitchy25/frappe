@@ -143,10 +143,10 @@ class AutoEmailReport(Document):
 		self.filters[self.to_date_field] = to_date
 
 	def send(self):
+		data = self.get_report_content()
 		if self.filter_meta and not self.filters:
 			frappe.throw(_("Please set filters value in Report Filter table."))
 
-		data = self.get_report_content()
 		if not data:
 			return
 
