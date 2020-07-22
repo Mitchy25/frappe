@@ -71,11 +71,13 @@ frappe.views.CommunicationComposer = Class.extend({
 		let contactList = [];
 		var fields= [
 			{label:__("To"), fieldtype:"MultiSelect", reqd: 0, fieldname:"recipients",options:contactList},
-			{fieldtype: "Section Break", collapsible: 1, label: __("CC, BCC & Email Template")},
-			{label:__("CC"), fieldtype:"MultiSelect", fieldname:"cc",options:contactList},
-			{label:__("BCC"), fieldtype:"MultiSelect", fieldname:"bcc",options:contactList},
 			{label:__("Email Template"), fieldtype:"Link", options:"Email Template",
 				fieldname:"email_template"},
+			// {fieldtype: "Section Break", collapsible: 1, label: __("CC, BCC & Email Template")},
+			{fieldtype: "Section Break", collapsible: 1, label: __("CC & BCC")},
+			{label:__("CC"), fieldtype:"MultiSelect", fieldname:"cc",options:contactList},
+			{label:__("BCC"), fieldtype:"MultiSelect", fieldname:"bcc",options:contactList},
+			
 			{fieldtype: "Section Break"},
 			{label:__("Subject"), fieldtype:"Data", reqd: 1,
 				fieldname:"subject", length:524288},
@@ -217,6 +219,33 @@ frappe.views.CommunicationComposer = Class.extend({
 				me.reply_added = email_template;
 			}
 
+			var append_reply = function(reply) {
+				if(me.reply_added===email_template) {
+					return;
+				}
+				var content_field = me.dialog.fields_dict.content;
+				var subject_field = me.dialog.fields_dict.subject;
+				var content = content_field.get_value() || "";
+				var subject = subject_field.get_value() || "";
+
+				var parts = content.split('<!-- salutation-ends -->');
+
+				if(parts.length===2) {
+					content = [parts[1], "<br>", reply.message];
+				} else {
+					content = [content, "<br>", reply.message];
+				}
+
+				content_field.set_value(content.join(''));
+
+				subject_field.set_value(reply.subject);
+
+				me.reply_added = email_template;
+			}
+
+			if (!email_template) {
+				return 
+			}
 			frappe.call({
 				method: 'frappe.email.doctype.email_template.email_template.get_email_template',
 				args: {
@@ -225,7 +254,8 @@ frappe.views.CommunicationComposer = Class.extend({
 					_lang: me.dialog.get_value("language_sel")
 				},
 				callback: function(r) {
-					prepend_reply(r.message);
+					// prepend_reply(r.message);
+					append_reply(r.message);
 				},
 			});
 		}
@@ -690,7 +720,8 @@ frappe.views.CommunicationComposer = Class.extend({
 				</blockquote>
 			`;
 		} else {
-			content = "<div><br></div>" + reply;
+			// content = "<div><br></div>" + reply;
+			content = reply;
 		}
 		fields.content.set_value(content);
 	},

@@ -879,12 +879,13 @@ frappe.ui.form.Form = class FrappeForm {
 		new frappe.views.CommunicationComposer({
 			doc: this.doc,
 			frm: this,
-			//subject: __(this.meta.name) + ': ' + this.docname,
-			subject:'',
-			recipients: this.doc.email || this.doc.email_id || this.doc.contact_email,
-			attach_document_print: false,
+			subject: __(this.meta.name) + ': ' + this.docname,
+			recipients: this.email_recipients,
+			sender: this.sender,
+			attach_document_print: true,
 			message: message,
-			real_name: this.doc.real_name || this.doc.contact_display || this.doc.contact_name
+			// real_name: this.doc.real_name || this.doc.contact_display || this.doc.contact_name
+			real_name: this.real_name
 		});
 	}
 
