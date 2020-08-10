@@ -111,7 +111,7 @@ frappe.views.CommunicationComposer = Class.extend({
 			return !in_list(["All Accounts", "Sent", "Spam", "Trash"], account.email_account) &&
 				account.enable_outgoing
 		})
-		if(frappe.boot.email_accounts && email_accounts.length > 1) {
+		if(frappe.boot.email_accounts && email_accounts.length >= 1) {
 			fields = [
 				{label: __("From"), fieldtype: "Select", reqd: 1, fieldname: "sender",
 					options: email_accounts.map(function(e) { return e.email_id; }) }
