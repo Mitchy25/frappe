@@ -590,9 +590,9 @@ class FilterArea {
 	make_standard_filters() {
 		let fields = [
 			{
-				fieldtype: 'Data',
-				label: 'Name',
-				condition: 'like',
+				fieldtype: 'Link',
+				label: this.list_view.doctype,
+				options: this.list_view.doctype,
 				fieldname: 'name',
 				onchange: () => this.refresh_list_view()
 			}
