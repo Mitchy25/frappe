@@ -120,7 +120,7 @@ frappe.ui.form.ControlData = frappe.ui.form.ControlInput.extend({
 				// invalid email
 				return '';
 			} else {
-				var invalid_email = false;
+				let email_invalid = false;
 				email_list.forEach(function(email) {
 					let email_address = '';
 					if (email.includes("<") && email.includes(">")){
@@ -139,14 +139,8 @@ frappe.ui.form.ControlData = frappe.ui.form.ControlInput.extend({
 					// 	invalid_email = true;
 					// }
 				});
-
-				if (invalid_email) {
-					// at least 1 invalid email
-					return '';
-				} else {
-					// all good
-					return v;
-				}
+				this.df.invalid = email_invalid;
+				return v;
 			}
 
 		} else {
