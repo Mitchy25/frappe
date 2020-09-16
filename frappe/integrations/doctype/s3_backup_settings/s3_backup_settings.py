@@ -40,7 +40,9 @@ class S3BackupSettings(Document):
 			conn.create_bucket(Bucket=bucket_lower, CreateBucketConfiguration={
 				'LocationConstraint': self.region})
 		except ClientError:
-			frappe.throw(_("Unable to create bucket: {0}. Change it to a more unique name.").format(bucket_lower))
+			s3 = boto3.resource('s3')	
+			if not s3.Bucket(bucket_lower) in s3.buckets.all():
+				frappe.throw(_("Unable to create bucket: {0}. Change it to a more unique name.").format(bucket_lower))
 
 
 @frappe.whitelist()
