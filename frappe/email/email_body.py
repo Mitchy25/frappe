@@ -107,12 +107,11 @@ class EMail:
 			Attach message in the text portion of multipart/alternative
 		"""
 		from email.mime.text import MIMEText
-		#part = MIMEText(message, 'plain', 'utf-8')
-		# part = MIMEText(message, 'plain')
 		if PY3:
 			part = MIMEText(message, 'plain', 'utf-8', policy=policy.SMTPUTF8)
 		else:
 			part = MIMEText(message, 'plain', 'utf-8')
+			# part = MIMEText(message, 'plain')
 		self.msg_alternative.attach(part)
 
 	def set_part_html(self, message, inline_images):
@@ -229,7 +228,7 @@ class EMail:
 
 	def set_in_reply_to(self, in_reply_to):
 		"""Used to send the Message-Id of a received email back as In-Reply-To"""
-		self.msg_root["In-Reply-To"] = in_reply_to
+		self.set_header('In-Reply-To', in_reply_to)
 
 	def make(self):
 		"""build into msg_root"""
@@ -256,7 +255,10 @@ class EMail:
 		if key in self.msg_root:
 			del self.msg_root[key]
 
-		self.msg_root[key] = value
+		try:
+			self.msg_root[key] = value
+		except ValueError:
+			self.msg_root[key] = sanitize_email_header(value)
 
 	def as_string(self):
 		"""validate, build message and convert to string"""
@@ -484,3 +486,6 @@ def get_header(header=None):
 	})
 
 	return email_header
+
+def sanitize_email_header(str):
+	return str.replace('\r', '').replace('\n', '')

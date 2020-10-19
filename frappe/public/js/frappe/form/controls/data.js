@@ -42,7 +42,7 @@ frappe.ui.form.ControlData = frappe.ui.form.ControlInput.extend({
 						// check if name exists
 						frappe.db.get_value(this.doctype, this.$input.val(),
 							'name', (val) => {
-								if (val) {
+								if (val && val.name) {
 									this.set_description(__('{0} already exists. Select another name', [val.name]));
 								}
 							},
@@ -122,17 +122,8 @@ frappe.ui.form.ControlData = frappe.ui.form.ControlInput.extend({
 			} else {
 				let email_invalid = false;
 				email_list.forEach(function(email) {
-					let email_address = '';
-					if (email.includes("<") && email.includes(">")){
-						let left = email.indexOf("<");
-						let right = email.indexOf(">");
-						email_address = email.substring(left+1, right);
-					}else {
-						email_address = email
-					}
-					if (!validate_email(email_address)) {
-						frappe.msgprint(__("Invalid Email: {0}", [email_address]));
-						invalid_email = true;
+					if (!validate_email(email)) {
+						email_invalid = true;
 					}
 					// if (!validate_email(email)) {
 					// 	frappe.msgprint(__("Invalid Email: {0}", [email]));
