@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 
 import frappe
-# from dateutil.parser._parser import ParserError
+from dateutil.parser._parser import ParserError
 import operator
 import re, datetime, math, time
 import babel.dates
@@ -43,13 +43,12 @@ def getdate(string_date=None):
 	if is_invalid_date_string(string_date):
 		return None
 
-	return parser.parse(string_date).date()
-	# try:
-	# 	return parser.parse(string_date).date()
-	# except ParserError:
-	# 	frappe.throw(frappe._('{} is not a valid date string.').format(
-	# 		frappe.bold(string_date)
-	# 	), title=frappe._('Invalid Date'))
+	try:
+		return parser.parse(string_date).date()
+	except ParserError:
+		frappe.throw(frappe._('{} is not a valid date string.').format(
+			frappe.bold(string_date)
+		), title=frappe._('Invalid Date'))
 
 def get_datetime(datetime_str=None):
 	if not datetime_str:
