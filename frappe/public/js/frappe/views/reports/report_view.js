@@ -514,7 +514,8 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	}
 
 	refresh_charts() {
-		if (!this.chart) return;
+		if (!this.chart || !this.chart_args) return;
+		this.$charts_wrapper.removeClass('hidden');
 		const { x_axis, y_axes, chart_type } = this.chart_args;
 		this.build_chart_args(x_axis, y_axes, chart_type);
 		this.chart.update(this.chart_args);
@@ -641,12 +642,17 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	}
 
 	set_fields() {
+		// default fields
+		['name', 'docstatus'].map((f) => this._add_field(f));
+
 		if (this.report_name && this.report_doc.json.fields) {
-			this.fields = this.report_doc.json.fields.slice();
+			let fields = this.report_doc.json.fields.slice();
+			fields.forEach(f => this._add_field(f[0], f[1]));
 			return;
 		} else if (this.view_user_settings.fields) {
 			// get from user_settings
-			this.fields = this.view_user_settings.fields;
+			let fields = this.view_user_settings.fields;
+			fields.forEach(f => this._add_field(f[0], f[1]));
 			return;
 		}
 
@@ -655,12 +661,11 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 	set_default_fields() {
 		// get fields from meta
-		this.fields = [];
+		this.fields = this.fields || [];
 		const add_field = f => this._add_field(f);
 
 		// default fields
 		[
-			'name', 'docstatus',
 			this.meta.title_field,
 			this.meta.image_field
 		].map(add_field);
@@ -762,10 +767,12 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		const index = this.fields.findIndex(f => column.field === f[0]);
 		if (index === -1) return;
 		const field = this.fields[index];
-		if (field[0] === 'name' && this.group_by === null) {
+
+		if (field[0] === 'name') {
 			this.refresh();
 			frappe.throw(__('Cannot remove ID field'));
 		}
+
 		this.fields.splice(index, 1);
 		this.build_fields();
 		this.setup_columns();
@@ -828,8 +835,15 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			const child_table_fields = frappe.meta.get_docfields(cdt).filter(standard_fields_filter);
 
 			out[cdt] = child_table_fields;
-		});
 
+			// add index column for child tables
+			out[cdt].push({
+				label: __('Index'),
+				fieldname: 'idx',
+				fieldtype: 'Int',
+				parent: cdt
+			});
+		});
 		return out;
 	}
 
@@ -844,12 +858,12 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			columns: 2,
 			options: columns[this.doctype]
 				.filter(df => {
-					return !df.hidden;
+					return !df.hidden && df.fieldname !== 'name';
 				})
 				.map(df => ({
 					label: __(df.label),
 					value: df.fieldname,
-					checked: this.fields.find(f => f[0] === df.fieldname)
+					checked: this.fields.find(f => f[0] === df.fieldname && f[1] === this.doctype)
 				}))
 		});
 
@@ -926,6 +940,15 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		// group by column
 		if (fieldname === '_aggregate_column') {
 			docfield = this.group_by_control.get_group_by_docfield();
+		}
+
+		// child table index column
+		if (fieldname === 'idx' && doctype !== this.doctype) {
+			docfield = {
+				label: "Index",
+				fieldtype: "Int",
+				parent: doctype,
+			};
 		}
 
 		if (!docfield) {
@@ -1091,8 +1114,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 
 	get_checked_items(only_docnames) {
 		const indexes = this.datatable.rowmanager.getCheckedRows();
-		const items = indexes.filter(i => i != undefined)
-			.map(i => this.data[i]);
+		const items = indexes.map(i => this.data[i]).filter(i => i != undefined);
 
 		if (only_docnames) {
 			return items.map(d => d.name);
@@ -1293,6 +1315,11 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 						}
 					});
 
+					d.$body.prepend(`<div class="columns-search">
+						<input type="text" placeholder="${__('Search')}" data-element="search" class="form-control input-xs">
+					</div>`);
+
+					frappe.utils.setup_search(d.$body, '.unit-checkbox', '.label-area');
 					d.show();
 				}
 			}
