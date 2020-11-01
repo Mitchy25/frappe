@@ -12,6 +12,7 @@ from frappe.utils import cstr
 from frappe.utils.gitutils import get_app_branch
 from frappe import _, safe_decode
 
+import pdb
 
 def get_change_log(user=None):
 	if not user: user = frappe.session.user
@@ -141,6 +142,7 @@ def get_app_last_commit_ref(app):
 def check_for_update():
 	updates = frappe._dict(major=[], minor=[], patch=[])
 	apps = get_versions()
+	# pdb.set_trace()
 
 	for app in apps:
 		app_details = check_release_on_github(app)
@@ -204,6 +206,7 @@ def check_release_on_github(app):
 
 	org_name = remote_url.split('/')[3]
 	r = requests.get('https://api.github.com/repos/{}/{}/releases'.format(org_name, app))
+	# pdb.set_trace()
 	if r.ok:
 		lastest_non_beta_release = parse_latest_non_beta_release(r.json())
 		return Version(lastest_non_beta_release), org_name
