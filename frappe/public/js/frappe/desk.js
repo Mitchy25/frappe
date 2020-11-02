@@ -159,8 +159,6 @@ frappe.Application = Class.extend({
 			},
 			callback: function(email_account) {
 				email_account = email_account["message"];
-
-				// debugger
 				if (email_account) {
 					var i = 0;
 					if (i < email_account.length) {
@@ -182,6 +180,7 @@ frappe.Application = Class.extend({
 					'reqd': 1
 				},
 				{
+					"fieldname": "submit",
 					"fieldtype": "Button",
 					"label": __("Submit")
 				}
@@ -223,7 +222,6 @@ frappe.Application = Class.extend({
 			});
 		});
 		d.show();
-		// debugger
 	},
 	load_bootinfo: function() {
 		if(frappe.boot) {
