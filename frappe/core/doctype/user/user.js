@@ -168,7 +168,8 @@ frappe.ui.form.on('User', {
 				email: frm.doc.email
 			},
 			callback: function(r) {
-				if (!Array.isArray(r.message)) {
+				// if (!Array.isArray(r.message)) {
+				if (r.message == undefined || r.message.length == 0) {
 					frappe.route_options = {
 						"email_id": frm.doc.email,
 						"awaiting_password": 1,
