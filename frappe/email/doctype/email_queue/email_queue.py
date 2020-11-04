@@ -20,7 +20,7 @@ class EmailQueue(Document):
 		self.prevent_email_queue_delete()
 
 	def prevent_email_queue_delete(self):
-		if frappe.session.user != 'Administrator':
+		if "System Manager" not in frappe.get_roles():
 			frappe.throw(_('Only Administrator can delete Email Queue'))
 
 	def get_duplicate(self, recipients):
