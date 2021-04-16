@@ -83,10 +83,34 @@ frappe.ui.form.Sidebar = Class.extend({
 			this.frm.tags && this.frm.tags.refresh(this.frm.get_docinfo().tags);
 			this.sidebar.find(".modified-by").html(__("{0} edited this {1}",
 				["<strong>" + frappe.user.full_name(this.frm.doc.modified_by) + "</strong>",
-					"<br>" + comment_when(this.frm.doc.modified)]));
+					"<br>" + moment(this.frm.doc.modified).format("DD-MM-YYYY HH:mm:ss")]));
 			this.sidebar.find(".created-by").html(__("{0} created this {1}",
 				["<strong>" + frappe.user.full_name(this.frm.doc.owner) + "</strong>",
-					"<br>" + comment_when(this.frm.doc.creation)]));
+					"<br>" + moment(this.frm.doc.modified).format("DD-MM-YYYY HH:mm:ss")]));
+
+			frappe.call({
+				method: "frappe.client.get_list",
+				args: {
+					"doctype": "Access Log",
+					"filters": [["export_from", "=", this.frm.doc.doctype], ["reference_document", "=", this.frm.doc.name]],
+					"order_by": "timestamp desc",
+					"fields": ["user", "timestamp"]
+				},
+				callback:  r => {
+					if (!r.exc){
+						let al_list = r.message
+						if (!al_list) return;
+
+						for (let al of al_list){
+							let last_printed = al_list[0]
+							this.sidebar.find(".printed-by").html(__("<br>{0} printed this {1}",
+							["<strong>" + frappe.user.full_name(last_printed.user) + "</strong>",
+								"<br>" + moment(last_printed.timestamp).format("DD-MM-YYYY HH:mm:ss")]));
+						}
+					}
+				}
+			})
+
 
 			this.refresh_like();
 			frappe.ui.form.set_user_image(this.frm);
