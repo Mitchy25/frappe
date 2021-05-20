@@ -99,7 +99,7 @@ frappe.ui.form.Sidebar = Class.extend({
 				callback:  r => {
 					if (!r.exc){
 						let al_list = r.message
-						if (!al_list) return;
+						if (Array.isArray(al_list) && !al_list.length) return;
 
 						let last_printed = al_list[0]
 						this.sidebar.find(".printed-by").html(__("<br>{0} printed this {1}",
