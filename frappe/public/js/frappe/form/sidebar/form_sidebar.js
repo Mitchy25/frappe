@@ -86,7 +86,7 @@ frappe.ui.form.Sidebar = Class.extend({
 					"<br>" + moment(this.frm.doc.modified).format("DD-MM-YYYY HH:mm:ss")]));
 			this.sidebar.find(".created-by").html(__("{0} created this {1}",
 				["<strong>" + frappe.user.full_name(this.frm.doc.owner) + "</strong>",
-					"<br>" + moment(this.frm.doc.modified).format("DD-MM-YYYY HH:mm:ss")]));
+					"<br>" + moment(this.frm.doc.creation).format("DD-MM-YYYY HH:mm:ss")]));
 
 			frappe.call({
 				method: "frappe.client.get_list",
@@ -101,12 +101,10 @@ frappe.ui.form.Sidebar = Class.extend({
 						let al_list = r.message
 						if (!al_list) return;
 
-						for (let al of al_list){
-							let last_printed = al_list[0]
-							this.sidebar.find(".printed-by").html(__("<br>{0} printed this {1}",
-							["<strong>" + frappe.user.full_name(last_printed.user) + "</strong>",
-								"<br>" + moment(last_printed.timestamp).format("DD-MM-YYYY HH:mm:ss")]));
-						}
+						let last_printed = al_list[0]
+						this.sidebar.find(".printed-by").html(__("<br>{0} printed this {1}",
+						["<strong>" + frappe.user.full_name(last_printed.user) + "</strong>",
+							"<br>" + moment(last_printed.timestamp).format("DD-MM-YYYY HH:mm:ss")]));
 					}
 				}
 			})
