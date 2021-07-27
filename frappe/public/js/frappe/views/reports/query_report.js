@@ -1237,6 +1237,12 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 									const custom_data = r.message;
 									const link_field = this.doctype_field_map[values.doctype];
 
+									// This modification will add new columns into linked doctypes as well
+									if (df.fieldtype === "Link" && df.options){
+										this.linked_doctypes = this.linked_doctypes.concat({ doctype: df.options, fieldname: df.fieldname });
+										this.doctype_field_map[df.options] = df.fieldname;
+									}
+
 									this.add_custom_column(custom_columns, custom_data, link_field, values.field, insert_after_index);
 									d.hide();
 								}
