@@ -604,8 +604,8 @@ frappe.ui.form.Timeline = class Timeline {
 							if (field_display_status === 'Read' || field_display_status === 'Write') {
 								parts.push(__('{0} from {1} to {2}', [
 									__(df.label),
-									(frappe.ellipsis(frappe.utils.html2text(p[1]), 40) || '""').bold(),
-									(frappe.ellipsis(frappe.utils.html2text(p[2]), 40) || '""').bold()
+									(frappe.ellipsis(frappe.utils.html2text(p[1]), 20) || '""').bold(),
+									(frappe.ellipsis(frappe.utils.html2text(p[2]), 20) || '""').bold()
 								]));
 							}
 						}
