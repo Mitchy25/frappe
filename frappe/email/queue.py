@@ -365,7 +365,7 @@ def get_queue():
 			(send_after is null or send_after < %(now)s)
 		order
 			by priority desc, creation asc
-		limit 15''', { 'now': now_datetime() }, as_dict=True)
+		limit 20''', { 'now': now_datetime() }, as_dict=True)
 
 
 def send_one(email, smtpserver=None, auto_commit=True, now=False, from_test=False):
