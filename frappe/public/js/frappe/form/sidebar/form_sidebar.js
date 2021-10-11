@@ -102,8 +102,24 @@ frappe.ui.form.Sidebar = Class.extend({
 						let al_list = r.message
 						if (Array.isArray(al_list) && !al_list.length) return;
 
+						var uniques = [];
+						for(var i = 0; i < al_list.length; i++) {
+							var found = 0
+							for (var x=0;x<uniques.length;x++){
+								if (al_list[i].timestamp.substr(0,19) == uniques[x].timestamp.substr(0,19)){
+									found = 1
+								}
+							}
+
+							if(found == 0){
+								uniques.push({"user":al_list[i].user, "timestamp": al_list[i].timestamp})
+							}
+						}
+						
+						console.log(uniques)
+
 						var html = ""
-						al_list.slice().reverse().forEach(function(printed){
+						uniques.slice().reverse().forEach(function(printed){
 							// let last_printed = al_list[0]
 							html += "<br><strong>" + frappe.user.full_name(printed.user) + "</strong> <span style='color:red'>printed</span> this <br>" + moment(printed.timestamp).format("DD-MM-YYYY HH:mm:ss") + "<br>"
 						})
