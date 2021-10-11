@@ -81,18 +81,19 @@ frappe.ui.form.Sidebar = Class.extend({
 			}
 			this.frm.viewers.refresh();
 			this.frm.tags && this.frm.tags.refresh(this.frm.get_docinfo().tags);
-			this.sidebar.find(".modified-by").html(__("{0} edited this {1}",
+			this.sidebar.find(".modified-by").html(__("{0} <span style='color:orange'>edited</span> this {1}",
 				["<strong>" + frappe.user.full_name(this.frm.doc.modified_by) + "</strong>",
 					"<br>" + moment(this.frm.doc.modified).format("DD-MM-YYYY HH:mm:ss")]));
-			this.sidebar.find(".created-by").html(__("{0} created this {1}",
-				["<strong>" + frappe.user.full_name(this.frm.doc.owner) + "</strong>",
-					"<br>" + moment(this.frm.doc.creation).format("DD-MM-YYYY HH:mm:ss")]));
+			this.sidebar.find(".created-by").html(__("{0} <span style='color:green'>created</span> this {1}",
+			["<strong>" + frappe.user.full_name(this.frm.doc.owner) + "</strong>",
+				"<br>" + moment(this.frm.doc.creation).format("DD-MM-YYYY HH:mm:ss")]));
+
 
 			frappe.call({
 				method: "frappe.client.get_list",
 				args: {
 					"doctype": "Access Log",
-					"filters": [["export_from", "=", this.frm.doc.doctype], ["reference_document", "=", this.frm.doc.name]],
+					"filters": [["export_from", "=", this.frm.doc.doctype], ["reference_document", "=", this.frm.doc.name],["method","=","Print"]],
 					"order_by": "timestamp desc",
 					"fields": ["user", "timestamp"]
 				},
@@ -101,10 +102,31 @@ frappe.ui.form.Sidebar = Class.extend({
 						let al_list = r.message
 						if (Array.isArray(al_list) && !al_list.length) return;
 
-						let last_printed = al_list[0]
-						this.sidebar.find(".printed-by").html(__("<br>{0} printed this {1}",
-						["<strong>" + frappe.user.full_name(last_printed.user) + "</strong>",
-							"<br>" + moment(last_printed.timestamp).format("DD-MM-YYYY HH:mm:ss")]));
+						var uniques = [];
+						for(var i = 0; i < al_list.length; i++) {
+							var found = 0
+							for (var x=0;x<uniques.length;x++){
+								if (al_list[i].timestamp.substr(0,19) == uniques[x].timestamp.substr(0,19)){
+									found = 1
+								}
+							}
+
+							if(found == 0){
+								uniques.push({"user":al_list[i].user, "timestamp": al_list[i].timestamp})
+							}
+						}
+						
+						console.log(uniques)
+
+						var html = ""
+						uniques.slice().reverse().forEach(function(printed){
+							// let last_printed = al_list[0]
+							html += "<br><strong>" + frappe.user.full_name(printed.user) + "</strong> <span style='color:red'>printed</span> this <br>" + moment(printed.timestamp).format("DD-MM-YYYY HH:mm:ss") + "<br>"
+						})
+
+						this.sidebar.find(".printed-by").html(html)
+
+						
 					}
 				}
 			})
