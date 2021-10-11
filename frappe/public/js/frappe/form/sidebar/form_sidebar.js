@@ -82,10 +82,10 @@ frappe.ui.form.Sidebar = Class.extend({
 			this.frm.viewers.refresh();
 			this.frm.tags && this.frm.tags.refresh(this.frm.get_docinfo().tags);
 			this.sidebar.find(".modified-by").html(__("{0} <span style='color:orange'>edited</span> this {1}",
-				["<strong>" + frappe.user.full_name(this.frm.doc.modified_by) + "</strong>",
+				["<strong>" + frappe.user.first_name(this.frm.doc.modified_by) + "</strong>",
 					"<br>" + moment(this.frm.doc.modified).format("DD-MM-YYYY HH:mm:ss")]));
 			this.sidebar.find(".created-by").html(__("{0} <span style='color:green'>created</span> this {1}",
-			["<strong>" + frappe.user.full_name(this.frm.doc.owner) + "</strong>",
+			["<strong>" + frappe.user.first_name(this.frm.doc.owner) + "</strong>",
 				"<br>" + moment(this.frm.doc.creation).format("DD-MM-YYYY HH:mm:ss")]));
 
 
@@ -121,7 +121,7 @@ frappe.ui.form.Sidebar = Class.extend({
 						var html = ""
 						uniques.slice().reverse().forEach(function(printed){
 							// let last_printed = al_list[0]
-							html += "<br><strong>" + frappe.user.full_name(printed.user) + "</strong> <span style='color:red'>printed</span> this <br>" + moment(printed.timestamp).format("DD-MM-YYYY HH:mm:ss") + "<br>"
+							html += "<br><strong>" + frappe.user.first_name(printed.user) + "</strong> <span style='color:red'>printed</span> this <br>" + moment(printed.timestamp).format("DD-MM-YYYY HH:mm:ss") + "<br>"
 						})
 
 						this.sidebar.find(".printed-by").html(html)
