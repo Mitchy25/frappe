@@ -512,11 +512,9 @@ frappe.Application = Class.extend({
 			});
 		}
 	},
-
 	set_fullwidth_if_enabled() {
 		frappe.ui.toolbar.set_fullwidth_if_enabled();
 	},
-
 	show_notes: function() {
 		var me = this;
 		if(frappe.boot.notes.length) {

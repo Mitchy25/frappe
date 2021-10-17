@@ -16,6 +16,16 @@
 			<li class="visible-xs">
 				<a class="navbar-search-button" href="#" data-toggle="modal" data-target="#search-modal"><i class="octicon octicon-search"></i></a>
 			</li>
+			<li class="navbar-reload">
+				<a href="" onclick="">
+					<i class="fas fa-sync-alt"></i>
+				</a>
+			</li>
+			<li class="sidebar-show-hide">
+				<a href="" onclick="return false;">
+					<i id="sidebarOnOff" class="fas"></i>
+				</a>
+			</li>
 			<li class="dropdown dropdown-navbar-user dropdown-mobile">
 				<a class="dropdown-toggle" data-toggle="dropdown" href="#"
 					onclick="return false;">
@@ -30,9 +40,7 @@
 						{%= __("My Settings") %}</a></li>
 					<li><a href="#" onclick="return frappe.ui.toolbar.setup_session_defaults();">
 							{%= __("Session Defaults") %}</a></li>
-					<li class="navbar-reload">
-						<a href="" onclick="return frappe.ui.toolbar.clear_cache();">
-						{%= __("Reload") %}</a></li>
+					
 					<li><a href="/index" target="_blank" rel="noopener noreferrer">
 						{%= __("View Website") %}</a></li>
 					<li class="navbar-toggle-full-width">

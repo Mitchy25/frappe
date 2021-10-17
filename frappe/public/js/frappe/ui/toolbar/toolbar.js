@@ -26,6 +26,7 @@ frappe.ui.toolbar.Toolbar = Class.extend({
 		this.bind_events();
 
 		$(document).trigger('toolbar_setup');
+		this.hide_show_sidebar();
 	},
 
 	bind_events: function() {
@@ -44,8 +45,18 @@ frappe.ui.toolbar.Toolbar = Class.extend({
 		$('.navbar-toggle-full-width').click(() => {
 			frappe.ui.toolbar.toggle_full_width();
 		});
-	},
+		$('.sidebar-show-hide').click(() => {
+			frappe.ui.toolbar.toggle_sidebar();
+		});
 
+		$('.navbar-reload a').click(() => {
+			$('.navbar-reload a i').addClass('fa-spin')
+			return frappe.ui.toolbar.clear_cache();
+		});
+	},
+	hide_show_sidebar: function(){
+		frappe.ui.toolbar.hide_show_sidebar();
+	},
 	setup_sidebar: function() {
 		var header = $('header');
 		header.find(".toggle-sidebar").on("click", function() {
@@ -203,6 +214,25 @@ $.extend(frappe.ui.toolbar, {
 		fullwidth = !fullwidth;
 		localStorage.container_fullwidth = fullwidth;
 		frappe.ui.toolbar.set_fullwidth_if_enabled();
+	},
+	toggle_sidebar() {
+		let sidebar = JSON.parse(localStorage.sidebar || 'true');
+		sidebar = !sidebar
+		localStorage.sidebar = sidebar;
+		frappe.ui.toolbar.hide_show_sidebar();
+	},
+	hide_show_sidebar(){
+		let sidebar = JSON.parse(localStorage.sidebar || 'true');
+		console.log(sidebar)
+		if (sidebar){
+			$('#sidebarOnOff').addClass('fa-eye').removeClass('fa-eye-slash')
+			$('.layout-side-section').removeClass('hidden')
+			$('.layout-main-section-wrapper').removeClass('col-md-12').addClass('col-md-10')
+		} else {
+			$('#sidebarOnOff').addClass('fa-eye-slash').removeClass('fa-eye')
+			$('.layout-side-section').addClass('hidden')
+			$('.layout-main-section-wrapper').removeClass('col-md-10').addClass('col-md-12')
+		}
 	},
 	set_fullwidth_if_enabled() {
 		let fullwidth = JSON.parse(localStorage.container_fullwidth || 'false');

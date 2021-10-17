@@ -76,9 +76,15 @@ frappe.ui.Page = Class.extend({
 					</div>\
 				</div>');
 		} else {
+			var hideShowSidebar = "";
+			var mainSectionWidth = "col-md-10";
+			if (localStorage.sidebar == 'false'){
+				hideShowSidebar = "hidden"
+				mainSectionWidth = "col-md-12"
+			}
 			this.add_view("main", '<div class="row layout-main">\
-				<div class="col-md-2 layout-side-section"></div>\
-				<div class="col-md-10 layout-main-section-wrapper">\
+				<div class="col-md-2 ' + hideShowSidebar + ' layout-side-section"></div>\
+				<div class="' + mainSectionWidth + ' layout-main-section-wrapper">\
 					<div class="layout-main-section"></div>\
 					<div class="layout-footer hide"></div>\
 				</div>\
