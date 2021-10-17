@@ -223,7 +223,6 @@ $.extend(frappe.ui.toolbar, {
 	},
 	hide_show_sidebar(){
 		let sidebar = JSON.parse(localStorage.sidebar || 'true');
-		console.log(sidebar)
 		if (sidebar){
 			$('#sidebarOnOff').addClass('fa-eye').removeClass('fa-eye-slash')
 			$('.layout-side-section').removeClass('hidden')
