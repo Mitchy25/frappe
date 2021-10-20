@@ -222,6 +222,9 @@ $.extend(frappe.ui.toolbar, {
 		frappe.ui.toolbar.hide_show_sidebar();
 	},
 	hide_show_sidebar(){
+		if (frappe.query_report){
+			return
+		}
 		let sidebar = JSON.parse(localStorage.sidebar || 'true');
 		if (sidebar){
 			$('#sidebarOnOff').addClass('fa-eye').removeClass('fa-eye-slash')
