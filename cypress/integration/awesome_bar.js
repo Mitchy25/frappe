@@ -2,43 +2,44 @@ context('Awesome Bar', () => {
 	before(() => {
 		cy.visit('/login');
 		cy.login();
-		cy.visit('/desk');
+		cy.visit('/app/website');
 	});
 
 	beforeEach(() => {
-		cy.get('.navbar-header .navbar-home').click();
+		cy.get('.navbar .navbar-home').click();
+		cy.findByPlaceholderText('Search or type a command (Ctrl + G)').clear();
 	});
 
 	it('navigates to doctype list', () => {
-		cy.get('#navbar-search').type('todo', { delay: 200 });
-		cy.get('#navbar-search + ul').should('be.visible');
-		cy.get('#navbar-search').type('{downarrow}{enter}', { delay: 100 });
+		cy.findByPlaceholderText('Search or type a command (Ctrl + G)').type('todo', { delay: 700 });
+		cy.get('.awesomplete').findByRole('listbox').should('be.visible');
+		cy.findByPlaceholderText('Search or type a command (Ctrl + G)').type('{downarrow}{enter}', { delay: 700 });
 
-		cy.get('h1').should('contain', 'To Do');
+		cy.get('.title-text').should('contain', 'To Do');
 
-		cy.location('hash').should('eq', '#List/ToDo/List');
+		cy.location('pathname').should('eq', '/app/todo');
 	});
 
 	it('find text in doctype list', () => {
-		cy.get('#navbar-search')
-			.type('test in todo{downarrow}{enter}', { delay: 200 });
+		cy.findByPlaceholderText('Search or type a command (Ctrl + G)')
+			.type('test in todo{downarrow}{enter}', { delay: 700 });
 
-		cy.get('h1').should('contain', 'To Do');
+		cy.get('.title-text').should('contain', 'To Do');
 
-		cy.get('[data-original-title="Name"] > .input-with-feedback')
+		cy.findByPlaceholderText('Name')
 			.should('have.value', '%test%');
 	});
 
 	it('navigates to new form', () => {
-		cy.get('#navbar-search')
-			.type('new blog post{downarrow}{enter}', { delay: 200 });
+		cy.findByPlaceholderText('Search or type a command (Ctrl + G)')
+			.type('new blog post{downarrow}{enter}', { delay: 700 });
 
-		cy.get('.title-text:visible').should('have.text', 'New Blog Post 1');
+		cy.get('.title-text:visible').should('have.text', 'New Blog Post');
 	});
 
 	it('calculates math expressions', () => {
-		cy.get('#navbar-search')
-			.type('55 + 32{downarrow}{enter}', { delay: 200 });
+		cy.findByPlaceholderText('Search or type a command (Ctrl + G)')
+			.type('55 + 32{downarrow}{enter}', { delay: 700 });
 
 		cy.get('.modal-title').should('contain', 'Result');
 		cy.get('.msgprint').should('contain', '55 + 32 = 87');

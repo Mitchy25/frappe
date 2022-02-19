@@ -33,6 +33,9 @@ class PermissionError(Exception):
 class DoesNotExistError(ValidationError):
 	http_status_code = 404
 
+class PageDoesNotExistError(ValidationError):
+	http_status_code = 404
+
 class NameError(Exception):
 	http_status_code = 409
 
@@ -76,6 +79,7 @@ class UnknownDomainError(Exception): pass
 class MappingMismatchError(ValidationError): pass
 class InvalidStatusError(ValidationError): pass
 class MandatoryError(ValidationError): pass
+class NonNegativeError(ValidationError): pass
 class InvalidSignatureError(ValidationError): pass
 class RateLimitExceededError(ValidationError): pass
 class CannotChangeConstantError(ValidationError): pass
@@ -88,6 +92,8 @@ class TimestampMismatchError(ValidationError): pass
 class EmptyTableError(ValidationError): pass
 class LinkExistsError(ValidationError): pass
 class InvalidEmailAddressError(ValidationError): pass
+class InvalidNameError(ValidationError): pass
+class InvalidPhoneNumberError(ValidationError): pass
 class TemplateNotFoundError(ValidationError): pass
 class UniqueValidationError(ValidationError): pass
 class AppNotInstalledError(ValidationError): pass
@@ -102,7 +108,13 @@ class IncompatibleApp(ValidationError): pass
 class InvalidDates(ValidationError): pass
 class DataTooLongException(ValidationError): pass
 class FileAlreadyAttachedException(Exception): pass
+class DocumentAlreadyRestored(ValidationError): pass
+class AttachmentLimitReached(ValidationError): pass
+class QueryTimeoutError(Exception): pass
+class QueryDeadlockError(Exception): pass
 # OAuth exceptions
 class InvalidAuthorizationHeader(CSRFTokenError): pass
 class InvalidAuthorizationPrefix(CSRFTokenError): pass
 class InvalidAuthorizationToken(CSRFTokenError): pass
+class InvalidDatabaseFile(ValidationError): pass
+class ExecutableNotFound(FileNotFoundError): pass

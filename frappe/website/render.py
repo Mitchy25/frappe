@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
+# Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and Contributors
 # MIT License. See license.txt
 
 from __future__ import unicode_literals
@@ -13,15 +13,15 @@ import six
 from bs4 import BeautifulSoup
 from six import iteritems
 from werkzeug.wrappers import Response
-from werkzeug.routing import Map, Rule, NotFound
+from werkzeug.routing import Rule
 from werkzeug.wsgi import wrap_file
 
 from frappe.website.context import get_context
 from frappe.website.redirect import resolve_redirect
 from frappe.website.utils import (get_home_page, can_cache, delete_page_cache,
 	get_toc, get_next_link)
-from frappe.website.router import clear_sitemap
-from frappe.translate import guess_language
+from frappe.website.router import clear_sitemap, evaluate_dynamic_routes
+from frappe.translate import get_language
 
 class PageNotFoundError(Exception): pass
 
@@ -48,7 +48,7 @@ def render(path=None, http_status_code=None):
 		else:
 			try:
 				data = render_page_by_language(path)
-			except frappe.DoesNotExistError:
+			except frappe.PageDoesNotExistError:
 				doctype, name = get_doctype_from_path(path)
 				if doctype and name:
 					path = "printview"
@@ -90,16 +90,25 @@ def render(path=None, http_status_code=None):
 
 	return build_response(path, data, http_status_code or 200)
 
+def is_binary_file(path):
+	# ref: https://stackoverflow.com/a/7392391/10309266
+	textchars = bytearray({7,8,9,10,12,13,27} | set(range(0x20, 0x100)) - {0x7f})
+	with open(path, 'rb') as f:
+		content = f.read(1024)
+		return bool(content.translate(None, textchars))
+
 def is_static_file(path):
-	if '.' not in path:
-		return False
-	extn = path.rsplit('.', 1)[-1]
+	_, extn = os.path.splitext(path)
+
+	if extn:
+		extn = extn[1:] # remove leading .
+
 	if extn in ('html', 'md', 'js', 'xml', 'css', 'txt', 'py', 'json'):
 		return False
 
 	for app in frappe.get_installed_apps():
 		file_path = frappe.get_app_path(app, 'www') + '/' + path
-		if os.path.exists(file_path):
+		if os.path.isfile(file_path) and (extn or is_binary_file(file_path)):
 			frappe.flags.file_path = file_path
 			return True
 
@@ -139,6 +148,8 @@ def build_response(path, data, http_status_code, headers=None):
 
 
 def add_preload_headers(response):
+	from bs4 import BeautifulSoup
+
 	try:
 		preload = []
 		soup = BeautifulSoup(response.data, "lxml")
@@ -149,8 +160,8 @@ def add_preload_headers(response):
 			preload.append(("style", elem.get("href")))
 
 		links = []
-		for type, link in preload:
-			links.append("</{}>; rel=preload; as={}".format(link.lstrip("/"), type))
+		for _type, link in preload:
+			links.append("<{}>; rel=preload; as={}".format(link, _type))
 
 		if links:
 			response.headers["Link"] = ",".join(links)
@@ -161,7 +172,7 @@ def add_preload_headers(response):
 
 def render_page_by_language(path):
 	translated_languages = frappe.get_hooks("translated_languages_for_website")
-	user_lang = guess_language(translated_languages)
+	user_lang = get_language(translated_languages)
 	if translated_languages and user_lang in translated_languages:
 		try:
 			if path and path != "index":
@@ -216,7 +227,6 @@ def build_page(path):
 
 	if context.source:
 		html = frappe.render_template(context.source, context)
-
 	elif context.template:
 		if path.endswith('min.js'):
 			html = frappe.get_jloader().get_source(frappe.get_jenv(), context.template)[0]
@@ -256,23 +266,11 @@ def resolve_path(path):
 	return path
 
 def resolve_from_map(path):
-	m = Map([Rule(r["from_route"], endpoint=r["to_route"], defaults=r.get("defaults"))
-		for r in get_website_rules()])
+	'''transform dynamic route to a static one from hooks and route defined in doctype'''
+	rules = [Rule(r["from_route"], endpoint=r["to_route"], defaults=r.get("defaults"))
+		for r in get_website_rules()]
 
-	if frappe.local.request:
-		urls = m.bind_to_environ(frappe.local.request.environ)
-	try:
-		endpoint, args = urls.match("/" + path)
-		path = endpoint
-		if args:
-			# don't cache when there's a query string!
-			frappe.local.no_cache = 1
-			frappe.local.form_dict.update(args)
-
-	except NotFound:
-		pass
-
-	return path
+	return evaluate_dynamic_routes(rules, path) or path
 
 def get_website_rules():
 	'''Get website route rules from hooks and DocType route'''
@@ -283,6 +281,10 @@ def get_website_rules():
 				rules.append(dict(from_route = '/' + d.route.strip('/'), to_route=d.name))
 
 		return rules
+
+	if frappe.local.dev_server:
+		# dont cache in development
+		return _get()
 
 	return frappe.cache().get_value('website_route_rules', _get)
 
@@ -377,3 +379,4 @@ def raise_if_disabled(path):
 		_path = r.route.lstrip('/')
 		if path == _path and not r.enabled:
 			raise frappe.PermissionError
+

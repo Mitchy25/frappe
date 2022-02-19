@@ -4,15 +4,16 @@
 from __future__ import unicode_literals
 import frappe
 import datetime
-from frappe.utils import formatdate, fmt_money, flt, cstr, cint, format_datetime, format_time
+from frappe.utils import formatdate, fmt_money, flt, cstr, cint, format_datetime, format_time, format_duration, format_timedelta
 from frappe.model.meta import get_field_currency, get_field_precision
 import re
-from six import string_types
+from dateutil.parser import ParserError
 
-def format_value(value, df=None, doc=None, currency=None, translated=False):
+
+def format_value(value, df=None, doc=None, currency=None, translated=False, format=None):
 	'''Format value based on given fieldtype, document reference, currency reference.
 	If docfield info (df) is not given, it will try and guess based on the datatype of the value'''
-	if isinstance(df, string_types):
+	if isinstance(df, str):
 		df = frappe._dict(fieldtype=df)
 
 	if not df:
@@ -49,7 +50,10 @@ def format_value(value, df=None, doc=None, currency=None, translated=False):
 		return format_datetime(value)
 
 	elif df.get("fieldtype")=="Time":
-		return format_time(value)
+		try:
+			return format_time(value)
+		except ParserError:
+			return format_timedelta(value)
 
 	elif value==0 and df.get("fieldtype") in ("Int", "Float", "Currency", "Percent") and df.get("print_hide_if_no_value"):
 		# this is required to show 0 as blank in table columns
@@ -58,7 +62,7 @@ def format_value(value, df=None, doc=None, currency=None, translated=False):
 	elif df.get("fieldtype") == "Currency":
 		default_currency = frappe.db.get_default("currency")
 		currency = currency or get_field_currency(df, doc) or default_currency
-		return fmt_money(value, precision=get_field_precision(df, doc), currency=currency)
+		return fmt_money(value, precision=get_field_precision(df, doc), currency=currency, format=format)
 
 	elif df.get("fieldtype") == "Float":
 		precision = get_field_precision(df, doc)
@@ -78,7 +82,7 @@ def format_value(value, df=None, doc=None, currency=None, translated=False):
 		return "{}%".format(flt(value, 2))
 
 	elif df.get("fieldtype") in ("Text", "Small Text"):
-		if not re.search("(\<br|\<div|\<p)", value):
+		if not re.search(r"(<br|<div|<p)", value):
 			return frappe.safe_decode(value).replace("\n", "<br>")
 
 	elif df.get("fieldtype") == "Markdown Editor":
@@ -89,5 +93,12 @@ def format_value(value, df=None, doc=None, currency=None, translated=False):
 		link_field = [df for df in meta.fields if df.fieldtype == 'Link'][0]
 		values = [v.get(link_field.fieldname, 'asdf') for v in value]
 		return ', '.join(values)
+
+	elif df.get("fieldtype") == "Duration":
+		hide_days = df.hide_days
+		return format_duration(value, hide_days)
+
+	elif df.get("fieldtype") == "Text Editor":
+		return "<div class='ql-snow'>{}</div>".format(value)
 
 	return value

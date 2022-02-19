@@ -1,5 +1,5 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# MIT License. See license.txt
+# Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and Contributors
+# License: MIT. See LICENSE
 
 from __future__ import unicode_literals
 import json
@@ -17,19 +17,20 @@ from werkzeug.local import LocalProxy
 from werkzeug.wsgi import wrap_file
 from werkzeug.wrappers import Response
 from werkzeug.exceptions import NotFound, Forbidden
-from frappe.website.render import render
-from frappe.utils import cint
-from six import text_type
-from six.moves.urllib.parse import quote
+from frappe.utils import cint, format_timedelta
+from urllib.parse import quote
 from frappe.core.doctype.access_log.access_log import make_access_log
 
 
 def report_error(status_code):
 	'''Build error. Show traceback in developer mode'''
-	if (cint(frappe.db.get_system_setting('allow_error_traceback'))
-		and (status_code!=404 or frappe.conf.logging)
+	allow_traceback = cint(frappe.db.get_system_setting('allow_error_traceback')) if frappe.db else True
+	if (allow_traceback and (status_code!=404 or frappe.conf.logging)
 		and not frappe.local.flags.disable_traceback):
-		frappe.errprint(frappe.utils.get_traceback())
+		traceback = frappe.utils.get_traceback()
+		if traceback:
+			frappe.errprint(traceback)
+			frappe.local.response.exception = traceback.splitlines()[-1]
 
 	response = build_response("json")
 	response.status_code = status_code
@@ -71,7 +72,7 @@ def as_txt():
 def as_raw():
 	response = Response()
 	response.mimetype = frappe.response.get("content_type") or mimetypes.guess_type(frappe.response['filename'])[0] or "application/unknown"
-	response.headers["Content-Disposition"] = ("attachment; filename=\"%s\"" % frappe.response['filename'].replace(' ', '_')).encode("utf-8")
+	response.headers["Content-Disposition"] = (f'{frappe.response.get("display_content_as","attachment")}; filename="{frappe.response["filename"].replace(" ", "_")}"').encode("utf-8")
 	response.data = frappe.response['filecontent']
 	return response
 
@@ -122,23 +123,25 @@ def make_logs(response = None):
 
 def json_handler(obj):
 	"""serialize non-serializable data for json"""
-	# serialize date
-	import collections
+	from collections.abc import Iterable
 
-	if isinstance(obj, (datetime.date, datetime.timedelta, datetime.datetime)):
-		return text_type(obj)
+	if isinstance(obj, (datetime.date, datetime.datetime, datetime.time)):
+		return str(obj)
+
+	elif isinstance(obj, datetime.timedelta):
+		return format_timedelta(obj)
 
 	elif isinstance(obj, decimal.Decimal):
 		return float(obj)
 
 	elif isinstance(obj, LocalProxy):
-		return text_type(obj)
+		return str(obj)
 
 	elif isinstance(obj, frappe.model.document.BaseDocument):
 		doc = obj.as_dict(no_nulls=True)
 		return doc
 
-	elif isinstance(obj, collections.Iterable):
+	elif isinstance(obj, Iterable):
 		return list(obj)
 
 	elif type(obj)==type or isinstance(obj, Exception):
@@ -150,6 +153,7 @@ def json_handler(obj):
 
 def as_page():
 	"""print web page"""
+	from frappe.website.render import render
 	return render(frappe.response['route'], http_status_code=frappe.response.get("http_status_code"))
 
 def redirect():
@@ -218,6 +222,6 @@ def send_private_file(path):
 
 def handle_session_stopped():
 	frappe.respond_as_web_page(_("Updating"),
-		_("Your system is being updated. Please refresh again after a few moments"),
+		_("The system is being updated. Please refresh again after a few moments."),
 		http_status_code=503, indicator_color='orange', fullpage = True, primary_action=None)
 	return frappe.website.render.render("message", http_status_code=503)

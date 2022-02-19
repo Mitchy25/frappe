@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
+# Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and Contributors
 # MIT License. See license.txt
 
 # Database Module
@@ -6,27 +6,23 @@
 
 from __future__ import unicode_literals
 
-import re
-import time
-import frappe
 import datetime
+import re
+from time import time
+from typing import Dict, List, Union
+from frappe.database.query import Query
+
+from pypika.terms import NullValue
+from six import integer_types, string_types, text_type
+
+import frappe
 import frappe.defaults
 import frappe.model.meta
-
 from frappe import _
-from time import time
-from frappe.utils import now, getdate, cast_fieldtype
-from frappe.utils.background_jobs import execute_job, get_queue
 from frappe.model.utils.link_count import flush_local_link_count
-from frappe.utils import cint
+from frappe.query_builder.utils import DocType
+from frappe.utils import cast, get_datetime, get_table_name, getdate, now, sbool
 
-# imports - compatibility imports
-from six import (
-	integer_types,
-	string_types,
-	text_type,
-	iteritems
-)
 
 class Database(object):
 	"""
@@ -42,13 +38,14 @@ class Database(object):
 	STANDARD_VARCHAR_COLUMNS = ('name', 'owner', 'modified_by', 'parent', 'parentfield', 'parenttype')
 	DEFAULT_COLUMNS = ['name', 'creation', 'modified', 'modified_by', 'owner', 'docstatus', 'parent',
 		'parentfield', 'parenttype', 'idx']
+	MAX_WRITES_PER_TRANSACTION = 200_000
 
 	class InvalidColumnName(frappe.ValidationError): pass
 
 
 	def __init__(self, host=None, user=None, password=None, ac_name=None, use_default=0, port=None):
 		self.setup_type_map()
-		self.host = host or frappe.conf.db_host or 'localhost'
+		self.host = host or frappe.conf.db_host or '127.0.0.1'
 		self.port = port or frappe.conf.db_port or ''
 		self.user = user or frappe.conf.db_name
 		self.db_name = frappe.conf.db_name
@@ -65,6 +62,7 @@ class Database(object):
 
 		self.password = password or frappe.conf.db_password
 		self.value_cache = {}
+		self.query = Query()
 
 	def setup_type_map(self):
 		pass
@@ -114,6 +112,7 @@ class Database(object):
 				{"name": "a%", "owner":"test@example.com"})
 
 		"""
+		query = str(query)
 		if re.search(r'ifnull\(', query, flags=re.IGNORECASE):
 			# replaces ifnull in query with coalesce
 			query = re.sub(r'ifnull\(', 'coalesce(', query, flags=re.IGNORECASE)
@@ -124,6 +123,8 @@ class Database(object):
 		# in transaction validations
 		self.check_transaction_status(query)
 
+		self.clear_db_table_cache(query)
+
 		# autocommit
 		if auto_commit: self.commit()
 
@@ -131,6 +132,8 @@ class Database(object):
 		try:
 			if debug:
 				time_start = time()
+
+			self.log_query(query, values, debug, explain)
 
 			if values!=():
 				if isinstance(values, dict):
@@ -140,41 +143,18 @@ class Database(object):
 				if not isinstance(values, (dict, tuple, list)):
 					values = (values,)
 
-				if debug and query.strip().lower().startswith('select'):
-					try:
-						if explain:
-							self.explain_query(query, values)
-						frappe.errprint(query % values)
-					except TypeError:
-						frappe.errprint([query, values])
-				if (frappe.conf.get("logging") or False)==2:
-					frappe.log("<<<< query")
-					frappe.log(query)
-					frappe.log("with values:")
-					frappe.log(values)
-					frappe.log(">>>>")
 				self._cursor.execute(query, values)
 
 				if frappe.flags.in_migrate:
 					self.log_touched_tables(query, values)
 
 			else:
-				if debug:
-					if explain:
-						self.explain_query(query)
-					frappe.errprint(query)
-				if (frappe.conf.get("logging") or False)==2:
-					frappe.log("<<<< query")
-					frappe.log(query)
-					frappe.log(">>>>")
-
 				self._cursor.execute(query)
 
 				if frappe.flags.in_migrate:
 					self.log_touched_tables(query)
 
 			if debug:
-				frappe.errprint(self._cursor.mogrify(query, values))
 				time_end = time()
 				frappe.errprint(("Execution time: {0} sec").format(round(time_end - time_start, 2)))
 
@@ -186,6 +166,12 @@ class Database(object):
 				# only for mariadb
 				frappe.errprint('Syntax error in query:')
 				frappe.errprint(query)
+
+			elif self.is_deadlocked(e):
+				raise frappe.QueryDeadlockError(e)
+
+			elif self.is_timedout(e):
+				raise frappe.QueryTimeoutError(e)
 
 			if ignore_ddl and (self.is_missing_column(e) or self.is_missing_table(e) or self.cant_drop_field_or_key(e)):
 				pass
@@ -210,6 +196,33 @@ class Database(object):
 			return self.convert_to_lists(self._cursor.fetchall(), formatted, as_utf8)
 		else:
 			return self._cursor.fetchall()
+
+	def log_query(self, query, values, debug, explain):
+		# for debugging in tests
+		if frappe.conf.get('allow_tests') and frappe.cache().get_value('flag_print_sql'):
+			print(self.mogrify(query, values))
+
+		# debug
+		if debug:
+			if explain and query.strip().lower().startswith('select'):
+				self.explain_query(query, values)
+			frappe.errprint(self.mogrify(query, values))
+
+		# info
+		if (frappe.conf.get("logging") or False)==2:
+			frappe.log("<<<< query")
+			frappe.log(self.mogrify(query, values))
+			frappe.log(">>>>")
+
+	def mogrify(self, query, values):
+		'''build the query string with values'''
+		if not values:
+			return query
+		else:
+			try:
+				return self._cursor.mogrify(query, values)
+			except: # noqa: E722
+				return (query, values)
 
 	def explain_query(self, query, values=None):
 		"""Print `EXPLAIN` in error log."""
@@ -254,7 +267,7 @@ class Database(object):
 
 		if query[:6].lower() in ('update', 'insert', 'delete'):
 			self.transaction_writes += 1
-			if self.transaction_writes > 200000:
+			if self.transaction_writes > self.MAX_WRITES_PER_TRANSACTION:
 				if self.auto_commit_on_many_writes:
 					self.commit()
 				else:
@@ -276,6 +289,11 @@ class Database(object):
 
 			ret.append(frappe._dict(zip(keys, values)))
 		return ret
+
+	@staticmethod
+	def clear_db_table_cache(query):
+		if query and query.strip().split()[0].lower() in {'drop', 'create'}:
+			frappe.cache().delete_key('db_tables')
 
 	@staticmethod
 	def needs_formatting(result, formatted):
@@ -306,8 +324,7 @@ class Database(object):
 			nres.append(nr)
 		return nres
 
-	@staticmethod
-	def build_conditions(filters):
+	def build_conditions(self, filters):
 		"""Convert filters sent as dict, lists to SQL conditions. filter's key
 		is passed by map function, build conditions like:
 
@@ -328,18 +345,12 @@ class Database(object):
 			value = filters.get(key)
 			values[key] = value
 			if isinstance(value, (list, tuple)):
-				# value is a tuble like ("!=", 0)
-				_operator = value[0]
+				# value is a tuple like ("!=", 0)
+				_operator = value[0].lower()
 				values[key] = value[1]
 				if isinstance(value[1], (tuple, list)):
 					# value is a list in tuple ("in", ("A", "B"))
-					inner_list = []
-					for i, v in enumerate(value[1]):
-						inner_key = "{0}_{1}".format(key, i)
-						values[inner_key] = v
-						inner_list.append("%({0})s".format(inner_key))
-
-					_rhs = " ({0})".format(", ".join(inner_list))
+					_rhs = " ({0})".format(", ".join([self.escape(v) for v in value[1]]))
 					del values[key]
 
 			if _operator not in ["=", "!=", ">", ">=", "<", "<=", "like", "in", "not in", "not like"]:
@@ -371,7 +382,7 @@ class Database(object):
 		return self.get_value(doctype, filters, "*", as_dict=as_dict, cache=cache)
 
 	def get_value(self, doctype, filters=None, fieldname="name", ignore=None, as_dict=False,
-		debug=False, order_by=None, cache=False):
+		debug=False, order_by=None, cache=False, for_update=False):
 		"""Returns a document property or list of properties.
 
 		:param doctype: DocType name.
@@ -398,12 +409,12 @@ class Database(object):
 		"""
 
 		ret = self.get_values(doctype, filters, fieldname, ignore, as_dict, debug,
-			order_by, cache=cache)
+			order_by, cache=cache, for_update=for_update)
 
 		return ((len(ret[0]) > 1 or as_dict) and ret[0] or ret[0][0]) if ret else None
 
 	def get_values(self, doctype, filters=None, fieldname="name", ignore=None, as_dict=False,
-		debug=False, order_by=None, update=None, cache=False):
+		debug=False, order_by=None, update=None, cache=False, for_update=False):
 		"""Returns multiple document properties.
 
 		:param doctype: DocType name.
@@ -442,7 +453,7 @@ class Database(object):
 
 			if (filters is not None) and (filters!=doctype or doctype=="DocType"):
 				try:
-					out = self._get_values_from_table(fields, filters, doctype, as_dict, debug, order_by, update)
+					out = self._get_values_from_table(fields, filters, doctype, as_dict, debug, order_by, update, for_update=for_update)
 				except Exception as e:
 					if ignore and (frappe.db.is_missing_column(e) or frappe.db.is_table_missing(e)):
 						# table or column not found, return None
@@ -450,6 +461,7 @@ class Database(object):
 					elif (not ignore) and frappe.db.is_table_missing(e):
 						# table not found, look in singles
 						out = self.get_values_from_single(fields, filters, doctype, as_dict, debug, update)
+
 					else:
 						raise
 			else:
@@ -502,6 +514,7 @@ class Database(object):
 			else:
 				return r and [[i[1] for i in r]] or []
 
+
 	def get_singles_dict(self, doctype, debug = False):
 		"""Get Single DocType as dict.
 
@@ -517,7 +530,6 @@ class Database(object):
 			FROM   `tabSingles`
 			WHERE  doctype = %s
 		""", doctype)
-		# result = _cast_result(doctype, result)
 
 		dict_  = frappe._dict(result)
 
@@ -531,7 +543,21 @@ class Database(object):
 	def get_list(*args, **kwargs):
 		return frappe.get_list(*args, **kwargs)
 
-	def get_single_value(self, doctype, fieldname, cache=False):
+	def set_single_value(self, doctype, fieldname, value, *args, **kwargs):
+		"""Set field value of Single DocType.
+
+		:param doctype: DocType of the single object
+		:param fieldname: `fieldname` of the property
+		:param value: `value` of the property
+
+		Example:
+
+			# Update the `deny_multiple_sessions` field in System Settings DocType.
+			company = frappe.db.set_single_value("System Settings", "deny_multiple_sessions", True)
+		"""
+		return self.set_value(doctype, doctype, fieldname, value, *args, **kwargs)
+
+	def get_single_value(self, doctype, fieldname, cache=True):
 		"""Get property of Single DocType. Cache locally by default
 
 		:param doctype: DocType of the single object whose value is requested
@@ -544,9 +570,9 @@ class Database(object):
 		"""
 
 		if not doctype in self.value_cache:
-			self.value_cache = self.value_cache[doctype] = {}
+			self.value_cache[doctype] = {}
 
-		if fieldname in self.value_cache[doctype]:
+		if cache and fieldname in self.value_cache[doctype]:
 			return self.value_cache[doctype][fieldname]
 
 		val = self.sql("""select `value` from
@@ -558,8 +584,7 @@ class Database(object):
 		if not df:
 			frappe.throw(_('Invalid field name: {0}').format(frappe.bold(fieldname)), self.InvalidColumnName)
 
-		if df.fieldtype in frappe.model.numeric_fieldtypes:
-			val = cint(val)
+		val = cast(df.fieldtype, val)
 
 		self.value_cache[doctype][fieldname] = val
 
@@ -569,7 +594,7 @@ class Database(object):
 		"""Alias for get_single_value"""
 		return self.get_single_value(*args, **kwargs)
 
-	def _get_values_from_table(self, fields, filters, doctype, as_dict, debug, order_by=None, update=None):
+	def _get_values_from_table(self, fields, filters, doctype, as_dict, debug, order_by=None, update=None, for_update=False):
 		fl = []
 		if isinstance(fields, (list, tuple)):
 			for f in fields:
@@ -587,9 +612,15 @@ class Database(object):
 
 		order_by = ("order by " + order_by) if order_by else ""
 
-		r = self.sql("select {0} from `tab{1}` {2} {3} {4}"
-			.format(fl, doctype, "where" if conditions else "", conditions, order_by), values,
-			as_dict=as_dict, debug=debug, update=update)
+		r = self.sql("select {fields} from `tab{doctype}` {where} {conditions} {order_by} {for_update}"
+			.format(
+				for_update = 'for update' if for_update else '',
+				fields = fl,
+				doctype = doctype,
+				where = "where" if conditions else "",
+				conditions = conditions,
+				order_by = order_by),
+			values, as_dict=as_dict, debug=debug, update=update)
 
 		return r
 
@@ -609,7 +640,7 @@ class Database(object):
 		return self.set_value(*args, **kwargs)
 
 	def set_value(self, dt, dn, field, val=None, modified=None, modified_by=None,
-		update_modified=True, debug=False):
+		update_modified=True, debug=False, for_update=True):
 		"""Set a single value in the database, do not call the ORM triggers
 		but update the modified timestamp (unless specified not to).
 
@@ -623,51 +654,56 @@ class Database(object):
 		:param modified_by: Set this user as `modified_by`.
 		:param update_modified: default True. Set as false, if you don't want to update the timestamp.
 		:param debug: Print the query in the developer / js console.
+		:param for_update: Will add a row-level lock to the value that is being set so that it can be released on commit.
 		"""
-		if not modified:
-			modified = now()
-		if not modified_by:
-			modified_by = frappe.session.user
+		is_single_doctype = not (dn and dt != dn)
+		to_update = field if isinstance(field, dict) else {field: val}
 
-		to_update = {}
 		if update_modified:
-			to_update = {"modified": modified, "modified_by": modified_by}
+			modified = modified or now()
+			modified_by = modified_by or frappe.session.user
+			to_update.update({"modified": modified, "modified_by": modified_by})
 
-		if isinstance(field, dict):
-			to_update.update(field)
-		else:
-			to_update.update({field: val})
+		if is_single_doctype:
+			frappe.db.delete(
+				"Singles",
+				filters={"field": ("in", tuple(to_update)), "doctype": dt}, debug=debug
+			)
 
-		if dn and dt!=dn:
-			# with table
-			conditions, values = self.build_conditions(dn)
-
-			values.update(to_update)
-
-			set_values = []
-			for key in to_update:
-				set_values.append('`{0}`=%({0})s'.format(key))
-
-			self.sql("""update `tab{0}`
-				set {1} where {2}""".format(dt, ', '.join(set_values), conditions),
-				values, debug=debug)
+			singles_data = ((dt, key, sbool(value)) for key, value in to_update.items())
+			query = (
+				frappe.qb.into("Singles")
+					.columns("doctype", "field", "value")
+					.insert(*singles_data)
+			).run(debug=debug)
+			frappe.clear_document_cache(dt, dt)
 
 		else:
-			# for singles
-			keys = list(to_update)
-			self.sql('''
-				delete from `tabSingles`
-				where field in ({0}) and
-					doctype=%s'''.format(', '.join(['%s']*len(keys))),
-					list(keys) + [dt], debug=debug)
-			for key, value in iteritems(to_update):
-				self.sql('''insert into `tabSingles` (doctype, field, value) values (%s, %s, %s)''',
-					(dt, key, value), debug=debug)
+			table = DocType(dt)
+
+			if for_update:
+				docnames = tuple(
+					x[0] for x in self.get_values(dt, dn, "name", debug=debug, for_update=for_update)
+				) or (NullValue(),)
+				query = frappe.qb.update(table).where(table.name.isin(docnames))
+
+				for docname in docnames:
+					frappe.clear_document_cache(dt, docname)
+
+			else:
+				query = self.query.build_conditions(table=dt, filters=dn, update=True)
+				# TODO: Fix this; doesn't work rn - gavin@frappe.io
+				# frappe.cache().hdel_keys(dt, "document_cache")
+				# Workaround: clear all document caches
+				frappe.cache().delete_value('document_cache')
+
+			for column, value in to_update.items():
+				query = query.set(column, value)
+
+			query.run(debug=debug)
 
 		if dt in self.value_cache:
 			del self.value_cache[dt]
-
-		frappe.clear_document_cache(dt, dn)
 
 	@staticmethod
 	def set(doc, field, val):
@@ -734,12 +770,18 @@ class Database(object):
 
 	def commit(self):
 		"""Commit current transaction. Calls SQL `COMMIT`."""
+		for method in frappe.local.before_commit:
+			frappe.call(method[0], *(method[1] or []), **(method[2] or {}))
+
 		self.sql("commit")
 
 		frappe.local.rollback_observers = []
 		self.flush_realtime_log()
 		enqueue_jobs_after_commit()
 		flush_local_link_count()
+
+	def add_before_commit(self, method, args=None, kwargs=None):
+		frappe.local.before_commit.append([method, args, kwargs])
 
 	@staticmethod
 	def flush_realtime_log():
@@ -748,14 +790,27 @@ class Database(object):
 
 		frappe.local.realtime_log = []
 
-	def rollback(self):
-		"""`ROLLBACK` current transaction."""
-		self.sql("rollback")
-		self.begin()
-		for obj in frappe.local.rollback_observers:
-			if hasattr(obj, "on_rollback"):
-				obj.on_rollback()
-		frappe.local.rollback_observers = []
+	def savepoint(self, save_point):
+		"""Savepoints work as a nested transaction.
+
+		Changes can be undone to a save point by doing frappe.db.rollback(save_point)
+
+		Note: rollback watchers can not work with save points.
+			so only changes to database are undone when rolling back to a savepoint.
+			Avoid using savepoints when writing to filesystem."""
+		self.sql(f"savepoint {save_point}")
+
+	def rollback(self, *, save_point=None):
+		"""`ROLLBACK` current transaction. Optionally rollback to a known save_point."""
+		if save_point:
+			self.sql(f"rollback to savepoint {save_point}")
+		else:
+			self.sql("rollback")
+			self.begin()
+			for obj in frappe.local.rollback_observers:
+				if hasattr(obj, "on_rollback"):
+					obj.on_rollback()
+			frappe.local.rollback_observers = []
 
 	def field_exists(self, dt, fn):
 		"""Return true of field exists."""
@@ -768,8 +823,20 @@ class Database(object):
 		"""Returns True if table for given doctype exists."""
 		return ("tab" + doctype) in self.get_tables()
 
-	def get_tables(self):
-		return [d[0] for d in self.sql("select table_name from information_schema.tables where table_schema not in ('pg_catalog', 'information_schema')")]
+	def has_table(self, doctype):
+		return self.table_exists(doctype)
+
+	def get_tables(self, cached=True):
+		tables = frappe.cache().get_value('db_tables')
+		if not tables or not cached:
+			table_rows = self.sql("""
+				SELECT table_name
+				FROM information_schema.tables
+				WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+			""")
+			tables = {d[0] for d in table_rows}
+			frappe.cache().set_value('db_tables', tables)
+		return tables
 
 	def a_row_exists(self, doctype):
 		"""Returns True if atleast one row exists."""
@@ -837,8 +904,9 @@ class Database(object):
 
 	def get_creation_count(self, doctype, minutes):
 		"""Get count of records created in the last x minutes"""
-		from frappe.utils import now_datetime
 		from dateutil.relativedelta import relativedelta
+
+		from frappe.utils import now_datetime
 
 		return self.sql("""select count(name) from `tab{doctype}`
 			where creation >= %s""".format(doctype=doctype),
@@ -874,13 +942,13 @@ class Database(object):
 			WHERE table_name = 'tab{0}' AND column_name = '{1}' '''.format(doctype, column))[0][0]
 
 	def has_index(self, table_name, index_name):
-		pass
+		raise NotImplementedError
 
 	def add_index(self, doctype, fields, index_name=None):
-		pass
+		raise NotImplementedError
 
 	def add_unique(self, doctype, fields, constraint_name=None):
-		pass
+		raise NotImplementedError
 
 	@staticmethod
 	def get_index_name(fields):
@@ -906,7 +974,7 @@ class Database(object):
 	def escape(s, percent=True):
 		"""Excape quotes and percent in given string."""
 		# implemented in specific class
-		pass
+		raise NotImplementedError
 
 	@staticmethod
 	def is_column_missing(e):
@@ -931,20 +999,52 @@ class Database(object):
 		query = sql_dict.get(current_dialect)
 		return self.sql(query, values, **kwargs)
 
-	def delete(self, doctype, conditions):
-		if conditions:
-			conditions, values = self.build_conditions(conditions)
-			return self.sql("DELETE FROM `tab{doctype}` where {conditions}".format(
-				doctype=doctype,
-				conditions=conditions
-			), values)
+	def delete(self, doctype: str, filters: Union[Dict, List] = None, debug=False, **kwargs):
+		"""Delete rows from a table in site which match the passed filters. This
+		does trigger DocType hooks. Simply runs a DELETE query in the database.
+
+		Doctype name can be passed directly, it will be pre-pended with `tab`.
+		"""
+		values = ()
+		filters = filters or kwargs.get("conditions")
+		table = get_table_name(doctype)
+		query = f"DELETE FROM `{table}`"
+
+		if "debug" not in kwargs:
+			kwargs["debug"] = debug
+
+		if filters:
+			conditions, values = self.build_conditions(filters)
+			query = f"{query} WHERE {conditions}"
+
+		return self.sql(query, values, **kwargs)
+
+	def truncate(self, doctype: str):
+		"""Truncate a table in the database. This runs a DDL command `TRUNCATE TABLE`.
+		This cannot be rolled back.
+
+		Doctype name can be passed directly, it will be pre-pended with `tab`.
+		"""
+		table = doctype if doctype.startswith("__") else f"tab{doctype}"
+		return self.sql_ddl(f"truncate `{table}`")
+
+	def clear_table(self, doctype):
+		return self.truncate(doctype)
+
+	def get_last_created(self, doctype):
+		last_record = self.get_all(doctype, ('creation'), limit=1, order_by='creation desc')
+		if last_record:
+			return get_datetime(last_record[0].creation)
 		else:
-			frappe.throw(_('No conditions provided'))
+			return None
+
+	def clear_table(self, doctype):
+		self.sql('truncate `tab{}`'.format(doctype))
 
 	def log_touched_tables(self, query, values=None):
 		if values:
 			query = frappe.safe_decode(self._cursor.mogrify(query, values))
-		if query.strip().lower().split()[0] in ('insert', 'delete', 'update', 'alter'):
+		if query.strip().lower().split()[0] in ('insert', 'delete', 'update', 'alter', 'drop', 'rename'):
 			# single_word_regex is designed to match following patterns
 			# `tabXxx`, tabXxx and "tabXxx"
 
@@ -991,26 +1091,13 @@ class Database(object):
 					), tuple(insert_list))
 				insert_list = []
 
+
 def enqueue_jobs_after_commit():
+	from frappe.utils.background_jobs import execute_job, get_queue
+
 	if frappe.flags.enqueue_after_commit and len(frappe.flags.enqueue_after_commit) > 0:
 		for job in frappe.flags.enqueue_after_commit:
 			q = get_queue(job.get("queue"), is_async=job.get("is_async"))
 			q.enqueue_call(execute_job, timeout=job.get("timeout"),
 							kwargs=job.get("queue_args"))
 		frappe.flags.enqueue_after_commit = []
-
-# Helpers
-def _cast_result(doctype, result):
-	batch = [ ]
-
-	try:
-		for field, value in result:
-			df = frappe.get_meta(doctype).get_field(field)
-			if df:
-				value = cast_fieldtype(df.fieldtype, value)
-
-			batch.append(tuple([field, value]))
-	except frappe.exceptions.DoesNotExistError:
-		return result
-
-	return tuple(batch)

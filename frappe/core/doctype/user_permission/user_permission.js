@@ -26,11 +26,15 @@ frappe.ui.form.on('User Permission', {
 			() => frappe.set_route('query-report', 'Permitted Documents For User',
 				{ user: frm.doc.user }));
 		frm.trigger('set_applicable_for_constraint');
+		frm.trigger('toggle_hide_descendants');
 	},
 
 	allow: frm => {
-		if(frm.doc.for_value) {
-			frm.set_value('for_value', null);
+		if (frm.doc.allow) {
+			if (frm.doc.for_value) {
+				frm.set_value('for_value', null);
+			}
+			frm.trigger('toggle_hide_descendants');
 		}
 	},
 
@@ -40,9 +44,14 @@ frappe.ui.form.on('User Permission', {
 
 	set_applicable_for_constraint: frm => {
 		frm.toggle_reqd('applicable_for', !frm.doc.apply_to_all_doctypes);
-		if (frm.doc.apply_to_all_doctypes) {
+		if (frm.doc.apply_to_all_doctypes && frm.doc.applicable_for) {
 			frm.set_value('applicable_for', null);
 		}
+	},
+
+	toggle_hide_descendants: frm => {
+		let show = frappe.boot.nested_set_doctypes.includes(frm.doc.allow);
+		frm.toggle_display('hide_descendants', show);
 	}
 
 

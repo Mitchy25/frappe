@@ -224,6 +224,9 @@ frappe.views.InteractionComposer = class InteractionComposer {
 		if (!("owner" in interaction_values)){
 			interaction_values["owner"] = frappe.session.user;
 		}
+		if (!("assigned_by" in interaction_values) && interaction_values["doctype"] == "ToDo") {
+			interaction_values["assigned_by"] = frappe.session.user;
+		}
 		return frappe.call({
 			method:"frappe.client.insert",
 			args: { doc: interaction_values},
@@ -242,8 +245,6 @@ frappe.views.InteractionComposer = class InteractionComposer {
 						me.add_attachments(r.message, selected_attachments);
 					}
 					if (cur_frm) {
-						// clear input
-						cur_frm.timeline.input && cur_frm.timeline.input.val("");
 						cur_frm.reload_doc();
 					}
 				} else {
@@ -261,7 +262,7 @@ frappe.views.InteractionComposer = class InteractionComposer {
 				args: {
 					doctype: doc.doctype,
 					name: doc.name,
-					assign_to: assignee,
+					assign_to: JSON.stringify([assignee]),
 				},
 				callback:function(r) {
 					if(!r.exc) {

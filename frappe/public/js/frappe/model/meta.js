@@ -38,14 +38,14 @@ $.extend(frappe.meta, {
 		frappe.meta.docfield_list[df.parent].push(df);
 	},
 
-	make_docfield_copy_for: function(doctype, docname) {
+	make_docfield_copy_for: function(doctype, docname, docfield_list=null) {
 		var c = frappe.meta.docfield_copy;
 		if(!c[doctype])
 			c[doctype] = {};
 		if(!c[doctype][docname])
 			c[doctype][docname] = {};
 
-		var docfield_list = frappe.meta.docfield_list[doctype] || [];
+		docfield_list = docfield_list || frappe.meta.docfield_list[doctype] || [];
 		for(var i=0, j=docfield_list.length; i<j; i++) {
 			var df = docfield_list[i];
 			c[doctype][docname][df.fieldname || df.label] = copy_dict(df);
@@ -161,8 +161,7 @@ $.extend(frappe.meta, {
 
 			if(!out) {
 				// eslint-disable-next-line
-				console.log(__('Warning: Unable to find {0} in any table related to {1}', [
-					key, __(doctype)]));
+				console.log(__('Warning: Unable to find {0} in any table related to {1}', [key, __(doctype)]));
 			}
 		}
 		return out;
@@ -191,6 +190,15 @@ $.extend(frappe.meta, {
 			var df = this.get_docfield(dt, fn, dn);
 			return (df ? df.label : "") || fn;
 		}
+	},
+
+	get_print_sizes: function() {
+		return [
+			"A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9",
+			"B0", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "B10",
+			"C5E", "Comm10E", "DLE", "Executive", "Folio", "Ledger", "Legal",
+			"Letter", "Tabloid", "Custom"
+		];
 	},
 
 	get_print_formats: function(doctype) {
@@ -266,5 +274,5 @@ $.extend(frappe.meta, {
 			precision = cint(frappe.defaults.get_default("float_precision")) || 3;
 		}
 		return precision;
-	},
+	}
 });

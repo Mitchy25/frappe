@@ -4,32 +4,27 @@
 frappe.provide("frappe.ui.toolbar");
 frappe.provide('frappe.search');
 
-frappe.ui.toolbar.Toolbar = Class.extend({
-	init: function() {
-		$('header').append(frappe.render_template("navbar", {
-			avatar: frappe.avatar(frappe.session.user)
+frappe.ui.toolbar.Toolbar = class {
+	constructor () {
+		$('header').replaceWith(frappe.render_template("navbar", {
+			avatar: frappe.avatar(frappe.session.user, 'avatar-medium'),
+			navbar_settings: frappe.boot.navbar_settings
 		}));
 		$('.dropdown-toggle').dropdown();
 
-		let awesome_bar = new frappe.search.AwesomeBar();
-		awesome_bar.setup("#navbar-search");
-		awesome_bar.setup("#modal-search");
-
+		this.setup_awesomebar();
 		this.setup_notifications();
-		this.make();
-	},
-
-	make: function() {
-		this.setup_sidebar();
 		this.setup_help();
+		this.make();
+	}
 
+	make () {
 		this.bind_events();
-
 		$(document).trigger('toolbar_setup');
 		this.hide_show_sidebar();
-	},
+	}
 
-	bind_events: function() {
+	bind_events () {
 		// clear all custom menus on page change
 		$(document).on("page-change", function() {
 			$("header .navbar .custom-menu").remove();
@@ -53,11 +48,13 @@ frappe.ui.toolbar.Toolbar = Class.extend({
 			$('.navbar-reload a i').addClass('fa-spin')
 			return frappe.ui.toolbar.clear_cache();
 		});
-	},
-	hide_show_sidebar: function(){
+	}
+
+	hide_show_sidebar () {
 		frappe.ui.toolbar.hide_show_sidebar();
-	},
-	setup_sidebar: function() {
+	}
+
+	setup_sidebar () {
 		var header = $('header');
 		header.find(".toggle-sidebar").on("click", function() {
 			var layout_side_section = $('.layout-side-section');
@@ -91,9 +88,14 @@ frappe.ui.toolbar.Toolbar = Class.extend({
 				});
 			}
 		});
-	},
-
-	setup_help: function() {
+	}
+	setup_help () {
+		if (!frappe.boot.desk_settings.notifications) {
+			// hide the help section
+			$('.navbar .vertical-bar').removeClass('d-sm-block');
+			$('.dropdown-help').removeClass('d-lg-block');
+			return;
+		}
 		frappe.provide('frappe.help');
 		frappe.help.show_results = show_results;
 
@@ -140,7 +142,8 @@ frappe.ui.toolbar.Toolbar = Class.extend({
 				var link = links[i];
 				var url = link.url;
 				$("<a>", {
-					href: link.url,
+					href: url,
+					class: "dropdown-item",
 					text: link.label,
 					target: "_blank"
 				}).appendTo($help_links);
@@ -165,13 +168,28 @@ frappe.ui.toolbar.Toolbar = Class.extend({
 				e.preventDefault();
 			}
 		}
-	},
-
-	setup_notifications: function() {
-		this.notifications = new frappe.ui.Notifications();
 	}
 
-});
+	setup_awesomebar() {
+		if (frappe.boot.desk_settings.search_bar) {
+			let awesome_bar = new frappe.search.AwesomeBar();
+			awesome_bar.setup("#navbar-search");
+
+			// TODO: Remove this in v14
+			frappe.search.utils.make_function_searchable(function() {
+				frappe.set_route("List", "Client Script");
+			}, __("Custom Script List"));
+
+		}
+	}
+
+	setup_notifications () {
+		if (frappe.boot.desk_settings.notifications && frappe.session.user !== 'Guest') {
+			this.notifications = new frappe.ui.Notifications();
+		}
+	}
+
+};
 
 $.extend(frappe.ui.toolbar, {
 	add_dropdown_button: function(parent, label, click, icon) {
@@ -214,6 +232,7 @@ $.extend(frappe.ui.toolbar, {
 		fullwidth = !fullwidth;
 		localStorage.container_fullwidth = fullwidth;
 		frappe.ui.toolbar.set_fullwidth_if_enabled();
+		$(document.body).trigger('toggleFullWidth');
 	},
 	toggle_sidebar() {
 		let sidebar = JSON.parse(localStorage.sidebar || 'true');
@@ -252,7 +271,7 @@ frappe.ui.toolbar.clear_cache = frappe.utils.throttle(function() {
 	frappe.xcall('frappe.sessions.clear').then(message => {
 		frappe.show_alert({
 			message: message,
-			indicator: 'green'
+			indicator: 'info'
 		});
 		location.reload(true);
 	});
@@ -265,6 +284,16 @@ frappe.ui.toolbar.show_about = function() {
 		console.log(e);
 	}
 	return false;
+};
+
+frappe.ui.toolbar.route_to_user = function() {
+	frappe.set_route('Form', 'User', frappe.session.user);
+};
+
+frappe.ui.toolbar.view_website = function() {
+	let website_tab = window.open();
+	website_tab.opener = null;
+	website_tab.location = '/index';
 };
 
 frappe.ui.toolbar.setup_session_defaults = function() {

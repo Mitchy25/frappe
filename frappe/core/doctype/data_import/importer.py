@@ -9,7 +9,7 @@ import timeit
 import json
 from datetime import datetime, date
 from frappe import _
-from frappe.utils import cint, flt, update_progress_bar, cstr
+from frappe.utils import cint, flt, update_progress_bar, cstr, duration_to_seconds
 from frappe.utils.csvutils import read_csv_content, get_csv_content_from_google_sheets
 from frappe.utils.xlsxutils import (
 	read_xlsx_file_from_attached_file,
@@ -200,7 +200,7 @@ class Importer:
 		new_doc = frappe.new_doc(self.doctype)
 		new_doc.update(doc)
 
-		if (meta.autoname or "").lower() != "prompt":
+		if not doc.name and (meta.autoname or "").lower() != "prompt":
 			# name can only be set directly if autoname is prompt
 			new_doc.set("name", None)
 
@@ -263,7 +263,7 @@ class Importer:
 		rows = [header_row]
 		rows += [row.data for row in self.import_file.data if row.row_number in row_indexes]
 
-		build_csv_response(rows, self.doctype)
+		build_csv_response(rows, _(self.doctype))
 
 	def print_import_log(self, import_log):
 		failed_records = [log for log in import_log if not log.success]
@@ -472,32 +472,6 @@ class ImportFile:
 
 		doc = parent_doc
 
-		if self.import_type == INSERT:
-			# check if there is atleast one row for mandatory table fields
-			meta = frappe.get_meta(self.doctype)
-			mandatory_table_fields = [
-				df
-				for df in meta.fields
-				if df.fieldtype in table_fieldtypes
-				and df.reqd
-				and len(doc.get(df.fieldname, [])) == 0
-			]
-			if len(mandatory_table_fields) == 1:
-				self.warnings.append(
-					{
-						"row": first_row.row_number,
-						"message": _("There should be atleast one row for {0} table").format(
-							frappe.bold(mandatory_table_fields[0].label)
-						),
-					}
-				)
-			elif mandatory_table_fields:
-				fields_string = ", ".join([df.label for df in mandatory_table_fields])
-				message = _("There should be atleast one row for the following tables: {0}").format(
-					fields_string
-				)
-				self.warnings.append({"row": first_row.row_number, "message": message})
-
 		return doc, rows, data[len(rows) :]
 
 	def get_warnings(self):
@@ -616,7 +590,9 @@ class Row:
 			id_field = get_id_field(doctype)
 			id_value = doc.get(id_field.fieldname)
 			if id_value and frappe.db.exists(doctype, id_value):
-				doc = frappe.get_doc(doctype, id_value)
+				existing_doc = frappe.get_doc(doctype, id_value)
+				existing_doc.update(doc)
+				doc = existing_doc
 			else:
 				# for table rows being inserted in update
 				# create a new doc with defaults set
@@ -624,7 +600,6 @@ class Row:
 				new_doc.update(doc)
 				doc = new_doc
 
-		self.check_mandatory_fields(doctype, doc, table_df)
 		return doc
 
 	def validate_value(self, value, col):
@@ -665,6 +640,20 @@ class Row:
 					}
 				)
 				return
+		elif df.fieldtype == "Duration":
+			import re
+			is_valid_duration = re.match(r"^(?:(\d+d)?((^|\s)\d+h)?((^|\s)\d+m)?((^|\s)\d+s)?)$", value)
+			if not is_valid_duration:
+				self.warnings.append(
+					{
+						"row": self.row_number,
+						"col": col.column_number,
+						"field": df_as_json(df),
+						"message": _("Value {0} must be in the valid duration format: d h m s").format(
+							frappe.bold(value)
+						)
+					}
+				)
 
 		return value
 
@@ -693,6 +682,8 @@ class Row:
 			value = flt(value)
 		elif df.fieldtype in ["Date", "Datetime"]:
 			value = self.get_date(value, col)
+		elif df.fieldtype == "Duration":
+			value = duration_to_seconds(value)
 
 		return value
 
@@ -709,66 +700,6 @@ class Row:
 				# import will break for these values later
 				pass
 		return value
-
-	def check_mandatory_fields(self, doctype, doc, table_df=None):
-		"""If import type is Insert:
-			Check for mandatory fields (except table fields) in doc
-		if import type is Update:
-			Check for name field or autoname field in doc
-		"""
-		meta = frappe.get_meta(doctype)
-		if self.import_type == UPDATE:
-			if meta.istable:
-				# when updating records with table rows,
-				# there are two scenarios:
-				# 1. if row 'name' is provided in the template
-				# the table row will be updated
-				# 2. if row 'name' is not provided
-				# then a new row will be added
-				# so we dont need to check for mandatory
-				return
-
-			# for update, only ID (name) field is mandatory
-			id_field = get_id_field(doctype)
-			if doc.get(id_field.fieldname) in INVALID_VALUES:
-				self.warnings.append(
-					{
-						"row": self.row_number,
-						"message": _("{0} is a mandatory field asdadsf").format(id_field.label),
-					}
-				)
-			return
-
-		fields = [
-			df
-			for df in meta.fields
-			if df.fieldtype not in table_fieldtypes
-			and df.reqd
-			and doc.get(df.fieldname) in INVALID_VALUES
-		]
-
-		if not fields:
-			return
-
-		def get_field_label(df):
-			return "{0}{1}".format(df.label, " ({})".format(table_df.label) if table_df else "")
-
-		if len(fields) == 1:
-			field_label = get_field_label(fields[0])
-			self.warnings.append(
-				{
-					"row": self.row_number,
-					"message": _("{0} is a mandatory field").format(frappe.bold(field_label)),
-				}
-			)
-		else:
-			fields_string = ", ".join([frappe.bold(get_field_label(df)) for df in fields])
-			self.warnings.append(
-				{
-					"row": self.row_number,
-					"message": _("{0} are mandatory fields").format(fields_string),
-				}
-			)
 
 	def get_values(self, indexes):
 		return [self.data[i] for i in indexes]
@@ -834,7 +765,9 @@ class Column:
 	seen = []
 	fields_column_map = {}
 
-	def __init__(self, index, header, doctype, column_values, map_to_field=None, seen=[]):
+	def __init__(self, index, header, doctype, column_values, map_to_field=None, seen=None):
+		if seen is None:
+			seen = []
 		self.index = index
 		self.column_number = index + 1
 		self.doctype = doctype
@@ -968,6 +901,9 @@ class Column:
 		if not self.df:
 			return
 
+		if self.skip_import:
+			return
+
 		if self.df.fieldtype == "Link":
 			# find all values that dont exist
 			values = list(set([cstr(v) for v in self.column_values[1:] if v]))
@@ -996,10 +932,7 @@ class Column:
 				self.warnings.append(
 					{
 						"col": self.column_number,
-						"message": _(
-							"Date format could not be determined from the values in"
-							" this column. Defaulting to yyyy-mm-dd."
-						),
+						"message": _("Date format could not be determined from the values in this column. Defaulting to yyyy-mm-dd."),
 						"type": "info",
 					}
 				)
@@ -1078,18 +1011,14 @@ def build_fields_dict_for_column_matching(parent_doctype):
 	out = {}
 
 	# doctypes and fieldname if it is a child doctype
-	doctypes = [[parent_doctype, None]] + [
-		[df.options, df] for df in parent_meta.get_table_fields()
+	doctypes = [(parent_doctype, None)] + [
+		(df.options, df) for df in parent_meta.get_table_fields()
 	]
 
 	for doctype, table_df in doctypes:
+		translated_table_label = _(table_df.label) if table_df else None
+
 		# name field
-		name_by_label = (
-			"ID" if doctype == parent_doctype else "ID ({0})".format(table_df.label)
-		)
-		name_by_fieldname = (
-			"name" if doctype == parent_doctype else "{0}.name".format(table_df.fieldname)
-		)
 		name_df = frappe._dict(
 			{
 				"fieldtype": "Data",
@@ -1100,63 +1029,90 @@ def build_fields_dict_for_column_matching(parent_doctype):
 			}
 		)
 
-		if doctype != parent_doctype:
+		if doctype == parent_doctype:
+			name_headers = (
+				"name", # fieldname
+				"ID", # label
+				_("ID"), # translated label
+			)
+		else:
+			name_headers = (
+				"{0}.name".format(table_df.fieldname), # fieldname
+				"ID ({0})".format(table_df.label), # label
+				"{0} ({1})".format(_("ID"), translated_table_label), # translated label
+			)
+
 			name_df.is_child_table_field = True
 			name_df.child_table_df = table_df
 
-		out[name_by_label] = name_df
-		out[name_by_fieldname] = name_df
+		for header in name_headers:
+			out[header] = name_df
 
-		# other fields
 		fields = get_standard_fields(doctype) + frappe.get_meta(doctype).fields
 		for df in fields:
-			label = (df.label or "").strip()
 			fieldtype = df.fieldtype or "Data"
+			if fieldtype in no_value_fields:
+				continue
+
+			label = (df.label or "").strip()
+			translated_label = _(label)
 			parent = df.parent or parent_doctype
-			if fieldtype not in no_value_fields:
-				if parent_doctype == doctype:
-					# for parent doctypes keys will be
-					# Label
-					# label
-					# Label (label)
-					if not out.get(label):
-						# if Label is already set, don't set it again
-						# in case of duplicate column headers
-						out[label] = df
-					out[df.fieldname] = df
-					label_with_fieldname = "{0} ({1})".format(label, df.fieldname)
-					out[label_with_fieldname] = df
+
+			if parent_doctype == doctype:
+				# for parent doctypes keys will be
+				# Label, fieldname, Label (fieldname)
+
+				for header in (label, translated_label):
+					# if Label is already set, don't set it again
+					# in case of duplicate column headers
+					if header not in out:
+						out[header] = df
+
+				for header in (
+					df.fieldname,
+					f"{label} ({df.fieldname})",
+					f"{translated_label} ({df.fieldname})"
+				):
+					out[header] = df
+
+			else:
+				# for child doctypes keys will be
+				# Label (Table Field Label)
+				# table_field.fieldname
+
+				# create a new df object to avoid mutation problems
+				if isinstance(df, dict):
+					new_df = frappe._dict(df.copy())
 				else:
-					# in case there are multiple table fields with the same doctype
-					# for child doctypes keys will be
-					# Label (Table Field Label)
-					# table_field.fieldname
-					table_fields = parent_meta.get(
-						"fields", {"fieldtype": ["in", table_fieldtypes], "options": parent}
-					)
-					for table_field in table_fields:
-						by_label = "{0} ({1})".format(label, table_field.label)
-						by_fieldname = "{0}.{1}".format(table_field.fieldname, df.fieldname)
+					new_df = df.as_dict()
 
-						# create a new df object to avoid mutation problems
-						if isinstance(df, dict):
-							new_df = frappe._dict(df.copy())
-						else:
-							new_df = df.as_dict()
+				new_df.is_child_table_field = True
+				new_df.child_table_df = table_df
 
-						new_df.is_child_table_field = True
-						new_df.child_table_df = table_field
-						out[by_label] = new_df
-						out[by_fieldname] = new_df
+				for header in (
+					# fieldname
+					"{0}.{1}".format(table_df.fieldname, df.fieldname),
+					# label
+					"{0} ({1})".format(label, table_df.label),
+					# translated label
+					"{0} ({1})".format(translated_label, translated_table_label),
+				):
+					out[header] = new_df
 
 	# if autoname is based on field
 	# add an entry for "ID (Autoname Field)"
 	autoname_field = get_autoname_field(parent_doctype)
 	if autoname_field:
-		out["ID ({})".format(autoname_field.label)] = autoname_field
-		# ID field should also map to the autoname field
-		out["ID"] = autoname_field
-		out["name"] = autoname_field
+		for header in (
+			"ID ({})".format(autoname_field.label), # label
+			"{0} ({1})".format(_("ID"), _(autoname_field.label)), # translated label
+
+			# ID field should also map to the autoname field
+			"ID",
+			_("ID"),
+			"name",
+		):
+			out[header] = autoname_field
 
 	return out
 

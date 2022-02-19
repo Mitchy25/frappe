@@ -9,7 +9,7 @@ import frappe
 
 def run_webhooks(doc, method):
 	'''Run webhooks for this method'''
-	if frappe.flags.in_import or frappe.flags.in_patch or frappe.flags.in_install:
+	if frappe.flags.in_import or frappe.flags.in_patch or frappe.flags.in_install or frappe.flags.in_migrate:
 		return
 
 	if frappe.flags.webhooks_executed is None:
@@ -21,7 +21,9 @@ def run_webhooks(doc, method):
 		if webhooks is None:
 			# query webhooks
 			webhooks_list = frappe.get_all('Webhook',
-				fields=["name", "`condition`", "webhook_docevent", "webhook_doctype"])
+						fields=["name", "`condition`", "webhook_docevent", "webhook_doctype"], 
+						filters={"enabled": True}
+					)
 
 			# make webhooks map for cache
 			webhooks = {}

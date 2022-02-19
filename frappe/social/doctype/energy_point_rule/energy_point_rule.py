@@ -6,6 +6,8 @@ from __future__ import unicode_literals
 import frappe
 from frappe import _
 import frappe.cache_manager
+from frappe.core.doctype.user.user import get_enabled_users
+from frappe.model import log_types
 from frappe.model.document import Document
 from frappe.social.doctype.energy_point_settings.energy_point_settings import is_energy_point_enabled
 from frappe.social.doctype.energy_point_log.energy_point_log import \
@@ -13,10 +15,10 @@ from frappe.social.doctype.energy_point_log.energy_point_log import \
 
 class EnergyPointRule(Document):
 	def on_update(self):
-		frappe.cache_manager.clear_doctype_map('Energy Point Rule', self.name)
+		frappe.cache_manager.clear_doctype_map('Energy Point Rule', self.reference_doctype)
 
 	def on_trash(self):
-		frappe.cache_manager.clear_doctype_map('Energy Point Rule', self.name)
+		frappe.cache_manager.clear_doctype_map('Energy Point Rule', self.reference_doctype)
 
 	def apply(self, doc):
 		if self.rule_condition_satisfied(doc):
@@ -44,7 +46,7 @@ class EnergyPointRule(Document):
 
 			try:
 				for user in users:
-					if not user or user == 'Administrator': continue
+					if not is_eligible_user(user): continue
 					create_energy_points_log(reference_doctype, reference_name, {
 						'points': points,
 						'user': user,
@@ -85,7 +87,8 @@ def process_energy_points(doc, state):
 		or frappe.flags.in_install
 		or frappe.flags.in_migrate
 		or frappe.flags.in_import
-		or frappe.flags.in_setup_wizard):
+		or frappe.flags.in_setup_wizard
+		or doc.doctype in log_types):
 		return
 
 	if not is_energy_point_enabled():
@@ -118,3 +121,8 @@ def get_energy_point_doctypes():
 		d.reference_doctype for d in frappe.get_all('Energy Point Rule',
 			['reference_doctype'], {'enabled': 1})
 	]
+
+def is_eligible_user(user):
+	'''Checks if user is eligible to get energy points'''
+	enabled_users = get_enabled_users()
+	return user and user in enabled_users and user != 'Administrator'

@@ -89,13 +89,13 @@ class TestGlobalSearch(unittest.TestCase):
 		event = frappe.get_doc('Event', event_name)
 		test_subject = event.subject
 		results = global_search.search(test_subject)
-		self.assertEqual(len(results), 1)
+		self.assertTrue(any(r["name"] == event_name for r in results), msg="Failed to search document by exact name")
 
 		frappe.delete_doc('Event', event_name)
 		global_search.sync_global_search()
 
 		results = global_search.search(test_subject)
-		self.assertEqual(len(results), 0)
+		self.assertTrue(all(r["name"] != event_name for r in results), msg="Deleted documents appearing in global search.")
 
 	def test_insert_child_table(self):
 		frappe.db.sql('delete from tabEvent')
@@ -191,3 +191,6 @@ class TestGlobalSearch(unittest.TestCase):
 		frappe.db.commit()
 		results = global_search.web_search('unsubscribe')
 		self.assertTrue('Unsubscribe' in results[0].content)
+		results = global_search.web_search(text='unsubscribe',
+					scope="manufacturing\" UNION ALL SELECT 1,2,3,4,doctype from __global_search")
+		self.assertTrue(results == [])
