@@ -2,12 +2,12 @@ context('API Resources', () => {
 	before(() => {
 		cy.visit('/login');
 		cy.login();
-		cy.visit('/desk');
+		cy.visit('/app/website');
 	});
 
 	it('Creates two Comments', () => {
-		cy.create_doc('Comment', {comment_type: 'Comment', content: "hello"});
-		cy.create_doc('Comment', {comment_type: 'Comment', content: "world"});
+		cy.insert_doc('Comment', { comment_type: 'Comment', content: "hello" });
+		cy.insert_doc('Comment', { comment_type: 'Comment', content: "world" });
 	});
 
 	it('Lists the Comments', () => {
@@ -25,14 +25,19 @@ context('API Resources', () => {
 	});
 
 	it('Gets each Comment', () => {
-		cy.get_list('Comment').then(body => body.data.forEach(comment => {            
+		cy.get_list('Comment').then(body => body.data.forEach(comment => {
 			cy.get_doc('Comment', comment.name);
 		}));
 	});
-    
+
 	it('Removes the Comments', () => {
-		cy.get_list('Comment').then(body => body.data.forEach(comment => {
-			cy.remove_doc('Comment', comment.name);
-		}));
+		cy.get_list('Comment').then(body => {
+			let comment_names = [];
+			body.data.map(comment => comment_names.push(comment.name));
+			comment_names = [...new Set(comment_names)]; // remove duplicates
+			comment_names.forEach((comment_name) => {
+				cy.remove_doc('Comment', comment_name);
+			});
+		});
 	});
 });

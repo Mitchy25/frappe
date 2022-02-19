@@ -5,7 +5,7 @@
 // __('Modules') __('Domains') __('Places') __('Administration') # for translation, don't remove
 
 frappe.start_app = function() {
-	if(!frappe.Application)
+	if (!frappe.Application)
 		return;
 	frappe.assets.check();
 	frappe.provide('frappe.app');
@@ -14,7 +14,7 @@ frappe.start_app = function() {
 };
 
 $(document).ready(function() {
-	if(!frappe.utils.supportsES6) {
+	if (!frappe.utils.supportsES6) {
 		frappe.msgprint({
 			indicator: 'red',
 			title: __('Browser not supported'),
@@ -45,32 +45,28 @@ frappe.Application = Class.extend({
 		this.setup_frappe_vue();
 		this.load_bootinfo();
 		this.load_user_permissions();
-		this.set_app_logo_url()
-			.then(() => {
-				this.make_nav_bar();
-			});
+		this.make_nav_bar();
 		this.set_favicon();
 		this.setup_analytics();
 		this.set_fullwidth_if_enabled();
-
+		this.add_browser_class();
 		this.setup_energy_point_listeners();
+		this.setup_copy_doc_listener();
 
 		frappe.ui.keys.setup();
-		this.set_rtl();
 
-		if(frappe.boot) {
-			if(localStorage.getItem("session_last_route")) {
-				window.location.hash = localStorage.getItem("session_last_route");
-				localStorage.removeItem("session_last_route");
+		frappe.ui.keys.add_shortcut({
+			shortcut: 'shift+ctrl+g',
+			description: __('Switch Theme'),
+			action: () => {
+				frappe.theme_switcher = new frappe.ui.ThemeSwitcher();
+				frappe.theme_switcher.show();
 			}
-
-		}
+		});
 
 		// page container
 		this.make_page_container();
-
-		// route to home page
-		frappe.route();
+		this.set_route();
 
 		// trigger app startup
 		$(document).trigger('startup');
@@ -82,8 +78,19 @@ frappe.Application = Class.extend({
 		}
 
 		if (frappe.user_roles.includes('System Manager')) {
-			this.show_change_log();
-			this.show_update_available();
+			// delayed following requests to make boot faster
+			setTimeout(() => {
+				this.show_change_log();
+				this.show_update_available();
+			}, 1000);
+		}
+
+		if (!frappe.boot.developer_mode) {
+			let console_security_message = __("Using this console may allow attackers to impersonate you and steal your information. Do not enter or paste code that you do not understand.");
+			console.log(
+				`%c${console_security_message}`,
+				"font-size: large"
+			);
 		}
 
 		this.show_notes();
@@ -92,15 +99,6 @@ frappe.Application = Class.extend({
 			frappe.ui.startup_setup_dialog.pre_show();
 			frappe.ui.startup_setup_dialog.show();
 		}
-
-		// listen to csrf_update
-		frappe.realtime.on("csrf_generated", function(data) {
-			// handles the case when a user logs in again from another tab
-			// and it leads to invalid request in the current tab
-			if (data.csrf_token && data.sid===frappe.get_cookie("sid")) {
-				frappe.csrf_token = data.csrf_token;
-			}
-		});
 
 		frappe.realtime.on("version-update", function() {
 			var dialog = frappe.msgprint({
@@ -114,8 +112,6 @@ frappe.Application = Class.extend({
 			dialog.get_close_btn().toggle(false);
 		});
 
-		this.setup_social_listeners();
-
 		// listen to build errors
 		this.setup_build_error_listener();
 
@@ -127,6 +123,8 @@ frappe.Application = Class.extend({
 				}
 			}
 		}
+
+		// REDESIGN-TODO: Fix preview popovers
 		this.link_preview = new frappe.ui.LinkPreview();
 
 		if (!frappe.boot.developer_mode) {
@@ -140,9 +138,41 @@ frappe.Application = Class.extend({
 					}
 				});
 			}, 300000); // check every 5 minutes
-		}
 
-		this.fetch_tags();
+			if (frappe.user.has_role("System Manager")) {
+				setInterval(function() {
+					frappe.call({
+						method: 'frappe.core.doctype.log_settings.log_settings.has_unseen_error_log',
+						args: {
+							user: frappe.session.user
+						},
+						callback: function(r) {
+							if (r.message.show_alert) {
+								frappe.show_alert({
+									indicator: 'red',
+									message: r.message.message
+								});
+							}
+						}
+					});
+				}, 600000); // check every 10 minutes
+			}
+		}
+	},
+
+	set_route() {
+		frappe.flags.setting_original_route = true;
+		if (frappe.boot && localStorage.getItem("session_last_route")) {
+			frappe.set_route(localStorage.getItem("session_last_route"));
+			localStorage.removeItem("session_last_route");
+		} else {
+			// route to home page
+			frappe.router.route();
+		}
+		frappe.after_ajax(() => frappe.flags.setting_original_route = false);
+		frappe.router.on('change', () => {
+			$(".tooltip").hide();
+		});
 	},
 
 	setup_frappe_vue() {
@@ -171,17 +201,20 @@ frappe.Application = Class.extend({
 
 	email_password_prompt: function(email_account,user,i) {
 		var me = this;
-		var d = new frappe.ui.Dialog({
-			title: __('Email Account setup please enter your password for: '+email_account[i]["email_id"]),
+		const email_id = email_account[i]["email_id"];
+		let d = new frappe.ui.Dialog({
+			title: __('Password missing in Email Account'),
 			fields: [
-				{	'fieldname': 'password',
+				{
+					'fieldname': 'password',
 					'fieldtype': 'Password',
-					'label': 'Email Account Password',
+					'label': __('Please enter the password for: <b>{0}</b>', [email_id], "Email Account"),
 					'reqd': 1
 				},
 				{
+					"fieldname": "submit",
 					"fieldtype": "Button",
-					"label": __("Submit")
+					"label": __("Submit", null, "Submit password for Email Account")
 				}
 			]
 		});
@@ -198,7 +231,7 @@ frappe.Application = Class.extend({
 			s.fields_dict.checking.$wrapper.html('<i class="fa fa-spinner fa-spin fa-4x"></i>');
 			s.show();
 			frappe.call({
-				method: 'frappe.core.doctype.user.user.set_email_password',
+				method: 'frappe.email.doctype.email_account.email_account.set_email_password',
 				args: {
 					"email_account": email_account[i]["email_account"],
 					"user": user,
@@ -208,7 +241,7 @@ frappe.Application = Class.extend({
 					s.hide();
 					d.hide();//hide waiting indication
 					if (!passed["message"]) {
-						frappe.show_alert("Login Failed please try again", 5);
+						frappe.show_alert({message: __("Login Failed please try again"), indicator: 'error'}, 5);
 						me.email_password_prompt(email_account, user, i);
 					} else {
 						if (i + 1 < email_account.length) {
@@ -224,26 +257,33 @@ frappe.Application = Class.extend({
 	},
 	load_bootinfo: function() {
 		if(frappe.boot) {
-			frappe.modules = {};
-			frappe.boot.allowed_modules.forEach(function(m) {
-				frappe.modules[m.module_name]=m;
-			});
+			this.setup_workspaces();
 			frappe.model.sync(frappe.boot.docs);
-			$.extend(frappe._messages, frappe.boot.__messages);
 			this.check_metadata_cache_status();
 			this.set_globals();
 			this.sync_pages();
-			moment.locale("en");
-			moment.user_utc_offset = moment().utcOffset();
-			if(frappe.boot.timezone_info) {
-				moment.tz.add(frappe.boot.timezone_info);
-			}
+			frappe.router.setup();
+			this.setup_moment();
 			if(frappe.boot.print_css) {
 				frappe.dom.set_style(frappe.boot.print_css, "print-style");
 			}
 			frappe.user.name = frappe.boot.user.name;
+			frappe.router.setup();
 		} else {
 			this.set_as_guest();
+		}
+	},
+
+	setup_workspaces() {
+		frappe.modules = {};
+		frappe.workspaces = {};
+		for (let page of frappe.boot.allowed_workspaces || []) {
+			frappe.modules[page.module]=page;
+			frappe.workspaces[frappe.router.slug(page.name)] = page;
+		}
+		if (!frappe.workspaces['home']) {
+			// default workspace is settings for Frappe
+			frappe.workspaces['home'] = frappe.workspaces[Object.keys(frappe.workspaces)[0]];
 		}
 	},
 
@@ -264,6 +304,7 @@ frappe.Application = Class.extend({
 
 	set_globals: function() {
 		frappe.session.user = frappe.boot.user.name;
+		frappe.session.logged_in_user = frappe.boot.user.name;
 		frappe.session.user_email = frappe.boot.user.email;
 		frappe.session.user_fullname = frappe.user_info().fullname;
 
@@ -340,7 +381,7 @@ frappe.Application = Class.extend({
 		frappe.sys_defaults = {};
 	},
 	make_page_container: function() {
-		if($("#body_div").length) {
+		if ($("#body").length) {
 			$(".splash").remove();
 			frappe.temp_container = $("<div id='temp-container' style='display: none;'>")
 				.appendTo("body");
@@ -426,38 +467,20 @@ frappe.Application = Class.extend({
 		$('<link rel="shortcut icon" href="' + link + '" type="image/x-icon">').appendTo("head");
 		$('<link rel="icon" href="' + link + '" type="image/x-icon">').appendTo("head");
 	},
-
-	set_app_logo_url: function() {
-		return frappe.call('frappe.client.get_hooks', { hook: 'app_logo_url' })
-			.then(r => {
-				frappe.app.logo_url = (r.message || []).slice(-1)[0];
-				if (window.cordova) {
-					let host = frappe.request.url;
-					host = host.slice(0, host.length - 1);
-					frappe.app.logo_url = host + frappe.app.logo_url;
-				}
-			});
-	},
-
 	trigger_primary_action: function() {
-		if(window.cur_dialog && cur_dialog.display) {
-			// trigger primary
-			cur_dialog.get_primary_btn().trigger("click");
-		} else if(cur_frm && cur_frm.page.btn_primary.is(':visible')) {
-			cur_frm.page.btn_primary.trigger('click');
-		} else if(frappe.container.page.save_action) {
-			frappe.container.page.save_action();
-		}
-	},
-
-	set_rtl: function() {
-		if (frappe.utils.is_rtl()) {
-			var ls = document.createElement('link');
-			ls.rel="stylesheet";
-			ls.href= "assets/css/frappe-rtl.css";
-			document.getElementsByTagName('head')[0].appendChild(ls);
-			$('body').addClass('frappe-rtl');
-		}
+		// to trigger change event on active input before triggering primary action
+		$(document.activeElement).blur();
+		// wait for possible JS validations triggered after blur (it might change primary button)
+		setTimeout(() => {
+			if (window.cur_dialog && cur_dialog.display) {
+				// trigger primary
+				cur_dialog.get_primary_btn().trigger("click");
+			} else if (cur_frm && cur_frm.page.btn_primary.is(':visible')) {
+				cur_frm.page.btn_primary.trigger('click');
+			} else if (frappe.container.page.save_action) {
+				frappe.container.page.save_action();
+			}
+		}, 100);
 	},
 
 	show_change_log: function() {
@@ -481,9 +504,8 @@ frappe.Application = Class.extend({
 		// Iterate over changelog
 		var change_log_dialog = frappe.msgprint({
 			message: frappe.render_template("change_log", {"change_log": change_log}),
-			title: __("Updated To New Version 🎉"),
+			title: __("Updated To A New Version 🎉"),
 			wide: true,
-			scroll: true
 		});
 		change_log_dialog.keep_open = true;
 		change_log_dialog.custom_onhide = function() {
@@ -495,6 +517,8 @@ frappe.Application = Class.extend({
 	},
 
 	show_update_available: () => {
+		if (frappe.boot.sysdefaults.disable_system_update_notification) return;
+
 		frappe.call({
 			"method": "frappe.utils.change_log.show_update_popup"
 		});
@@ -510,6 +534,10 @@ frappe.Application = Class.extend({
 				"$email": frappe.session.user
 			});
 		}
+	},
+
+	add_browser_class() {
+		$('html').addClass(frappe.utils.get_browser().name.toLowerCase());
 	},
 
 	set_fullwidth_if_enabled() {
@@ -553,22 +581,56 @@ frappe.Application = Class.extend({
 		}
 	},
 
-	setup_social_listeners() {
-		frappe.realtime.on('mention', (message) => {
-			if (frappe.get_route()[0] !== 'social') {
-				frappe.show_alert(message);
-			}
-		});
-	},
-
 	setup_energy_point_listeners() {
 		frappe.realtime.on('energy_point_alert', (message) => {
 			frappe.show_alert(message);
 		});
 	},
 
-	fetch_tags() {
-		frappe.tags.utils.fetch_tags();
+	setup_copy_doc_listener() {
+		$('body').on('paste', (e) => {
+			try {
+				let pasted_data = frappe.utils.get_clipboard_data(e);
+				let doc = JSON.parse(pasted_data);
+				if (doc.doctype) {
+					e.preventDefault();
+					let sleep = (time) => {
+						return new Promise((resolve) => setTimeout(resolve, time));
+					};
+
+					frappe.dom.freeze(__('Creating {0}', [doc.doctype]) + '...');
+					// to avoid abrupt UX
+					// wait for activity feedback
+					sleep(500).then(() => {
+						let res = frappe.model.with_doctype(doc.doctype, () => {
+							let newdoc = frappe.model.copy_doc(doc);
+							newdoc.__newname = doc.name;
+							delete doc.name;
+							newdoc.idx = null;
+							newdoc.__run_link_triggers = false;
+							frappe.set_route('Form', newdoc.doctype, newdoc.name);
+							frappe.dom.unfreeze();
+						});
+						res && res.fail(frappe.dom.unfreeze);
+					});
+				}
+			} catch (e) {
+				//
+			}
+		});
+	},
+
+	setup_moment() {
+		moment.updateLocale('en', {
+			week: {
+				dow: frappe.datetime.get_first_day_of_the_week_index(),
+			}
+		});
+		moment.locale("en");
+		moment.user_utc_offset = moment().utcOffset();
+		if (frappe.boot.timezone_info) {
+			moment.tz.add(frappe.boot.timezone_info);
+		}
 	}
 });
 
@@ -582,34 +644,12 @@ frappe.get_module = function(m, default_module) {
 		return module;
 	}
 
-	if(module.type==="module" && !module.link) {
-		module.link = "modules/" + module.module_name;
-	}
-
-	if(module.type==="list" && !module.link) {
-		module.link = "List/" + module._doctype;
-	}
-
-	if (!module.link) module.link = "";
-
-	if (!module._id) {
-		// links can have complex values that range beyond simple plain text names, and so do not make for robust IDs.
-		// an example from python: "link": r"javascript:eval('window.open(\'timetracking\', \'_self\')')"
-		// this snippet allows a module to open a custom html page in the same window.
-		module._id = module.module_name.toLowerCase();
-	}
-
-
 	if(!module.label) {
 		module.label = m;
 	}
 
 	if(!module._label) {
 		module._label = __(module.label);
-	}
-
-	if(!module._doctype) {
-		module._doctype = '';
 	}
 
 	module._setup = true;

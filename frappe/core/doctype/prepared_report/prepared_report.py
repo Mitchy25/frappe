@@ -13,8 +13,6 @@ from frappe.desk.query_report import generate_report_result
 from frappe.model.document import Document
 from frappe.utils import gzip_compress, gzip_decompress
 from frappe.utils.background_jobs import enqueue
-from frappe.core.doctype.file.file import remove_all
-
 
 class PreparedReport(Document):
 	def before_insert(self):
@@ -24,8 +22,6 @@ class PreparedReport(Document):
 	def enqueue_report(self):
 		enqueue(run_background, prepared_report=self.name, timeout=6000)
 
-	def on_trash(self):
-		remove_all("Prepared Report", self.name)
 
 
 def run_background(prepared_report):
@@ -39,7 +35,10 @@ def run_background(prepared_report):
 			custom_report_doc = report
 			reference_report = custom_report_doc.reference_report
 			report = frappe.get_doc("Report", reference_report)
-			report.custom_columns = custom_report_doc.json
+			if custom_report_doc.json:
+				data = json.loads(custom_report_doc.json)
+				if data:
+					report.custom_columns = data["columns"]
 
 		result = generate_report_result(
 			report=report,
@@ -89,20 +88,18 @@ def delete_expired_prepared_reports():
 				'creation': ['<', frappe.utils.add_days(frappe.utils.now(), -expiry_period)]
 			})
 
-		args = {
-			'reports': prepared_reports_to_delete,
-			'limit': 50
-		}
-
-		enqueue(method=delete_prepared_reports, job_name="delete_prepared_reports", **args)
+		batches = frappe.utils.create_batch(prepared_reports_to_delete, 100)
+		for batch in batches:
+			args = {
+				'reports': batch,
+			}
+			enqueue(method=delete_prepared_reports, job_name="delete_prepared_reports", **args)
 
 @frappe.whitelist()
-def delete_prepared_reports(reports, limit=None):
+def delete_prepared_reports(reports):
 	reports = frappe.parse_json(reports)
-	for index, doc in enumerate(reports):
-		if limit and index == limit:
-			return
-		frappe.delete_doc('Prepared Report', doc['name'], ignore_permissions=True)
+	for report in reports:
+		frappe.delete_doc('Prepared Report', report['name'], ignore_permissions=True, delete_permanently=True)
 
 def create_json_gz_file(data, dt, dn):
 	# Storing data in CSV file causes information loss
@@ -132,3 +129,34 @@ def download_attachment(dn):
 	attached_file = frappe.get_doc("File", attachment.name)
 	frappe.local.response.filecontent = gzip_decompress(attached_file.get_content())
 	frappe.local.response.type = "binary"
+
+
+def get_permission_query_condition(user):
+	if not user: user = frappe.session.user
+	if user == "Administrator":
+		return None
+
+	from frappe.utils.user import UserPermissions
+	user = UserPermissions(user)
+
+	if "System Manager" in user.roles:
+		return None
+
+	reports = [frappe.db.escape(report) for report in user.get_all_reports().keys()]
+
+	return """`tabPrepared Report`.ref_report_doctype in ({reports})"""\
+			.format(reports=','.join(reports))
+
+
+def has_permission(doc, user):
+	if not user: user = frappe.session.user
+	if user == "Administrator":
+		return True
+
+	from frappe.utils.user import UserPermissions
+	user = UserPermissions(user)
+
+	if "System Manager" in user.roles:
+		return True
+
+	return doc.ref_report_doctype in user.get_all_reports().keys()

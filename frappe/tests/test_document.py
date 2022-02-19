@@ -2,9 +2,13 @@
 # MIT License. See license.txt
 from __future__ import unicode_literals
 
-import frappe, unittest, os
+import os
+import unittest
+
+import frappe
 from frappe.utils import cint
 from frappe.model.naming import revert_series_if_last, make_autoname, parse_naming_series
+
 
 class TestDocument(unittest.TestCase):
 	def test_get_return_empty_list_for_table_field_if_none(self):
@@ -61,6 +65,13 @@ class TestDocument(unittest.TestCase):
 
 		self.assertEqual(frappe.db.get_value(d.doctype, d.name, "subject"), "subject changed")
 
+	def test_value_changed(self):
+		d = self.test_insert()
+		d.subject = "subject changed again"
+		d.save()
+		self.assertTrue(d.has_value_changed('subject'))
+		self.assertFalse(d.has_value_changed('event_type'))
+
 	def test_mandatory(self):
 		# TODO: recheck if it is OK to force delete
 		frappe.delete_doc_if_exists("User", "test_mandatory@example.com", 1)
@@ -75,13 +86,13 @@ class TestDocument(unittest.TestCase):
 		d.insert()
 		self.assertEqual(frappe.db.get_value("User", d.name), d.name)
 
-	def test_confict_validation(self):
+	def test_conflict_validation(self):
 		d1 = self.test_insert()
 		d2 = frappe.get_doc(d1.doctype, d1.name)
 		d1.save()
 		self.assertRaises(frappe.TimestampMismatchError, d2.save)
 
-	def test_confict_validation_single(self):
+	def test_conflict_validation_single(self):
 		d1 = frappe.get_doc("Website Settings", "Website Settings")
 		d1.home_page = "test-web-page-1"
 
@@ -98,7 +109,7 @@ class TestDocument(unittest.TestCase):
 
 	def test_permission_single(self):
 		frappe.set_user("Guest")
-		d = frappe.get_doc("Website Settings", "Website Settigns")
+		d = frappe.get_doc("Website Settings", "Website Settings")
 		self.assertRaises(frappe.PermissionError, d.save)
 		frappe.set_user("Administrator")
 
@@ -148,7 +159,7 @@ class TestDocument(unittest.TestCase):
 
 	def test_varchar_length(self):
 		d = self.test_insert()
-		d.subject = "abcde"*100
+		d.sender = "abcde"*100 + "@user.com"
 		self.assertRaises(frappe.CharacterLengthExceededError, d.save)
 
 	def test_xss_filter(self):
@@ -184,41 +195,6 @@ class TestDocument(unittest.TestCase):
 		self.assertTrue(xss not in d.subject)
 		self.assertTrue(escaped_xss in d.subject)
 
-	def test_link_count(self):
-		if os.environ.get('CI'):
-			# cannot run this test reliably in travis due to its handling
-			# of parallelism
-			return
-
-		from frappe.model.utils.link_count import update_link_count
-
-		update_link_count()
-
-		doctype, name = 'User', 'test@example.com'
-
-		d = self.test_insert()
-		d.append('event_participants', {"reference_doctype": doctype, "reference_docname": name})
-
-		d.save()
-
-		link_count = frappe.cache().get_value('_link_count') or {}
-		old_count = link_count.get((doctype, name)) or 0
-
-		frappe.db.commit()
-
-		link_count = frappe.cache().get_value('_link_count') or {}
-		new_count = link_count.get((doctype, name)) or 0
-
-		self.assertEqual(old_count + 1, new_count)
-
-		before_update = frappe.db.get_value(doctype, name, 'idx')
-
-		update_link_count()
-
-		after_update = frappe.db.get_value(doctype, name, 'idx')
-
-		self.assertEqual(before_update + new_count, after_update)
-
 	def test_naming_series(self):
 		data = ["TEST-", "TEST/17-18/.test_data./.####", "TEST.YYYY.MM.####"]
 
@@ -236,3 +212,50 @@ class TestDocument(unittest.TestCase):
 			new_current = cint(frappe.db.get_value('Series', prefix, "current", order_by="name"))
 
 			self.assertEqual(cint(old_current) - 1, new_current)
+
+	def test_non_negative_check(self):
+		frappe.delete_doc_if_exists("Currency", "Frappe Coin", 1)
+
+		d = frappe.get_doc({
+			'doctype': 'Currency',
+			'currency_name': 'Frappe Coin',
+			'smallest_currency_fraction_value': -1
+		})
+
+		self.assertRaises(frappe.NonNegativeError, d.insert)
+
+		d.set('smallest_currency_fraction_value', 1)
+		d.insert()
+		self.assertEqual(frappe.db.get_value("Currency", d.name), d.name)
+
+		frappe.delete_doc_if_exists("Currency", "Frappe Coin", 1)
+
+	def test_get_formatted(self):
+		frappe.get_doc({
+			'doctype': 'DocType',
+			'name': 'Test Formatted',
+			'module': 'Custom',
+			'custom': 1,
+			'fields': [
+				{'label': 'Currency', 'fieldname': 'currency', 'reqd': 1, 'fieldtype': 'Currency'},
+			]
+		}).insert()
+
+		frappe.delete_doc_if_exists("Currency", "INR", 1)
+
+		d = frappe.get_doc({
+			'doctype': 'Currency',
+			'currency_name': 'INR',
+			'symbol': '₹',
+		}).insert()
+
+		d = frappe.get_doc({
+			'doctype': 'Test Formatted',
+			'currency': 100000
+		})
+		self.assertEquals(d.get_formatted('currency', currency='INR', format="#,###.##"), '₹ 100,000.00')
+
+	def test_limit_for_get(self):
+		doc = frappe.get_doc("DocType", "DocType")
+		# assuming DocType has more that 3 Data fields
+		self.assertEquals(len(doc.get("fields", filters={"fieldtype": "Data"}, limit=3)), 3)

@@ -10,9 +10,10 @@ from frappe.desk.form.utils import get_pdf_link
 from frappe.utils.verified_command import get_signed_params, verify_request
 from frappe import _
 from frappe.model.workflow import apply_workflow, get_workflow_name, has_approval_access, \
-	get_workflow_state_field, send_email_alert, get_workflow_field_value, is_transition_condition_satisfied
+	get_workflow_state_field, send_email_alert, is_transition_condition_satisfied
 from frappe.desk.notifications import clear_doctype_notifications
 from frappe.utils.user import get_users_with_role
+from frappe.utils.data import get_link_to_form
 
 class WorkflowAction(Document):
 	pass
@@ -99,11 +100,11 @@ def confirm_action(doctype, docname, user, action):
 
 def return_success_page(doc):
 	frappe.respond_as_web_page(_("Success"),
-		_("{0}: {1} is set to state {2}".format(
+		_("{0}: {1} is set to state {2}").format(
 			doc.get('doctype'),
 			frappe.bold(doc.get('name')),
 			frappe.bold(get_doc_workflow_state(doc))
-		)), indicator_color='green')
+		), indicator_color='green')
 
 def return_action_confirmation_page(doc, action, action_link, alert_doc_change=False):
 	template_params = {
@@ -125,12 +126,12 @@ def return_action_confirmation_page(doc, action, action_link, alert_doc_change=F
 
 def return_link_expired_page(doc, doc_workflow_state):
 	frappe.respond_as_web_page(_("Link Expired"),
-		_("Document {0} has been set to state {1} by {2}"
+		_("Document {0} has been set to state {1} by {2}")
 			.format(
 				frappe.bold(doc.get('name')),
 				frappe.bold(doc_workflow_state),
 				frappe.bold(frappe.get_value('User', doc.get("modified_by"), 'full_name'))
-			)), indicator_color='blue')
+			), indicator_color='blue')
 
 def clear_old_workflow_actions(doc, user=None):
 	user = user if user else frappe.session.user
@@ -285,12 +286,13 @@ def get_common_email_args(doc):
 		subject = frappe.render_template(email_template.subject, vars(doc))
 		response = frappe.render_template(email_template.response, vars(doc))
 	else:
-		subject = _('Workflow Action')
-		response = _('{0}: {1}'.format(doctype, docname))
+		subject = _('Workflow Action') + f" on {doctype}: {docname}"
+		response = get_link_to_form(doctype, docname, f"{doctype}: {docname}")
 
 	common_args = {
 		'template': 'workflow_action',
-		'attachments': [frappe.attach_print(doctype, docname , file_name=docname)],
+		'header': 'Workflow Action',
+		'attachments': [frappe.attach_print(doctype, docname, file_name=docname, doc=doc)],
 		'subject': subject,
 		'message': response
 	}

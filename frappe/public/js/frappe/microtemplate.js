@@ -82,13 +82,24 @@ frappe.render_template = function(name, data) {
 	if(data===undefined) {
 		data = {};
 	}
+	if (!template) {
+		frappe.throw(`Template <b>${name}</b> not found.`);
+	}
 	return frappe.render(template, data, name);
 }
 frappe.render_grid = function(opts) {
 	// build context
-	if(opts.grid) {
+	if (opts.grid) {
 		opts.columns = opts.grid.getColumns();
 		opts.data = opts.grid.getData().getItems();
+	}
+
+	if (
+		opts.print_settings &&
+		opts.print_settings.orientation &&
+		opts.print_settings.orientation.toLowerCase() === "landscape"
+	) {
+		opts.landscape = true;
 	}
 
 	// show landscape view if columns more than 10
@@ -108,6 +119,10 @@ frappe.render_grid = function(opts) {
 	// render HTML wrapper page
 	opts.base_url = frappe.urllib.get_base_url();
 	opts.print_css = frappe.boot.print_css;
+
+	opts.lang = opts.lang || frappe.boot.lang,
+	opts.layout_direction = opts.layout_direction || frappe.utils.is_rtl() ? "rtl" : "ltr";
+
 	var html = frappe.render_template("print_template", opts);
 
 	var w = window.open();

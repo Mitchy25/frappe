@@ -32,7 +32,7 @@ frappe.ui.form.on('Data Import Legacy', {
 					frm.reload_doc();
 				}
 				if (data.progress) {
-					let progress_bar = $(frm.dashboard.progress_area).find(".progress-bar");
+					let progress_bar = $(frm.dashboard.progress_area.body).find(".progress-bar");
 					if (progress_bar) {
 						$(progress_bar).removeClass("progress-bar-danger").addClass("progress-bar-success progress-bar-striped");
 						$(progress_bar).css("width", data.progress + "%");
@@ -85,25 +85,14 @@ frappe.ui.form.on('Data Import Legacy', {
 				frappe.data_import.download_dialog(frm).show();
 			});
 		}
-
-		if (frm.doc.reference_doctype && frm.doc.import_file && frm.doc.total_rows &&
-			frm.doc.docstatus === 0 && (!frm.doc.import_status || frm.doc.import_status == "Failed")) {
-			frm.page.set_primary_action(__("Start Import"), function() {
-				frappe.call({
-					btn: frm.page.btn_primary,
-					method: "frappe.core.doctype.data_import_legacy.data_import_legacy.import_data",
-					args: {
-						data_import: frm.doc.name
-					}
-				});
-			}).addClass('btn btn-primary');
-		}
-
 		if (frm.doc.log_details) {
 			frm.events.create_log_table(frm);
 		} else {
 			$(frm.fields_dict.import_log.wrapper).empty();
 		}
+
+		const data_import_link = "<a href='/app/data-import'>Data Import</a>";
+		frm.dashboard.add_comment(__("This data importer utility is deprecated and will be removed, use {} instead.", [data_import_link]), "yellow", true);
 	},
 
 	action: function(frm) {

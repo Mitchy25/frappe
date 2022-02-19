@@ -95,6 +95,11 @@ frappe.ui.form.on("Email Account", {
 	enable_incoming: function(frm) {
 		frm.doc.no_remaining = null; //perform full sync
 		//frm.set_df_property("append_to", "reqd", frm.doc.enable_incoming);
+		frm.trigger("warn_autoreply_on_incoming");
+	},
+
+	enable_auto_reply: function(frm) {
+		frm.trigger("warn_autoreply_on_incoming");
 	},
 
 	notify_if_unreplied: function(frm) {
@@ -146,18 +151,6 @@ frappe.ui.form.on("Email Account", {
 			callback: function (r) {
 				if (r.message) {
 					frm.events.set_domain_fields(frm, r.message);
-				} else {
-					frm.set_value("domain", "");
-					frappe.confirm(__('Email Domain not configured for this account, Create one?'),
-						function () {
-							frappe.model.with_doctype("Email Domain", function() {
-								frappe.route_options = { email_id: frm.doc.email_id };
-								frappe.route_flags.return_to_email_account = 1;
-								var doc = frappe.model.get_new_doc("Email Domain");
-								frappe.set_route("Form", "Email Domain", doc.name);
-							});
-						}
-					);
 				}
 			}
 		});
@@ -184,7 +177,18 @@ frappe.ui.form.on("Email Account", {
 				read as well as unread message from server. This may also cause the duplication\
 				of Communication (emails).");
 			frappe.confirm(msg, null, function() {
-				frm.set_value("email_sync_option", "ALL");
+				frm.set_value("email_sync_option", "UNSEEN");
+			});
+		}
+	},
+
+	warn_autoreply_on_incoming: function(frm) {
+		if (frm.doc.enable_incoming && frm.doc.enable_auto_reply && frm.doc.__islocal) {
+			var msg = __("Enabling auto reply on an incoming email account will send automated replies \
+				to all the synchronized emails. Do you wish to continue?");
+			frappe.confirm(msg, null, function() {
+				frm.set_value("enable_auto_reply", 0);
+				frappe.show_alert({message: __("Disabled Auto Reply"), indicator: "blue"});
 			});
 		}
 	}

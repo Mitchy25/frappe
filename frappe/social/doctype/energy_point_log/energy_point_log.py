@@ -9,7 +9,8 @@ import json
 from frappe.model.document import Document
 from frappe.desk.doctype.notification_log.notification_log import enqueue_create_notification,\
 	get_title, get_title_html
-from frappe.desk.doctype.notification_settings.notification_settings import is_email_notifications_enabled_for_type
+from frappe.desk.doctype.notification_settings.notification_settings\
+	import is_email_notifications_enabled_for_type, is_email_notifications_enabled
 from frappe.utils import cint, get_fullname, getdate, get_link_to_form
 
 class EnergyPointLog(Document):
@@ -32,7 +33,9 @@ class EnergyPointLog(Document):
 		frappe.cache().hdel('energy_points', self.user)
 		frappe.publish_realtime('update_points', after_commit=True)
 
-		if self.type != 'Review':
+		if self.type != 'Review' and \
+			frappe.get_cached_value('Notification Settings', self.user, 'energy_points_system_notifications'):
+
 			reference_user = self.user if self.type == 'Auto' else self.owner
 			notification_doc = {
 				'type': 'Energy Point',
@@ -51,6 +54,7 @@ class EnergyPointLog(Document):
 			reference_log.reverted = 0
 			reference_log.save()
 
+	@frappe.whitelist()
 	def revert(self, reason, ignore_permissions=False):
 		if not ignore_permissions:
 			frappe.only_for('System Manager')
@@ -318,18 +322,22 @@ def send_summary(timespan):
 
 	from_date = getdate(from_date)
 	to_date = getdate()
-	all_users = [user.email for user in get_enabled_system_users()]
+
+	# select only those users that have energy point email notifications enabled
+	all_users = [user.email for user in get_enabled_system_users() if
+		is_email_notifications_enabled_for_type(user.name, 'Energy Point')]
 
 	frappe.sendmail(
-			subject='{} energy points summary'.format(timespan),
-			recipients=all_users,
-			template="energy_points_summary",
-			args={
+			subject = '{} energy points summary'.format(timespan),
+			recipients = all_users,
+			template = "energy_points_summary",
+			args = {
 				'top_performer': user_points[0],
 				'top_reviewer': max(user_points, key=lambda x:x['given_points']),
 				'standings': user_points[:10], # top 10
-				'footer_message': get_footer_message(timespan).format(from_date, to_date)
-			}
+				'footer_message': get_footer_message(timespan).format(from_date, to_date),
+			},
+			with_container = 1
 		)
 
 def get_footer_message(timespan):

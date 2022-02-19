@@ -52,14 +52,14 @@ class Contact(Document):
 	def get_link_for(self, link_doctype):
 		'''Return the link name, if exists for the given link DocType'''
 		for link in self.links:
-			if link.link_doctype==link_doctype:
+			if link.link_doctype == link_doctype:
 				return link.link_name
 
 		return None
 
 	def has_link(self, doctype, name):
 		for link in self.links:
-			if link.link_doctype==doctype and link.link_name== name:
+			if link.link_doctype == doctype and link.link_name == name:
 				return True
 
 	def has_common_link(self, doc):
@@ -69,23 +69,25 @@ class Contact(Document):
 				return True
 
 	def add_email(self, email_id, is_primary=0, autosave=False):
-		self.append("email_ids", {
-			"email_id": email_id,
-			"is_primary": is_primary
-		})
+		if not frappe.db.exists("Contact Email", {"email_id": email_id, "parent": self.name}):
+			self.append("email_ids", {
+				"email_id": email_id,
+				"is_primary": is_primary
+			})
 
-		if autosave:
-			self.save(ignore_permissions=True)
+			if autosave:
+				self.save(ignore_permissions=True)
 
 	def add_phone(self, phone, is_primary_phone=0, is_primary_mobile_no=0, autosave=False):
-		self.append("phone_nos", {
-			"phone": phone,
-			"is_primary_phone": is_primary_phone,
-			"is_primary_mobile_no": is_primary_mobile_no
-		})
+		if not frappe.db.exists("Contact Phone", {"phone": phone, "parent": self.name}):
+			self.append("phone_nos", {
+				"phone": phone,
+				"is_primary_phone": is_primary_phone,
+				"is_primary_mobile_no": is_primary_mobile_no
+			})
 
-		if autosave:
-			self.save(ignore_permissions=True)
+			if autosave:
+				self.save(ignore_permissions=True)
 
 	def set_primary_email(self):
 		if not self.email_ids:
@@ -95,10 +97,15 @@ class Contact(Document):
 		if len([email.email_id for email in self.email_ids if email.is_primary]) > 1:
 			frappe.throw(_("Only one {0} can be set as primary.").format(frappe.bold("Email ID")))
 
+		primary_email_exists = False
 		for d in self.email_ids:
 			if d.is_primary == 1:
+				primary_email_exists = True
 				self.email_id = d.email_id.strip()
 				break
+
+		if not primary_email_exists:
+			self.email_id = ""
 
 	def set_primary(self, fieldname):
 		# Used to set primary mobile and phone no.
@@ -113,10 +120,15 @@ class Contact(Document):
 		if len(is_primary) > 1:
 			frappe.throw(_("Only one {0} can be set as primary.").format(frappe.bold(frappe.unscrub(fieldname))))
 
+		primary_number_exists = False 
 		for d in self.phone_nos:
 			if d.get(field_name) == 1:
+				primary_number_exists = True
 				setattr(self, fieldname, d.phone)
 				break
+
+		if not primary_number_exists:
+			setattr(self, fieldname, "")
 
 def get_default_contact(doctype, name):
 	'''Returns default contact for the given doctype, name'''
@@ -254,3 +266,27 @@ def get_contact_with_phone_number(number):
 def get_contact_name(email_id):
 	contact = frappe.get_list("Contact Email", filters={"email_id": email_id}, fields=["parent"], limit=1)
 	return contact[0].parent if contact else None
+
+def get_contacts_linking_to(doctype, docname, fields=None):
+	"""Return a list of contacts containing a link to the given document."""
+	return frappe.get_list('Contact', fields=fields, filters=[
+		['Dynamic Link', 'link_doctype', '=', doctype],
+		['Dynamic Link', 'link_name', '=', docname]
+	])
+
+def get_contacts_linked_from(doctype, docname, fields=None):
+	"""Return a list of contacts that are contained in (linked from) the given document."""
+	link_fields = frappe.get_meta(doctype).get('fields', {
+		'fieldtype': 'Link',
+		'options': 'Contact'
+	})
+	if not link_fields:
+		return []
+
+	contact_names = frappe.get_value(doctype, docname, fieldname=[f.fieldname for f in link_fields])
+	if not contact_names:
+		return []
+
+	return frappe.get_list('Contact', fields=fields, filters={
+		'name': ('in', contact_names)
+	})

@@ -53,16 +53,18 @@ def sql(*args, **kwargs):
 
 
 def get_current_stack_frames():
-	current = inspect.currentframe()
-	frames = inspect.getouterframes(current, context=10)
-	for frame, filename, lineno, function, context, index in list(reversed(frames))[:-2]:
-		if "/apps/" in filename:
-			yield {
-				"filename": re.sub(".*/apps/", "", filename),
-				"lineno": lineno,
-				"function": function,
-			}
-
+	try:
+		current = inspect.currentframe()
+		frames = inspect.getouterframes(current, context=10)
+		for frame, filename, lineno, function, context, index in list(reversed(frames))[:-2]:
+			if "/apps/" in filename:
+				yield {
+					"filename": re.sub(".*/apps/", "", filename),
+					"lineno": lineno,
+					"function": function,
+				}
+	except Exception:
+		pass
 
 def record():
 	if __debug__:
@@ -179,6 +181,13 @@ def get(uuid=None, *args, **kwargs):
 	else:
 		result = list(frappe.cache().hgetall(RECORDER_REQUEST_SPARSE_HASH).values())
 	return result
+
+
+@frappe.whitelist()
+@do_not_record
+@administrator_only
+def export_data(*args, **kwargs):
+	return list(frappe.cache().hgetall(RECORDER_REQUEST_HASH).values())
 
 
 @frappe.whitelist()

@@ -1,5 +1,3 @@
-
-
 frappe.user_info = function(uid) {
 	if(!uid)
 		uid = frappe.session.user;
@@ -13,9 +11,7 @@ frappe.user_info = function(uid) {
 	}
 
 	if(!(frappe.boot.user_info && frappe.boot.user_info[uid])) {
-		var user_info = {
-			fullname: frappe.utils.capitalize(uid.split("@")[0]) || "Unknown"
-		};
+		var user_info = {fullname: uid || "Unknown"};
 	} else {
 		var user_info = frappe.boot.user_info[uid];
 	}
@@ -55,7 +51,7 @@ $.extend(frappe.user, {
 	name: 'Guest',
 	full_name: function(uid) {
 		return uid === frappe.session.user ?
-			__("You") :
+			__("You", null, "Name of the current user. For example: You edited this 5 hours ago.") :
 			frappe.user_info(uid).fullname;
 	},
 	image: function(uid) {
