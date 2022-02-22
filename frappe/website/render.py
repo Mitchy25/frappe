@@ -10,7 +10,6 @@ import os, mimetypes, json
 import re
 
 import six
-from bs4 import BeautifulSoup
 from six import iteritems
 from werkzeug.wrappers import Response
 from werkzeug.routing import Rule

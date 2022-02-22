@@ -186,11 +186,6 @@ def get_safe_globals():
 	out._iter_unpack_sequence_ = RestrictedPython.Guards.guarded_iter_unpack_sequence
 	out.sorted = sorted
 
-	# allow iterators and list comprehension
-	out._getiter_ = iter
-	out._iter_unpack_sequence_ = RestrictedPython.Guards.guarded_iter_unpack_sequence
-	out.sorted = sorted
-
 	return out
 
 def is_job_queued(job_name, queue="default"):

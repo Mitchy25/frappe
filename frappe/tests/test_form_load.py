@@ -42,10 +42,6 @@ class TestFormLoad(unittest.TestCase):
 
 		blog_post_property_setter = make_property_setter('Blog Post', 'published', 'permlevel', 1, 'Int')
 		reset('Blog Post')
-		add('Blog Post', 'Website Manager', 1)
-		update('Blog Post', 'Website Manager', 1, 'write', 1)
-
-		frappe.set_user(user.name)
 
 		# test field level permission before role level permissions are defined
 		frappe.set_user(user.name)
@@ -66,15 +62,6 @@ class TestFormLoad(unittest.TestCase):
 		add('Blog Post', 'Website Manager', 1)
 		update('Blog Post', 'Website Manager', 1, 'write', 1)
 
-		# this will be ignored because user does not
-		# have write access on `published` field (or on permlevel 1 fields)
-		blog_doc.published = 1
-		blog_doc.save()
-		# since published field has higher permlevel
-		self.assertEqual(blog_doc.published, 0)
-
-		frappe.set_user('Administrator')
-		user.add_roles('Website Manager')
 		frappe.set_user(user.name)
 		blog_doc = get_blog(blog.name)
 

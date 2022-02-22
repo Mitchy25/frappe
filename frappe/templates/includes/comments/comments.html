@@ -58,11 +58,6 @@
 			$('input.comment_email').prop("disabled", true);
 		}
 
-		if(frappe.is_user_logged_in()) {
-			$('input.comment_by').prop("disabled", true);
-			$('input.comment_email').prop("disabled", true);
-		}
-
 		var n_comments = $(".comment-row").length;
 
 		if(n_comments) {

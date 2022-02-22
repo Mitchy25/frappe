@@ -830,7 +830,6 @@ def pull(now=False):
 				enqueue(pull_from_email_account, 'short', event='all', job_name=job_name,
 					email_account=email_account.name)
 
-@frappe.whitelist()
 def pull_from_email_account(email_account):
 	'''Runs within a worker process'''
 	email_account = frappe.get_doc("Email Account", email_account)

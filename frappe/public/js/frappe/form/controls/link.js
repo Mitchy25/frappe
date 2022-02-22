@@ -37,7 +37,7 @@ frappe.ui.form.ControlLink = frappe.ui.form.ControlData.extend({
 				if(!me.$input.val()) {
 					me.$input.val("").trigger("input");
 				}
-			}, 100);
+			}, 500);
 		});
 		this.$input.on("blur", function() {
 			// if this disappears immediately, the user's click
@@ -229,7 +229,7 @@ frappe.ui.form.ControlLink = frappe.ui.form.ControlData.extend({
 					me.toggle_href(doctype);
 				}
 			});
-		}, 100));
+		}, 500));
 
 		this.$input.on("blur", function() {
 			if(me.selected) {

@@ -268,33 +268,6 @@ frappe.views.CommunicationComposer = class {
 				me.reply_added = email_template;
 			}
 
-			var append_reply = function(reply) {
-				if(me.reply_added===email_template) {
-					return;
-				}
-				var content_field = me.dialog.fields_dict.content;
-				var subject_field = me.dialog.fields_dict.subject;
-				var content = content_field.get_value() || "";
-				var subject = subject_field.get_value() || "";
-
-				var parts = content.split('<!-- salutation-ends -->');
-
-				if(parts.length===2) {
-					content = [parts[1], "<br>", reply.message];
-				} else {
-					content = [content, "<br>", reply.message];
-				}
-
-				content_field.set_value(content.join(''));
-
-				subject_field.set_value(reply.subject);
-
-				me.reply_added = email_template;
-			}
-
-			if (!email_template) {
-				return 
-			}
 			frappe.call({
 				method: 'frappe.email.doctype.email_template.email_template.get_email_template',
 				args: {

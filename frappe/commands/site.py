@@ -328,20 +328,6 @@ def migrate_to(context, frappe_provider):
 	if not context.sites:
 		raise SiteNotSpecifiedError
 
-@click.command('migrate-to')
-@click.argument('frappe_provider')
-@pass_context
-def migrate_to(context, frappe_provider):
-	"Migrates site to the specified provider"
-	from frappe.integrations.frappe_providers import migrate_to
-	for site in context.sites:
-		frappe.init(site=site)
-		frappe.connect()
-		migrate_to(site, frappe_provider)
-		frappe.destroy()
-	if not context.sites:
-		raise SiteNotSpecifiedError
-
 @click.command('run-patch')
 @click.argument('module')
 @click.option('--force', is_flag=True)
@@ -465,10 +451,6 @@ def backup(context, with_files=False, backup_path=None, backup_path_db=None, bac
 		odb.print_summary()
 		click.secho("Backup for Site {0} has been successfully completed{1}".format(site, " with files" if with_files else ""), fg="green")
 		frappe.destroy()
-	if not context.sites:
-		raise SiteNotSpecifiedError
-
-	sys.exit(exit_code)
 
 	if not context.sites:
 		raise SiteNotSpecifiedError

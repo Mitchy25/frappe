@@ -8,7 +8,6 @@ from six import PY3
 
 test_dependencies = ['Email Account']
 
-
 class TestEmail(unittest.TestCase):
 	def setUp(self):
 		frappe.db.sql("""delete from `tabEmail Unsubscribe`""")

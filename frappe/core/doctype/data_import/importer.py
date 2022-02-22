@@ -606,7 +606,6 @@ class Row:
 		df = col.df
 		if df.fieldtype == "Select":
 			select_options = get_select_options(df)
-			value = str(value) if isinstance(value, int) else value
 			if select_options and value not in select_options:
 				options_string = ", ".join([frappe.bold(d) for d in select_options])
 				msg = _("Value must be one of {0}").format(options_string)

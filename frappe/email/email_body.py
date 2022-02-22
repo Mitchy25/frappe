@@ -8,7 +8,7 @@ from frappe.email.smtp import get_outgoing_email_account
 from frappe.utils import (get_url, scrub_urls, strip, expand_relative_urls, cint,
 	split_emails, to_markdown, markdown, random_string, parse_addr)
 import email.utils
-from six import iteritems, text_type, string_types, PY3
+from six import iteritems, text_type, string_types
 from email.mime.multipart import MIMEMultipart
 from email.header import Header
 from email import policy

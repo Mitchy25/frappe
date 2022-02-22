@@ -88,7 +88,6 @@ frappe.ui.form.on('Data Import', {
 				frm.trigger('export_errored_rows')
 			);
 		}
-	},
 
 		if (frm.doc.status.includes('Success')) {
 			frm.add_custom_button(
@@ -126,32 +125,6 @@ frappe.ui.form.on('Data Import', {
 		} else {
 			frm.page.clear_indicator();
 		}
-
-		// load import preview
-		frm.get_field('import_preview').$wrapper.empty();
-		$('<span class="text-muted">')
-			.html(__('Loading import file...'))
-			.appendTo(frm.get_field('import_preview').$wrapper);
-
-		frm
-			.call({
-				method: 'get_preview_from_template',
-				args: {
-					data_import: frm.doc.name,
-					import_file: frm.doc.import_file,
-					google_sheets_url: frm.doc.google_sheets_url
-				},
-				error_handlers: {
-					TimestampMismatchError() {
-						// ignore this error
-					}
-				}
-			})
-			.then(r => {
-				let preview_data = r.message;
-				frm.events.show_import_preview(frm, preview_data);
-				frm.events.show_import_warnings(frm, preview_data);
-			});
 	},
 
 	show_import_status(frm) {

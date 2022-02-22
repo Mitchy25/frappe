@@ -17,7 +17,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 	setup_defaults() {
 		super.setup_defaults();
 		this.page_title = __('Report:') + ' ' + this.page_title;
-		this.menu_items = this.report_menu_items();
 		this.view = 'Report';
 
 		const route = frappe.get_route();
@@ -49,6 +48,11 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		this.setup_columns();
 		super.setup_new_doc_event();
 		this.page.main.addClass('report-view');
+	}
+
+	setup_page() {
+		this.menu_items = this.report_menu_items();
+		super.setup_page();
 	}
 
 	toggle_side_bar() {
@@ -807,16 +811,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		}
 	}
 
-	add_status_dependency_column(col, doctype) {
-		// Adds dependent column from which status is derived if required
-		if (!this.fields.find(f => f[0] === col)) {
-			const field = [col, doctype];
-			this.fields.push(field);
-			this.refresh();
-			frappe.show_alert(__('Also adding the status dependency field {0}', [field[0].bold()]));
-		}
-	}
-
 	remove_column_from_datatable(column) {
 		const index = this.fields.findIndex(f => column.field === f[0]);
 		if (index === -1) return;
@@ -974,14 +968,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				if (!this.fields.includes(['status', this.doctype]) && !frappe.meta.has_field(this.doctype, 'status')) {
 					column = this.build_column(['docstatus', this.doctype]);
 				}
-			}
-
-			if (column) {
-				if (column_widths) {
-					column.width = column_widths[column.id] || column.width || 120;
-				}
-				this.columns.push(column);
-				this.columns_map[column.id] = column;
 			}
 
 			if (column) {
@@ -1223,7 +1209,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				args: {
 					name: name,
 					doctype: this.doctype,
-					json: JSON.stringify(report_settings)
+					report_settings: JSON.stringify(report_settings)
 				},
 				callback:(r) => {
 					if(r.exc) {
@@ -1258,6 +1244,17 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				_save_report(data.name);
 			}, __('Save As'));
 		}
+	}
+
+	delete_report() {
+		return frappe.call({
+			method: 'frappe.desk.reportview.delete_report',
+			args: { name: this.report_name },
+			callback(response) {
+				if (response.exc) return;
+				window.history.back();
+			}
+		});
 	}
 
 	get_column_widths() {
@@ -1481,12 +1478,42 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 			}
 		});
 
-		// save buttons
-		if(frappe.user.is_report_manager()) {
-			items = items.concat([
-				{ label: __('Save'), action: () => this.save_report('save') },
-				{ label: __('Save As'), action: () => this.save_report('save_as') }
-			]);
+		const can_edit_or_delete = (action) => {
+			const method = action == "delete" ? "can_delete" : "can_write";
+			return (
+				this.report_doc
+				&& this.report_doc.is_standard !== "Yes"
+				&& (
+					frappe.model[method]("Report")
+					|| this.report_doc.owner === frappe.session.user
+				)
+			);
+		};
+
+		// A user with role Report Manager or Report Owner can save
+		if (can_edit_or_delete()) {
+			items.push({
+				label: __("Save"),
+				action: () => this.save_report('save')
+			});
+		}
+
+		// anyone can save as
+		items.push({
+			label: __('Save As'),
+			action: () => this.save_report('save_as')
+		});
+
+		// A user with role Report Manager or Report Owner can delete
+		if (can_edit_or_delete("delete")) {
+			items.push({
+				label: __("Delete"),
+				action: () => frappe.confirm(
+					"Are you sure you want to delete this report?",
+					() => this.delete_report(),
+				),
+				shortcut: "Shift+Ctrl+D"
+			});
 		}
 
 		// user permissions

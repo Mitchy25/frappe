@@ -411,9 +411,6 @@ frappe.search.utils = {
 					description: make_description(d.content, d.name),
 					route: ['Form', d.doctype, d.name],
 				};
-				if(d.doctype == "Customer"){
-					result.details = d.content;
-				}
 				if(d.image || d.image === null){
 					result.image = d.image;
 				}
