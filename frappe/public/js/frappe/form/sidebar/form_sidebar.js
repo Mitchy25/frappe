@@ -31,9 +31,7 @@ frappe.ui.form.Sidebar = class {
 
 		this.make_tags();
 		this.make_like();
-		if (frappe.boot.user.document_follow_notify) {
-			this.make_follow();
-		}
+		this.make_follow();
 
 		this.bind_events();
 		this.setup_keyboard_shortcuts();
@@ -75,57 +73,36 @@ frappe.ui.form.Sidebar = class {
 			this.frm.assign_to.refresh();
 			this.frm.attachments.refresh();
 			this.frm.shared.refresh();
+
 			this.frm.tags && this.frm.tags.refresh(this.frm.get_docinfo().tags);
-			this.sidebar.find(".modified-by").html(__("{0} <span style='color:orange'>edited</span> this {1}",
-				["<strong>" + frappe.user.first_name(this.frm.doc.modified_by) + "</strong>",
-					"<br>" + moment(this.frm.doc.modified).format("DD-MM-YYYY HH:mm:ss")]));
-			this.sidebar.find(".created-by").html(__("{0} <span style='color:green'>created</span> this {1}",
-			["<strong>" + frappe.user.first_name(this.frm.doc.owner) + "</strong>",
-				"<br>" + moment(this.frm.doc.creation).format("DD-MM-YYYY HH:mm:ss")]));
 
+			if (this.frm.doc.route && cint(frappe.boot.website_tracking_enabled)) {
+				let route = this.frm.doc.route;
+				frappe.utils.get_page_view_count(route).then((res) => {
+					this.sidebar
+						.find(".pageview-count")
+						.html(
+							__("{0} Page Views", [String(res.message).bold()])
+						);
+				});
+			}
 
-			frappe.call({
-				method: "frappe.client.get_list",
-				args: {
-					"doctype": "Access Log",
-					"filters": [["export_from", "=", this.frm.doc.doctype], ["reference_document", "=", this.frm.doc.name],["method","=","Print"]],
-					"order_by": "timestamp desc",
-					"fields": ["user", "timestamp"]
-				},
-				callback:  r => {
-					if (!r.exc){
-						let al_list = r.message
-						if (Array.isArray(al_list) && !al_list.length) return;
-
-						var uniques = [];
-						for(var i = 0; i < al_list.length; i++) {
-							var found = 0
-							for (var x=0;x<uniques.length;x++){
-								if (al_list[i].timestamp.substr(0,19) == uniques[x].timestamp.substr(0,19)){
-									found = 1
-								}
-							}
-
-							if(found == 0){
-								uniques.push({"user":al_list[i].user, "timestamp": al_list[i].timestamp})
-							}
-						}
-						
-						console.log(uniques)
-
-						var html = ""
-						uniques.slice().reverse().forEach(function(printed){
-							// let last_printed = al_list[0]
-							html += "<br><strong>" + frappe.user.first_name(printed.user) + "</strong> <span style='color:red'>printed</span> this <br>" + moment(printed.timestamp).format("DD-MM-YYYY HH:mm:ss") + "<br>"
-						})
-
-						this.sidebar.find(".printed-by").html(html)
-
-						
-					}
-				}
-			})
-
+			this.sidebar
+				.find(".modified-by")
+				.html(
+					__("{0} edited this {1}", [
+						frappe.user.full_name(this.frm.doc.modified_by).bold(),
+						"<br>" + comment_when(this.frm.doc.modified),
+					], "For example, 'Jon Doe edited this 5 minutes ago'.")
+				);
+			this.sidebar
+				.find(".created-by")
+				.html(
+					__("{0} created this {1}", [
+						frappe.user.full_name(this.frm.doc.owner).bold(),
+						"<br>" + comment_when(this.frm.doc.creation),
+					], "For example, 'Jon Doe created this 5 minutes ago'.")
+				);
 
 			this.refresh_like();
 			this.refresh_follow();
