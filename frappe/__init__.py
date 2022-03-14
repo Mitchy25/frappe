@@ -37,6 +37,7 @@ faker = lazy_import('faker')
 
 __version__ = '13.20.1'
 
+
 __title__ = "Frappe Framework"
 
 local = Local()
