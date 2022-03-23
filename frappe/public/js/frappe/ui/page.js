@@ -159,6 +159,8 @@ frappe.ui.Page = Class.extend({
 	setup_sidebar_toggle() {
 		let sidebar_toggle = $('.page-head').find('.sidebar-toggle-btn');
 		let sidebar_wrapper = this.wrapper.find('.layout-side-section');
+		let main_section_wrapper = this.wrapper.find('.layout-main-section-wrapper');
+
 		if (this.disable_sidebar_toggle || !sidebar_wrapper.length) {
 			sidebar_toggle.remove();
 		} else {
@@ -171,6 +173,11 @@ frappe.ui.Page = Class.extend({
 					this.setup_overlay_sidebar();
 				} else {
 					sidebar_wrapper.toggle();
+					if (sidebar_wrapper.css('display') == "none"){
+						main_section_wrapper.addClass('col-md-12').removeClass('col-md-10')
+					} else {
+						main_section_wrapper.addClass('col-md-10').removeClass('col-md-12')
+					}
 				}
 				$(document.body).trigger('toggleSidebar');
 				this.update_sidebar_icon();
