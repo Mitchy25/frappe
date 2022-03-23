@@ -1435,7 +1435,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 				return [
 					filter[1],
 					"=",
-					JSON.stringify([filter[2], filter[3]]),
+					encodeURIComponent(JSON.stringify([filter[2], filter[3]])),
 				].join("");
 			})
 			.join("&");
