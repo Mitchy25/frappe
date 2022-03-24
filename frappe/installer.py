@@ -338,10 +338,6 @@ def _delete_doctypes(doctypes: List[str], dry_run: bool) -> None:
 			frappe.db.sql_ddl(f"DROP TABLE IF EXISTS `tab{doctype}`")
 
 
-		click.secho("Uninstalled App {0} from Site {1}".format(app_name, frappe.local.site), fg="green")
-
-	frappe.flags.in_uninstall = False
-
 def post_install(rebuild_website=False):
 	from frappe.website import render
 

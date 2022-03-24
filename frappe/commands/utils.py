@@ -753,8 +753,6 @@ def set_config(context, key, value, global_=False, parse=False, as_dict=False):
 			frappe.init(site=site)
 			update_site_config(key, value, validate=False)
 			frappe.destroy()
-		else:
-			raise SiteNotSpecifiedError
 
 
 @click.command("version")

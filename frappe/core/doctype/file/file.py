@@ -204,9 +204,6 @@ class File(Document):
 					title=_('Attachment Limit Reached')
 				)
 
-		if self.file_url and (self.is_private != self.file_url.startswith('/private')):
-			frappe.throw(_('Invalid file URL. Please contact System Administrator.'))
-
 	def set_folder_name(self):
 		"""Make parent folders if not exists based on reference doctype and name"""
 		if self.attached_to_doctype and not self.folder:

@@ -934,12 +934,6 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		</span>`;
 	}
 
-	get_seen_class(doc) {
-		return JSON.parse(doc._seen || '[]').includes(frappe.session.user)
-			? ''
-			: 'bold';
-	}
-
 	get_subject_html(doc) {
 		let subject_field = this.columns[0].df;
 		let value = doc[subject_field.fieldname];

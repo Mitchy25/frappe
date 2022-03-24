@@ -103,9 +103,6 @@ class Contact(Document):
 				primary_email_exists = True
 				self.email_id = d.email_id.strip()
 				break
-		
-		if not found_primar_email:
-			self.email_id = ""
 
 		if not primary_email_exists:
 			self.email_id = ""
@@ -129,10 +126,6 @@ class Contact(Document):
 				primary_number_exists = True
 				setattr(self, fieldname, d.phone)
 				break
-		
-		if not found_primary:
-			setattr(self, fieldname, "")
-
 
 		if not primary_number_exists:
 			setattr(self, fieldname, "")

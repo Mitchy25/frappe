@@ -5,7 +5,6 @@ frappe.views.ListGroupBy = class ListGroupBy {
 		$.extend(this, opts);
 		this.make_wrapper();
 
-		// debugger
 		this.user_settings = frappe.get_user_settings(this.doctype);
 		this.group_by_fields = ['assigned_to', 'owner'];
 		if (this.user_settings.group_by_fields) {
@@ -73,7 +72,7 @@ frappe.views.ListGroupBy = class ListGroupBy {
 			if (fieldname === 'assigned_to') {
 				label = __('Assigned To');
 			} else if (fieldname === 'owner') {
-				label = __('Owner');
+				label = __('Created By');
 			} else {
 				label = frappe.meta.get_label(this.doctype, fieldname);
 				let docfield = frappe.meta.get_docfield(this.doctype, fieldname);

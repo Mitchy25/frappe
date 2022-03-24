@@ -219,12 +219,6 @@ frappe.ui.form.on("Communication", {
 		});
 	},
 
-	mark_as_closed_open: function(frm) {
-		var status = frm.doc.status == "Open" ? "Closed" : "Open";
-		frm.set_value("status", status);
-		frm.save();
-	},
-
 	reply: function(frm) {
 		var args = frm.events.get_mail_args(frm);
 		$.extend(args, {

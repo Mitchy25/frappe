@@ -1021,8 +1021,6 @@ class Document(BaseDocument):
 
 		self.run_method('on_change')
 
-		self.run_method('on_change')
-
 		if (self.doctype, self.name) in frappe.flags.currently_saving:
 			frappe.flags.currently_saving.remove((self.doctype, self.name))
 

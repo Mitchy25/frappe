@@ -42,7 +42,6 @@ def get_context(context):
 	make_access_log(doctype=frappe.form_dict.doctype, document=frappe.form_dict.name, file_type='PDF', method='Print')
 
 	return {
-		"host_name": frappe.conf.host_name,
 		"body": get_rendered_template(doc, print_format = print_format,
 			meta=meta, trigger_print = frappe.form_dict.trigger_print,
 			no_letterhead=frappe.form_dict.no_letterhead, letterhead=letterhead,
@@ -418,8 +417,6 @@ def get_print_style(style=None, print_format=None, for_legacy=False):
 
 	if print_format and print_format.css:
 		css += "\n\n" + print_format.css
-
-	# frappe.log_error(title="css", message=css)
 
 	return css
 

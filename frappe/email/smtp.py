@@ -44,7 +44,6 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 
 	if sender:
 		sender_email_id = parse_addr(sender)[1]
-	
 	if not getattr(frappe.local, "outgoing_email_account", None):
 		frappe.local.outgoing_email_account = {}
 
@@ -98,7 +97,6 @@ def get_outgoing_email_account(raise_exception_not_set=True, append_to=None, sen
 			email_account.default_sender = email.utils.formataddr((email_account.name, email_account.get("email_id")))
 
 		frappe.local.outgoing_email_account[append_to or sender_email_id or "default"] = email_account
-	
 	return frappe.local.outgoing_email_account.get(append_to) \
 		or frappe.local.outgoing_email_account.get(sender_email_id) \
 		or frappe.local.outgoing_email_account.get("default")
@@ -173,11 +171,10 @@ class SMTPServer:
 			self.password = password
 
 		else:
-			self.setup_email_account(append_to,sender=sender)
+			self.setup_email_account(append_to)
 
 	def setup_email_account(self, append_to=None, sender=None):
-		#self.email_account = get_outgoing_email_account(raise_exception_not_set=False, append_to=append_to, sender=sender)
-		self.email_account = get_outgoing_email_account(raise_exception_not_set=False, sender=sender)
+		self.email_account = get_outgoing_email_account(raise_exception_not_set=False, append_to=append_to, sender=sender)
 		if self.email_account:
 			self.server = self.email_account.smtp_server
 			self.login = (getattr(self.email_account, "login_id", None) or self.email_account.email_id)
@@ -256,9 +253,3 @@ class SMTPServer:
 		except smtplib.SMTPException:
 			frappe.msgprint(_('Unable to send emails at this time'))
 			raise
-
-		except _socket.error as e:
-			# Invalid mail server -- due to refusing connection
-			frappe.msgprint(_('Invalid Outgoing Mail Server or Port'))
-			traceback = sys.exc_info()[2]
-			raise_(frappe.ValidationError, e, traceback)

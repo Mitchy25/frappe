@@ -38,8 +38,6 @@ def trigger_scheduler_event(context, event):
 				exit_code = 1
 		finally:
 			frappe.destroy()
-	if not context.sites:
-		raise SiteNotSpecifiedError
 
 	if not context.sites:
 		raise SiteNotSpecifiedError

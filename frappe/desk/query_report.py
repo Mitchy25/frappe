@@ -266,36 +266,6 @@ def add_custom_column_data(custom_columns, result):
 	return result
 
 
-def reorder_data_for_custom_columns(custom_columns, columns, result):
-	if not result:
-		return []
-
-	columns = [get_column_as_dict(col) for col in columns]
-	if isinstance(result[0], list) or isinstance(result[0], tuple):
-		# If the result is a list of lists
-		custom_column_names = [col["label"] for col in custom_columns]
-		original_column_names = [col["label"] for col in columns]
-		return get_columns_from_list(custom_column_names, original_column_names, result)
-	else:
-		# columns do not need to be reordered if result is a list of dicts
-		return result
-
-def get_columns_from_list(columns, target_columns, result):
-	reordered_result = []
-
-	for res in result:
-		r = []
-		for col_name in columns:
-			try:
-				idx = target_columns.index(col_name)
-				r.append(res[idx])
-			except ValueError:
-				pass
-
-		reordered_result.append(r)
-
-	return reordered_result
-
 def get_prepared_report_result(report, filters, dn="", user=None):
 	latest_report_data = {}
 	doc = None

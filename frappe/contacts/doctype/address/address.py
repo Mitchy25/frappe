@@ -25,17 +25,17 @@ class Address(Document):
 		self.flags.linked = False
 
 	def autoname(self):
-		address_title = ""
-		if self.links:
-			address_title = self.links[0].link_name
+		if not self.address_title:
+			if self.links:
+				self.address_title = self.links[0].link_name
 
-		if address_title:
-			self.name = (cstr(address_title).strip() + "-" + cstr(_(self.address_type)).strip())
+		if self.address_title:
+			self.name = (cstr(self.address_title).strip() + "-" + cstr(_(self.address_type)).strip())
 			if frappe.db.exists("Address", self.name):
-				self.name = make_autoname(cstr(address_title).strip() + "-" +
+				self.name = make_autoname(cstr(self.address_title).strip() + "-" +
 					cstr(self.address_type).strip() + "-.#")
 		else:
-			throw("Address needs to be linked with a party!")
+			throw(_("Address Title is mandatory."))
 
 	def validate(self):
 		self.link_address()

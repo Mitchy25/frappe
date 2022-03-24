@@ -159,20 +159,6 @@ class BackupGenerator:
 		)
 		return getattr(self, "backup_path_conf", None)
 
-		if not self.db_type:
-			self.db_type = 'mariadb'
-
-		if not self.db_port and self.db_type == 'mariadb':
-			self.db_port = 3306
-		elif not self.db_port and self.db_type == 'postgres':
-			self.db_port = 5432
-
-		site = frappe.local.site or frappe.generate_hash(length=8)
-		self.site_slug = site.replace('.', '_')
-
-		self.verbose = verbose
-		_verbose = verbose
-
 	def get_backup(self, older_than=24, ignore_files=False, force=False):
 		"""
 		Takes a new dump if existing file is old

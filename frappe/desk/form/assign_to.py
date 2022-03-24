@@ -20,7 +20,7 @@ def get(args=None):
 	if not args:
 		args = frappe.local.form_dict
 
-	return frappe.get_all('ToDo', fields = ['owner', 'name', 'description'], filters = dict(
+	return frappe.get_all('ToDo', fields=['owner', 'name'], filters=dict(
 		reference_type = args.get('doctype'),
 		reference_name = args.get('name'),
 		status = ('!=', 'Cancelled')

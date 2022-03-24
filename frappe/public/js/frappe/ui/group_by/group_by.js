@@ -308,10 +308,6 @@ frappe.ui.GroupBy = class {
 				this.aggregate_on_doctype || this.doctype,
 			]);
 
-			if (aggregate_on_field) {
-				args.fields.push(aggregate_on_field);
-			}
-
 			// setup columns in datatable
 			this.report_view.setup_columns();
 

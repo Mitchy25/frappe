@@ -13,7 +13,6 @@ import frappe
 from frappe import _, safe_decode
 from frappe.utils import cstr
 
-import pdb
 
 def get_change_log(user=None):
 	if not user: user = frappe.session.user
@@ -143,7 +142,6 @@ def get_app_last_commit_ref(app):
 def check_for_update():
 	updates = frappe._dict(major=[], minor=[], patch=[])
 	apps = get_versions()
-	# pdb.set_trace()
 
 	for app in apps:
 		app_details = check_release_on_github(app)

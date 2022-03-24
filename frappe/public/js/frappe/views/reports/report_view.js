@@ -811,16 +811,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		}
 	}
 
-	add_status_dependency_column(col, doctype) {
-		// Adds dependent column from which status is derived if required
-		if (!this.fields.find(f => f[0] === col)) {
-			const field = [col, doctype];
-			this.fields.push(field);
-			this.refresh();
-			frappe.show_alert(__('Also adding the status dependency field {0}', [field[0].bold()]));
-		}
-	}
-
 	remove_column_from_datatable(column) {
 		const index = this.fields.findIndex(f => column.field === f[0]);
 		if (index === -1) return;
@@ -978,14 +968,6 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 				if (!this.fields.includes(['status', this.doctype]) && !frappe.meta.has_field(this.doctype, 'status')) {
 					column = this.build_column(['docstatus', this.doctype]);
 				}
-			}
-
-			if (column) {
-				if (column_widths) {
-					column.width = column_widths[column.id] || column.width || 120;
-				}
-				this.columns.push(column);
-				this.columns_map[column.id] = column;
 			}
 
 			if (column) {

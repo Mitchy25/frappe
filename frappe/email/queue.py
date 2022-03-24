@@ -462,12 +462,9 @@ def send_one(email, smtpserver=None, auto_commit=True, now=False):
 		if email_sent_to_any_recipient:
 			frappe.db.sql("""update `tabEmail Queue` set status='Sent', modified=%s where name=%s""",
 				(now_datetime(), email.name), auto_commit=auto_commit)
-		elif email_sent_to_any_recipient:
-			frappe.db.sql("""update `tabEmail Queue` set status='Partially Sent', modified=%s where name=%s""",
-				(now_datetime(), email.name), auto_commit=auto_commit)
 		else:
 			frappe.db.sql("""update `tabEmail Queue` set status='Error', error=%s
-				where name=%s""", ("No valid recipients to send to", email.name), auto_commit=auto_commit)
+				where name=%s""", ("No recipients to send to", email.name), auto_commit=auto_commit)
 		if frappe.flags.in_test:
 			frappe.flags.sent_mail = message
 			return
@@ -561,7 +558,6 @@ def prepare_message(email, recipient, recipients_list):
 
 		message = message.replace("<!--recipient-->", recipient)
 
-	
 	message = (message and message.encode('utf8')) or ''
 	message = safe_decode(message)
 

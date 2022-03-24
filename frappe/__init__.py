@@ -542,9 +542,9 @@ def sendmail(recipients=None, sender="", subject="No Subject", message="No Messa
 		message, text_content = get_email_from_template(template, args)
 
 	message = content or message
-	
+
 	if as_markdown:
-		from frappe.utils.data import md_to_html
+		from frappe.utils import md_to_html
 		message = md_to_html(message)
 
 	if not delayed:
@@ -594,8 +594,6 @@ def whitelist(allow_guest=False, xss_safe=False, methods=None):
 			fn = method.__func__
 
 		whitelisted.append(fn)
-		allowed_http_methods_for_whitelisted_func[fn] = methods
-
 		allowed_http_methods_for_whitelisted_func[fn] = methods
 
 		if allow_guest:

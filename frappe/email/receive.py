@@ -199,7 +199,6 @@ class EmailServer:
 
 		response, message = self.imap.status("Inbox", "(UIDVALIDITY UIDNEXT)")
 		current_uid_validity = self.parse_imap_response("UIDVALIDITY", message[0]) or 0
-		
 		uidnext = int(self.parse_imap_response("UIDNEXT", message[0]) or "1")
 		frappe.db.set_value("Email Account", self.settings.email_account, "uidnext", uidnext)
 
