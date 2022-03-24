@@ -10,7 +10,7 @@ from frappe import msgprint, _, safe_decode, safe_encode, enqueue
 from frappe.email.smtp import SMTPServer, get_outgoing_email_account
 from frappe.email.email_body import get_email, get_formatted_html, add_attachment
 from frappe.utils.verified_command import get_signed_params, verify_request
-from frappe.utils import get_hook_method
+from frappe.utils import get_hook_method, validate_email_address
 from html2text import html2text
 from frappe.utils import get_url, nowdate, now_datetime, add_days, split_emails, cstr, cint
 from rq.timeouts import JobTimeoutException
