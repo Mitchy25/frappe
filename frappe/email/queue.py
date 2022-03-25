@@ -10,7 +10,7 @@ from frappe import msgprint, _, safe_decode, safe_encode, enqueue
 from frappe.email.smtp import SMTPServer, get_outgoing_email_account
 from frappe.email.email_body import get_email, get_formatted_html, add_attachment
 from frappe.utils.verified_command import get_signed_params, verify_request
-from frappe.utils import get_hook_method, validate_email_address
+from frappe.utils import get_hook_method
 from html2text import html2text
 from frappe.utils import get_url, nowdate, now_datetime, add_days, split_emails, cstr, cint
 from rq.timeouts import JobTimeoutException
@@ -347,7 +347,7 @@ def flush(from_test=False):
 		if email.name:
 			smtpserver = smtpserver_dict.get(email.sender)
 			if not smtpserver:
-				smtpserver = SMTPServer(sender=email.sender)
+				smtpserver = SMTPServer()
 				smtpserver_dict[email.sender] = smtpserver
 
 			if from_test:
@@ -436,10 +436,6 @@ def send_one(email, smtpserver=None, auto_commit=True, now=False):
 
 		for recipient in recipients_list:
 			if recipient.status != "Not Sent":
-				continue
-
-			if not validate_email_address(recipient.recipient):
-				recipient.status = "Error"
 				continue
 
 			message = prepare_message(email, recipient.recipient, recipients_list)
