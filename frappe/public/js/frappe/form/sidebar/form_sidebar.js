@@ -86,31 +86,44 @@ frappe.ui.form.Sidebar = class {
 						);
 				});
 			}
-
-			this.sidebar
-				.find(".modified-by")
-				.html(
-					__("{0} edited this {1}", [
-						frappe.user.full_name(this.frm.doc.modified_by).bold(),
-						"<br>" + comment_when(this.frm.doc.modified),
-					], "For example, 'Jon Doe edited this 5 minutes ago'.")
-				);
 			this.sidebar
 				.find(".created-by")
 				.html(
-					__("{0} created this {1}", [
-						frappe.user.full_name(this.frm.doc.owner).bold(),
-						"<br>" + comment_when(this.frm.doc.creation),
+					__("{0} created {1}", [
+						frappe.user.full_name(this.frm.doc.owner).split(' ')[0].bold(),
+						comment_when(this.frm.doc.creation),
 					], "For example, 'Jon Doe created this 5 minutes ago'.")
 				);
-
+			this.sidebar
+				.find(".modified-by")
+				.html(
+					__("{0} edited {1}", [
+						frappe.user.full_name(this.frm.doc.modified_by).split(' ')[0].bold(),
+						comment_when(this.frm.doc.modified),
+					], "For example, 'Jon Doe edited this 5 minutes ago'.")
+				);
+			const Access = new Promise((resolve, reject) => {
+				let data = ""
+				frappe.db.get_list('Access Log',
+				{fields: ['user', 'timestamp'], 
+				filters:[['reference_document', '=', this.frm.doc.name],['method', '=', 'Print']]}).then((res) => {
+					res.forEach(element => {
+						data += frappe.user.full_name(element["user"]).split(' ')[0].bold() + "</b>" + " printed " + comment_when(element.timestamp) + "<br>"
+					});
+					resolve(data)
+				});
+			})
+			Access.then((items)=>{
+			this.sidebar
+				.find(".printed-by")
+				.html(items);
+			})
 			this.refresh_like();
 			this.refresh_follow();
 			this.refresh_comments_count();
 			frappe.ui.form.set_user_image(this.frm);
 		}
 	}
-
 	show_auto_repeat_status() {
 		if (this.frm.meta.allow_auto_repeat && this.frm.doc.auto_repeat) {
 			const me = this;
