@@ -104,11 +104,14 @@ frappe.ui.form.Sidebar = class {
 				);
 			const Access = new Promise((resolve, reject) => {
 				let data = ""
+				let date
 				frappe.db.get_list('Access Log',
 				{fields: ['user', 'timestamp'], 
 				filters:[['reference_document', '=', this.frm.doc.name],['method', '=', 'Print']]}).then((res) => {
 					res.forEach(element => {
-						data += frappe.user.full_name(element["user"]).split(' ')[0].bold() + "</b>" + " printed " + comment_when(element.timestamp) + "<br>"
+						date = new Date(element.timestamp)					
+						date.setSeconds(0, 0);
+						data += frappe.user.full_name(element["user"]).split(' ')[0].bold() + "</b>" + " printed on <br>" + date.toLocaleString() + "<br>"
 					});
 					resolve(data)
 				});
