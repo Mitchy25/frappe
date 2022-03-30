@@ -117,8 +117,8 @@ def rate_limit(key: str = None, limit: Union[int, Callable] = 5, seconds: int = 
 
 			identity = None
 
-			if key and ip_based:
-				identity = ":".join([ip, user_key])
+			# if key and ip_based:
+			# 	identity = ":".join([ip, user_key])
 
 			identity = identity or ip or user_key
 
