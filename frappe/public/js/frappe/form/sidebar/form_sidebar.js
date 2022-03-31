@@ -111,7 +111,7 @@ frappe.ui.form.Sidebar = class {
 					res.forEach(element => {
 						date = new Date(element.timestamp)					
 						date.setSeconds(0, 0);
-						data += frappe.user.full_name(element["user"]).split(' ')[0].bold() + "</b>" + " printed on <br>" + date.toLocaleString() + "<br>"
+						data += frappe.user.full_name(element["user"]).split(' ')[0].bold() + "</b>" + " printed on <br>" + date.toLocaleString('en-AU') + "<br>"
 					});
 					resolve(data)
 				});
