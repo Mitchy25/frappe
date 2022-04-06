@@ -105,16 +105,23 @@ frappe.ui.FilterGroup = class {
 
 	update_filter_button() {
 		const filters_applied = this.filters.length > 0;
-		const button_label = filters_applied
+		var button_label = filters_applied
 			? this.filters.length > 1
 				? __("{0} filters", [this.filters.length])
 				: __("{0} filter", [this.filters.length])
 			: __('Filter');
 
-
+		
+		var spinner = `
+		<div class="spinner-grow text-primary spinner-grow-sm" role="status">
+		<span class="sr-only">Loading...</span>
+			</div>
+			`
+		button_label += filters_applied ? spinner : '';
 		this.filter_button
 			.toggleClass('btn-default', !filters_applied)
 			.toggleClass('btn-primary-light', filters_applied);
+
 
 		this.filter_button.find('.filter-icon')
 			.toggleClass('active', filters_applied);
