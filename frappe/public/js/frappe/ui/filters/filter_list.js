@@ -122,7 +122,6 @@ frappe.ui.FilterGroup = class {
 			.toggleClass('btn-default', !filters_applied)
 			.toggleClass('btn-primary-light', filters_applied);
 
-
 		this.filter_button.find('.filter-icon')
 			.toggleClass('active', filters_applied);
 
