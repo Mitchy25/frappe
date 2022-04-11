@@ -327,7 +327,6 @@ def return_unsubscribed_page(email, doctype, name):
 		_("{0} has left the conversation in {1} {2}").format(email, _(doctype), name),
 		indicator_color='green')
 
-@frappe.whitelist()
 def flush(from_test=False):
 	"""flush email queue, every time: called from scheduler"""
 	# additional check
@@ -437,7 +436,6 @@ def send_one(email, smtpserver=None, auto_commit=True, now=False):
 		for recipient in recipients_list:
 			if recipient.status != "Not Sent":
 				continue
-			
 			message = prepare_message(email, recipient.recipient, recipients_list)
 			if not frappe.flags.in_test:
 				method = get_hook_method("override_email_send")

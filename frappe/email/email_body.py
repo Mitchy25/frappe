@@ -282,8 +282,7 @@ def get_formatted_html(subject, message, footer=None, print_html=None,
 	if unsubscribe_link:
 		html = html.replace("<!--unsubscribe link here-->", unsubscribe_link.html)
 
-	html = inline_style_in_html(html)
-	return html
+	return inline_style_in_html(html)
 
 @frappe.whitelist()
 def get_email_html(template, args, subject, header=None, with_container=False):

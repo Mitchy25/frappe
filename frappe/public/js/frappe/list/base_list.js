@@ -699,12 +699,12 @@ class FilterArea {
 		this.standard_filters_wrapper = this.list_view.page.page_form.find('.standard-filter-section');
 		let fields = [
 			{
-				fieldtype: 'Data',
-				label: this.list_view.doctype,
-				condition: 'like',
-				fieldname: 'name',
-				onchange: () => this.refresh_list_view()
-			}
+				fieldtype: "Data",
+				label: "Name",
+				condition: "like",
+				fieldname: "name",
+				onchange: () => this.refresh_list_view(),
+			},
 		];
 
 		if (this.list_view.custom_filter_configs) {
