@@ -587,4 +587,4 @@ ALLOWED_FIELDTYPE_CHANGE = (
 	('Code', 'Geolocation'),
 	('Table', 'Table MultiSelect'))
 
-ALLOWED_OPTIONS_CHANGE = ('Read Only', 'HTML', 'Data')
+ALLOWED_OPTIONS_CHANGE = ('Read Only', 'HTML', 'Data', 'Select')
