@@ -101,15 +101,17 @@ frappe.Application = Class.extend({
 		}
 
 		frappe.realtime.on("version-update", function() {
-			var dialog = frappe.msgprint({
-				message:__("The application has been updated to a new version, please refresh this page"),
-				indicator: 'green',
-				title: __('Version Updated')
-			});
-			dialog.set_primary_action(__("Refresh"), function() {
-				location.reload(true);
-			});
-			dialog.get_close_btn().toggle(false);
+			if(frappe.user_roles.includes('Administrator')) {
+				var dialog = frappe.msgprint({
+					message:__("The application has been updated to a new version, please refresh this page"),
+					indicator: 'green',
+					title: __('Version Updated')
+				});
+				dialog.set_primary_action(__("Refresh"), function() {
+					location.reload(true);
+				});
+				dialog.get_close_btn().toggle(false);
+			}
 		});
 
 		// listen to build errors
