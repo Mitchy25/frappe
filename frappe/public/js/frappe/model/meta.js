@@ -201,7 +201,7 @@ $.extend(frappe.meta, {
 		];
 	},
 
-	get_print_formats: function(doctype) {
+	get_print_formats: function(doctype, doc=null) {
 		var print_format_list = ["Standard"];
 		var default_print_format = locals.DocType[doctype].default_print_format;
 		let enable_raw_printing = frappe.model.get_doc(":Print Settings", "Print Settings").enable_raw_printing;

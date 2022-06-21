@@ -677,8 +677,10 @@ frappe.ui.form.PrintView = class {
 	}
 
 	refresh_print_options() {
-		this.print_formats = frappe.meta.get_print_formats(this.frm.doctype);
-		const print_format_select_val = this.print_sel.val();
+		this.print_formats = []
+		this.print_formats = frappe.meta.get_print_formats(this.frm.doctype, this.frm);
+		// const print_format_select_val = this.print_sel.val();
+		const print_format_select_val = null
 		this.print_sel.empty().add_options([
 			this.get_default_option_for_select(__('Select Print Format')),
 			...this.print_formats

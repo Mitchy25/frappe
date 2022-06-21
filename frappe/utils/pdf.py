@@ -28,7 +28,9 @@ def get_pdf(html, options=None, output=None):
 
 	options.update({
 		"disable-javascript": "",
-		"disable-local-file-access": ""
+		"disable-local-file-access": "",
+		"margin-left": "5mm",
+		"margin-right": "5mm"
 	})
 
 	filedata = ''
