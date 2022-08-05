@@ -49,6 +49,7 @@ frappe.Application = Class.extend({
 		this.set_favicon();
 		this.setup_analytics();
 		this.set_fullwidth_if_enabled();
+		this.set_ugly_mode_if_enabled();
 		this.add_browser_class();
 		this.setup_energy_point_listeners();
 		this.setup_copy_doc_listener();
@@ -544,6 +545,9 @@ frappe.Application = Class.extend({
 
 	set_fullwidth_if_enabled() {
 		frappe.ui.toolbar.set_fullwidth_if_enabled();
+	},
+	set_ugly_mode_if_enabled() {
+		frappe.ui.toolbar.set_ugly_mode_if_enabled();
 	},
 	show_notes: function() {
 		var me = this;
