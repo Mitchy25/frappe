@@ -39,6 +39,9 @@ frappe.ui.toolbar.Toolbar = class {
 		$('.navbar-toggle-full-width').click(() => {
 			frappe.ui.toolbar.toggle_full_width();
 		});
+		$('.navbar-toggle-ugly-mode').click(() => {
+			frappe.ui.toolbar.toggle_ugly_mode();
+		});
 	}
 
 
@@ -185,11 +188,22 @@ $.extend(frappe.ui.toolbar, {
 		fullwidth = !fullwidth;
 		localStorage.container_fullwidth = fullwidth;
 		frappe.ui.toolbar.set_fullwidth_if_enabled();
-		$(document.body).trigger('toggleFullWidth');
+		//$(document.body).trigger('toggleFullWidth');
 	},
 	set_fullwidth_if_enabled() {
 		let fullwidth = JSON.parse(localStorage.container_fullwidth || 'false');
 		$(document.body).toggleClass('full-width', fullwidth);
+	},
+	toggle_ugly_mode() {
+		let ugly_mode = JSON.parse(localStorage.ugly_mode || 'false');
+		ugly_mode = !ugly_mode;
+		localStorage.ugly_mode = ugly_mode;
+		frappe.ui.toolbar.set_ugly_mode_if_enabled();
+		// $(document.body).trigger('ugly-mode');
+	},
+	set_ugly_mode_if_enabled() {
+		let ugly_mode = JSON.parse(localStorage.ugly_mode || 'false');
+		$(document.body).toggleClass('ugly-mode', ugly_mode);
 	},
 	show_shortcuts (e) {
 		e.preventDefault();
