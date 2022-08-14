@@ -505,7 +505,8 @@ frappe.ui.form.Form = class FrappeForm {
 				},
 				() => this.cscript.is_onload && this.is_new() && this.focus_on_first_input(),
 				() => this.run_after_load_hook(),
-				() => this.dashboard.after_refresh()
+				() => this.dashboard.after_refresh(),
+				() => this.set_fields_from_route(),
 			]);
 
 		} else {
@@ -532,9 +533,20 @@ frappe.ui.form.Form = class FrappeForm {
 		if (frappe.route_hooks.after_load) {
 			let route_callback = frappe.route_hooks.after_load;
 			delete frappe.route_hooks.after_load;
-
 			route_callback(this);
 		}
+	}
+	set_fields_from_route(){
+		var me = this;
+		for (var key in frappe.route_field_inputs) {
+			if(key in me.fields_dict){
+				let value = frappe.route_field_inputs[key]
+				me.set_value(key, value);
+			}
+		}
+		delete frappe.route_field_inputs;
+	}
+
 	}
 
 	refresh_fields() {
