@@ -13,6 +13,7 @@ frappe.view_factory = {};
 frappe.view_factories = [];
 frappe.route_options = null;
 frappe.route_hooks = {};
+frappe.route_field_inputs = {};
 
 $(window).on('hashchange', function(e) {
 	// v1 style routing, route is in hash

@@ -78,7 +78,7 @@ def get_context(context):
 
 	def validate_forbidden_types(self):
 		forbidden_document_types = ("Email Queue",)
-		if (self.document_type in forbidden_document_types
+		if ((self.document_type in forbidden_document_types and self.channel == "Email")
 			or frappe.get_meta(self.document_type).istable):
 			# currently notifications don't work on child tables as events are not fired for each record of child table
 
