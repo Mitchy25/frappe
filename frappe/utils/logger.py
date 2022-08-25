@@ -14,7 +14,7 @@ import frappe
 from frappe.utils import get_sites
 
 
-default_log_level = logging.DEBUG
+default_log_level = getattr(logging, (frappe.get_site_config().logging_level or "").upper(), None) or logging.DEBUG
 
 
 def get_logger(module=None, with_more_info=False, allow_site=True, filter=None, max_size=100_000, file_count=20):
