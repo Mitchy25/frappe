@@ -547,8 +547,6 @@ frappe.ui.form.Form = class FrappeForm {
 		delete frappe.route_field_inputs;
 	}
 
-	}
-
 	refresh_fields() {
 		this.layout.refresh(this.doc);
 		this.layout.primary_button = this.$wrapper.find(".btn-primary");
