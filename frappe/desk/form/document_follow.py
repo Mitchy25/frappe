@@ -33,8 +33,7 @@ def follow_document(doctype, doc_name, user):
 		or doctype in log_types):
 		return
 
-	if ((not frappe.get_meta(doctype).track_changes)
-		or user == "Administrator"):
+	if ((not frappe.get_meta(doctype).track_changes)):
 		return
 
 	if not frappe.db.get_value("User", user, "document_follow_notify", ignore=True, cache=True):
