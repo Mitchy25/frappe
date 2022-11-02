@@ -434,6 +434,16 @@ def send_one(email, smtpserver=None, auto_commit=True, now=False):
 			smtpserver.setup_email_account(email.reference_doctype, sender=email.sender)
 
 		for recipient in recipients_list:
+			"""Custom code to check if site is prod. if not dont sent outside of our users"""
+			if not frappe.conf.production_site:
+				if frappe.db.exists("User", recipient.recipient, cache=True):
+					pass
+				else:
+					recipient.status = "Expired"
+					frappe.db.sql("""update `tabEmail Queue Recipient` set status='Expired', modified=%s where name=%s""",
+					(now_datetime(), recipient.name), auto_commit=auto_commit)
+					continue
+			"""End custom code"""
 			if recipient.status != "Not Sent":
 				continue
 			message = prepare_message(email, recipient.recipient, recipients_list)
