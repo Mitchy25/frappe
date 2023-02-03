@@ -74,9 +74,8 @@ def has_permission(doc, ptype, user):
 			return True
 	else:
 		allowed_doctypes = frappe.permissions.get_doctypes_with_read()
-		if doc.document_type in allowed_doctypes:
+		if doc.doctype in allowed_doctypes:
 			return True
-
 	return False
 
 @frappe.whitelist()

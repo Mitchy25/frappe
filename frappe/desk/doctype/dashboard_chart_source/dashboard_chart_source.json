@@ -35,7 +35,7 @@
   }
  ],
  "links": [],
- "modified": "2020-06-26 18:00:37.421491",
+ "modified": "2023-02-03 15:08:21.806151",
  "modified_by": "Administrator",
  "module": "Desk",
  "name": "Dashboard Chart Source",
@@ -61,6 +61,17 @@
    "role": "Administrator",
    "share": 1,
    "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "All",
+   "share": 1
   }
  ],
  "sort_field": "modified",
