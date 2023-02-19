@@ -951,7 +951,6 @@ frappe.ui.form.Form = class FrappeForm {
 					field.set_value(this.doc[fieldname]);
 				}
 			});
-
 			delete this.doc.__run_link_triggers;
 		}
 	}
@@ -976,7 +975,8 @@ frappe.ui.form.Form = class FrappeForm {
 			&& !this.is_new()
 			&& !frappe.model.has_workflow(this.doctype) // show only if no workflow
 			&& this.doc.docstatus===0) {
-			this.dashboard.add_comment(__('Submit this document to confirm'), 'blue', true);
+				this.dashboard.clear_comment()
+				this.dashboard.add_comment(__('Submit this document to confirm'), 'blue', true);
 		}
 	}
 
@@ -1001,7 +1001,7 @@ frappe.ui.form.Form = class FrappeForm {
 		this.perm = frappe.perm.get_perm(dt, this.doc);
 
 		if(!this.perm[0].read) {
-			return 0;
+			return 0;	
 		}
 		return 1;
 	}
