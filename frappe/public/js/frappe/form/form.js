@@ -482,13 +482,13 @@ frappe.ui.form.Form = class FrappeForm {
 				});
 				this.sidebar.make();
 			}
-
 			// clear layout message
 			this.layout.show_message();
-
+			
 			frappe.run_serially([
 				// header must be refreshed before client methods
 				// because add_custom_button
+				//TODO: This is 
 				() => this.refresh_header(switched),
 				// trigger global trigger
 				// to use this
