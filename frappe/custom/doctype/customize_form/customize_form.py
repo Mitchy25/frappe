@@ -24,7 +24,6 @@ from frappe.model.docfield import supports_translation
 from frappe.model.document import Document
 from frappe.utils import cint
 
-import pdb
 
 class CustomizeForm(Document):
 	def on_update(self):
@@ -369,6 +368,9 @@ class CustomizeForm(Document):
 		d.insert()
 		df.fieldname = d.fieldname
 
+		if df.get("in_global_search"):
+			self.flags.rebuild_doctype_for_global_search = True
+
 	def update_in_custom_field(self, df, i):
 		meta = frappe.get_meta(self.doc_type)
 		meta_df = meta.get("fields", {"fieldname": df.fieldname})
@@ -382,6 +384,8 @@ class CustomizeForm(Document):
 			if df.get(prop) != custom_field.get(prop):
 				if prop == "fieldtype":
 					self.validate_fieldtype_change(df, meta_df[0].get(prop), df.get(prop))
+				if prop == "in_global_search":
+					self.flags.rebuild_doctype_for_global_search = True
 
 				custom_field.set(prop, df.get(prop))
 				changed = True
@@ -548,6 +552,7 @@ doctype_properties = {
 	"quick_entry": "Check",
 	"editable_grid": "Check",
 	"max_attachments": "Int",
+	"make_attachments_public": "Check",
 	"track_changes": "Check",
 	"track_views": "Check",
 	"allow_auto_repeat": "Check",
@@ -558,6 +563,7 @@ doctype_properties = {
 	"subject_field": "Data",
 	"sender_field": "Data",
 	"autoname": "Data",
+	"translated_doctype": "Check",
 }
 
 docfield_properties = {
