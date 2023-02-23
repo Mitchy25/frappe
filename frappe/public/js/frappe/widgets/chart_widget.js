@@ -214,6 +214,10 @@ export default class ChartWidget extends Widget {
 
 			this.update_chart_object();
 			this.data = data;
+			
+			console.log(this.data)
+			console.log(this.data.custom_options)
+			console.log(this.data.options)
 			this.render();
 		});
 	}
@@ -537,8 +541,11 @@ export default class ChartWidget extends Widget {
 			this.loading.hide();
 			this.empty.hide();
 			this.chart_wrapper.show();
-
+			if (this.data.custom_options) {
+				this.custom_options = this.data.custom_options
+			}
 			const chart_args = this.get_chart_args();
+
 
 			if (!this.dashboard_chart) {
 				this.dashboard_chart = frappe.utils.make_chart(this.chart_wrapper[0], chart_args);
@@ -609,7 +616,6 @@ export default class ChartWidget extends Widget {
 		if (this.chart_doc.custom_options) {
 			set_options(this.chart_doc.custom_options);
 		}
-
 		return chart_args;
 	}
 
