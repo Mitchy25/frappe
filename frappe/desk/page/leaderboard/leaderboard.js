@@ -105,6 +105,9 @@ class Leaderboard {
 			options: "Company",
 			default: frappe.defaults.get_default("company"),
 			reqd: 1,
+			change: (e) => {
+				this.make_request();
+			}
 		});
 
 
@@ -170,7 +173,9 @@ class Leaderboard {
 			let $li = $(e.currentTarget);
 			let doctype = $li.find(".doctype-text").attr("doctype-value");
 
-			this.options.selected_company = frappe.defaults.get_default("company");
+			this.company_select.set_value(
+				frappe.defaults.get_default("company") || this.company_select.get_value()
+			);
 			this.options.selected_doctype = doctype;
 			this.options.selected_filter = this.filters[doctype];
 			this.options.selected_filter_item = this.filters[doctype][0];
@@ -224,14 +229,17 @@ class Leaderboard {
 	}
 
 	get_leaderboard(notify) {
-		if (!this.options.selected_company) {
-			frappe.throw(__("Please select Company"));
+		let company = this.company_select.get_value();
+		if (!company && !this.leaderboard_config[this.options.selected_doctype].company_disabled) {
+			notify(this, null);
+			frappe.show_alert(__("Please select Company"));
+			return;
 		}
 		frappe.call(
 			this.leaderboard_config[this.options.selected_doctype].method,
 			{
 				'date_range': this.get_date_range(),
-				'company': this.options.selected_company,
+				'company': company,
 				'field': this.options.selected_filter_item,
 				'limit': this.leaderboard_limit,
 			}

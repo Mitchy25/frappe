@@ -38,12 +38,17 @@ $('body').on('click', 'a', function(e) {
 		return false;
 	};
 
-	const href = e.currentTarget.getAttribute('href');
+	const target_element = e.currentTarget;
+	const href = target_element.getAttribute("href");
+	const is_on_same_host = target_element.hostname === window.location.hostname;
 
 	// click handled, but not by href
-	if (e.currentTarget.getAttribute('onclick') // has a handler
-		|| (e.ctrlKey || e.metaKey) // open in a new tab
-		|| href==='#') { // hash is home
+	if (
+		target_element.getAttribute("onclick") || // has a handler
+		e.ctrlKey ||
+		e.metaKey || // open in a new tab
+		href === "#" // hash is home
+	) {
 		return;
 	}
 
@@ -53,13 +58,14 @@ $('body').on('click', 'a', function(e) {
 
 	if (href && href.startsWith('#')) {
 		// target startswith "#", this is a v1 style route, so remake it.
-		return override(e.currentTarget.hash);
+		return override(target_element.hash);
 	}
 
-	if (frappe.router.is_app_route(e.currentTarget.pathname)) {
+	if (is_on_same_host && frappe.router.is_app_route(target_element.pathname)) {
 		// target has "/app, this is a v2 style route.
-		return override(e.currentTarget.pathname + e.currentTarget.hash);
+		return override(target_element.pathname + target_element.hash);
 	}
+
 });
 
 frappe.router = {
@@ -248,7 +254,9 @@ frappe.router = {
 		return new Promise(resolve => {
 			route = this.get_route_from_arguments(route);
 			route = this.convert_from_standard_route(route);
-			const sub_path = this.make_url(route);
+			let sub_path = this.make_url(route);
+			// replace each # occurrences in the URL with encoded character except for last
+			// sub_path = sub_path.replace(/[#](?=.*[#])/g, "%23");
 			this.push_state(sub_path);
 
 			setTimeout(() => {
@@ -331,11 +339,7 @@ frappe.router = {
 				frappe.route_options = a;
 				return null;
 			} else {
-				a = String(a);
-				if (a && a.match(/[%'"\s\t]/)) {
-					// if special chars, then encode
-					a = encodeURIComponent(a);
-				}
+				a = encodeURIComponent(String(a));
 				return a;
 			}
 		}).join('/');
@@ -360,7 +364,7 @@ frappe.router = {
 		// return clean sub_path from hash or url
 		// supports both v1 and v2 routing
 		if (!route) {
-			route = window.location.pathname + window.location.hash + window.location.search;
+			route = window.location.pathname;
 			if (route.includes('app#')) {
 				// to support v1
 				route = window.location.hash;

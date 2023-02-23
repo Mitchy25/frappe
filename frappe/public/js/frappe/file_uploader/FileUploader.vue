@@ -65,7 +65,7 @@
 					</button>
 					<button v-if="google_drive_settings.enabled" class="btn btn-file-upload" @click="show_google_drive_picker">
 						<svg width="30" height="30">
-							<image xlink:href="/assets/frappe/icons/social/google_drive.svg" width="30" height="30"/>
+							<image href="/assets/frappe/icons/social/google_drive.svg" width="30" height="30"/>
 						</svg>
 						<div class="mt-1">{{ __('Google Drive') }}</div>
 					</button>
@@ -157,6 +157,9 @@ export default {
 		on_success: {
 			default: null
 		},
+		make_attachments_public: {
+			default: null,
+		},
 		restrictions: {
 			default: () => ({
 				max_file_size: null, // 2048 -> 2KB
@@ -180,6 +183,7 @@ export default {
 			currently_uploading: -1,
 			show_file_browser: false,
 			show_web_link: false,
+			close_dialog: false,
 			allow_take_photo: false,
 			google_drive_settings: {
 				enabled: false
@@ -263,7 +267,7 @@ export default {
 						total: 0,
 						failed: false,
 						uploading: false,
-						private: !is_image
+						private: !this.make_attachments_public,
 					}
 				});
 			this.files = this.files.concat(files);
@@ -456,30 +460,31 @@ export default {
 				error: true
 			});
 			capture.show();
-			capture.submit(data_url => {
-				let filename = `capture_${frappe.datetime.now_datetime().replaceAll(/[: -]/g, '_')}.png`;
-				this.url_to_file(data_url, filename, 'image/png').then((file) =>
-					this.add_files([file])
-				);
+			capture.submit(data_urls => {
+				data_urls.forEach(data_url => {
+					let filename = `capture_${frappe.datetime.now_datetime().replaceAll(/[: -]/g, '_')}.png`;
+					this.url_to_file(data_url, filename, 'image/png').then((file) =>
+						this.add_files([file])
+					);
+				});
 			});
 		},
 		show_google_drive_picker() {
-			let dialog = cur_dialog;
-			dialog.hide();
+			this.close_dialog = true;
 			let google_drive = new GoogleDrivePicker({
-				pickerCallback: data => this.google_drive_callback(data, dialog),
+				pickerCallback: data => this.google_drive_callback(data),
 				...this.google_drive_settings
 			});
 			google_drive.loadPicker();
 		},
-		google_drive_callback(data, dialog) {
+		google_drive_callback(data) {
 			if (data.action == google.picker.Action.PICKED) {
 				this.upload_file({
 					file_url: data.docs[0].url,
 					file_name: data.docs[0].name
 				});
 			} else if (data.action == google.picker.Action.CANCEL) {
-				dialog.show();
+				cur_frm.attachments.new_attachment()
 			}
 		},
 		url_to_file(url, filename, mime_type) {

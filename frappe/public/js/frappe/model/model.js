@@ -68,11 +68,9 @@ $.extend(frappe.model, {
 				}
 			}
 		});
-
 		frappe.realtime.on("list_update", function(data) {
 			frappe.views.ListView.trigger_list_update(data);
 		});
-
 	},
 
 	is_value_type: function(fieldtype) {
@@ -408,7 +406,7 @@ $.extend(frappe.model, {
 		}
 	},
 
-	set_value: function(doctype, docname, fieldname, value, fieldtype) {
+	set_value: function(doctype, docname, fieldname, value, fieldtype, skip_dirty_trigger=false) {
 		/* help: Set a value locally (if changed) and execute triggers */
 
 		var doc;
@@ -434,11 +432,11 @@ $.extend(frappe.model, {
 				}
 
 				doc[key] = value;
-				tasks.push(() => frappe.model.trigger(key, value, doc));
+				tasks.push(() => frappe.model.trigger(key, value, doc, skip_dirty_trigger));
 			} else {
 				// execute link triggers (want to reselect to execute triggers)
 				if(in_list(["Link", "Dynamic Link"], fieldtype) && doc) {
-					tasks.push(() => frappe.model.trigger(key, value, doc));
+					tasks.push(() => frappe.model.trigger(key, value, doc, skip_dirty_trigger));
 				}
 			}
 		});
@@ -463,7 +461,7 @@ $.extend(frappe.model, {
 		frappe.model.events[doctype][fieldname].push(fn);
 	},
 
-	trigger: function(fieldname, value, doc) {
+	trigger: function(fieldname, value, doc, skip_dirty_trigger=false) {
 		const tasks = [];
 
 		function enqueue_events(events) {
@@ -473,7 +471,7 @@ $.extend(frappe.model, {
 				if (!fn) continue;
 
 				tasks.push(() => {
-					const return_value = fn(fieldname, value, doc);
+					const return_value = fn(fieldname, value, doc, skip_dirty_trigger);
 
 					// if the trigger returns a promise, return it,
 					// or use the default promise frappe.after_ajax
@@ -573,21 +571,25 @@ $.extend(frappe.model, {
 	},
 
 	delete_doc: function(doctype, docname, callback) {
-		var title = docname;
-		var title_field = frappe.get_meta(doctype).title_field;
+		let title = docname;
+		const title_field = frappe.get_meta(doctype).title_field;
 		if (frappe.get_meta(doctype).autoname == "hash" && title_field) {
-			var title = frappe.model.get_value(doctype, docname, title_field);
-			title += " (" + docname + ")";
+			const value = frappe.model.get_value(doctype, docname, title_field);
+			if (value) {
+				title = `${value} (${docname})`;
+			}
 		}
-		frappe.confirm(__("Permanently delete {0}?", [title]), function() {
+		frappe.confirm(__("Permanently delete {0}?", [title.bold()]), function() {
 			return frappe.call({
 				method: 'frappe.client.delete',
 				args: {
 					doctype: doctype,
 					name: docname
 				},
-				callback: function(r, rt) {
-					if(!r.exc) {
+				freeze: true,
+				freeze_message: __("Deleting {0}...", [title]),
+				callback: function (r, rt) {
+					if (!r.exc) {
 						frappe.utils.play_sound("delete");
 						frappe.model.clear_doc(doctype, docname);
 						if(callback) callback(r,rt);
@@ -611,10 +613,13 @@ $.extend(frappe.model, {
 		});
 
 		d.set_primary_action(__("Rename"), function() {
+			d.hide();
 			var args = d.get_values();
 			if(!args) return;
 			return frappe.call({
 				method:"frappe.rename_doc",
+				freeze: true,
+				freeze_message: "Updating related fields...",
 				args: {
 					doctype: doctype,
 					old: docname,

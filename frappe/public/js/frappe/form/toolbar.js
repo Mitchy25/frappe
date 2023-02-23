@@ -105,7 +105,9 @@ frappe.ui.form.Toolbar = class Toolbar {
 				title_field,
 				old_title: this.frm.doc[title_field],
 				new_title,
-				merge
+				merge,
+				freeze: true,
+				freeze_message: __("Updating related fields...")
 			}).then(new_docname => {
 				if (new_name != docname) {
 					$(document).trigger("rename", [doctype, docname, new_docname || new_name]);
@@ -174,6 +176,7 @@ frappe.ui.form.Toolbar = class Toolbar {
 				d.show();
 				d.set_primary_action(__("Rename"), (values) => {
 					d.disable_primary_action();
+					d.hide();
 					this.rename_document_title(values.name, values.title, values.merge)
 						.then(() => {
 							d.hide();
@@ -533,14 +536,14 @@ frappe.ui.form.Toolbar = class Toolbar {
 		});
 	}
 	show_title_as_dirty() {
-		if(this.frm.save_disabled)
+		if (this.frm.save_disabled && !this.frm.set_dirty)
 			return;
 
-		if(this.frm.doc.__unsaved) {
+		if (this.frm.is_dirty()) {
 			this.page.set_indicator(__("Not Saved"), "orange");
 		}
 
-		$(this.frm.wrapper).attr("data-state", this.frm.doc.__unsaved ? "dirty" : "clean");
+		$(this.frm.wrapper).attr("data-state", this.frm.is_dirty() ? "dirty" : "clean");
 	}
 
 	show_jump_to_field_dialog() {

@@ -38,6 +38,12 @@ frappe.ui.form.Form = class FrappeForm {
 		this.parent = parent;
 		this.doctype_layout = frappe.get_doc('DocType Layout', doctype_layout_name);
 		this.setup_meta(doctype);
+
+		this.beforeUnloadListener = (event) => {
+			event.preventDefault();
+			// A String is returned for compatability with older Browsers. Return Value has to be truthy to trigger "Leave Site" Dialog
+			return event.returnValue = 'There are unsaved changes, are you sure you want to exit?';
+		};
 	}
 
 	setup_meta() {
@@ -162,14 +168,14 @@ frappe.ui.form.Form = class FrappeForm {
 			},
 			{
 				'shortcut': 'shift+alt+down',
-				'description': __('To duplcate current row')
+				'description': __('Duplicate current row')
 			}
 		];
 
 		grid_shortcut_keys.forEach(row => {
 			frappe.ui.keys.add_shortcut({
 				shortcut: row.shortcut,
-				page: this,
+				page: this.page,
 				description: __(row.description),
 				ignore_inputs: true,
 				condition: () => !this.is_new()
@@ -239,9 +245,11 @@ frappe.ui.form.Form = class FrappeForm {
 
 		// using $.each to preserve df via closure
 		$.each(table_fields, function(i, df) {
-			frappe.model.on(df.options, "*", function(fieldname, value, doc) {
+			frappe.model.on(df.options, "*", function(fieldname, value, doc, skip_dirty_trigger=false) {
 				if(doc.parent===me.docname && doc.parentfield===df.fieldname) {
-					me.dirty();
+					if (!skip_dirty_trigger) {
+						me.dirty();
+					}
 					me.fields_dict[df.fieldname].grid.set_value(fieldname, value, doc);
 					return me.script_manager.trigger(fieldname, doc.doctype, doc.name);
 				}
@@ -291,6 +299,8 @@ frappe.ui.form.Form = class FrappeForm {
 	refresh(docname) {
 		var switched = docname ? true : false;
 
+		removeEventListener("beforeunload", this.beforeUnloadListener, {capture: true});
+
 		if(docname) {
 			this.switch_doc(docname);
 		}
@@ -303,14 +313,24 @@ frappe.ui.form.Form = class FrappeForm {
 			this.doc = frappe.get_doc(this.doctype, this.docname);
 
 			// check permissions
-			if(!this.has_read_permission()) {
+			if (!this.has_read_permission()) {
 				frappe.show_not_permitted(__(this.doctype) + " " + __(this.docname));
 				return;
 			}
 
+			// if grids exist => document changed
+			// Update perm and refresh grids
+			this.grids.forEach((table) => {
+				table.grid.perm = this.perm;
+				table.grid.refresh();
+			});
+
 			// read only (workflow)
 			this.read_only = frappe.workflow.is_read_only(this.doctype, this.docname);
-			if (this.read_only) this.set_read_only(true);
+			if (this.read_only) {
+				this.set_read_only(true);
+				frappe.show_alert(__("This form is not editable due to a Workflow."));
+			}
 
 			// check if doctype is already open
 			if (!this.opendocs[this.docname]) {
@@ -909,10 +929,12 @@ frappe.ui.form.Form = class FrappeForm {
 		this.toolbar.set_primary_action();
 	}
 
-	disable_save() {
+	disable_save(set_dirty=false) {
 		// IMPORTANT: this function should be called in refresh event
 		this.save_disabled = true;
 		this.toolbar.current_status = null;
+		// field changes should make form dirty
+		this.set_dirty = set_dirty;
 		this.page.clear_primary_action();
 	}
 
@@ -1058,13 +1080,13 @@ frappe.ui.form.Form = class FrappeForm {
 		let list_view = frappe.get_list_view(this.doctype);
 		if (list_view) {
 			filters = list_view.get_filters_for_args();
-			sort_field = list_view.sort_field;
+			sort_field = list_view.sort_by;
 			sort_order = list_view.sort_order;
 		} else {
 			let list_settings = frappe.get_user_settings(this.doctype)['List'];
 			if (list_settings) {
 				filters = list_settings.filters;
-				sort_field = list_settings.sort_field;
+				sort_field = list_settings.sort_by;
 				sort_order = list_settings.sort_order;
 			}
 		}
@@ -1165,6 +1187,9 @@ frappe.ui.form.Form = class FrappeForm {
 	dirty() {
 		this.doc.__unsaved = 1;
 		this.$wrapper.trigger('dirty');
+		if (!frappe.boot.developer_mode) {
+			addEventListener("beforeunload", this.beforeUnloadListener, {capture: true});
+		}
 	}
 
 	get_docinfo() {
@@ -1297,7 +1322,7 @@ frappe.ui.form.Form = class FrappeForm {
 		}
 		for (var i=0, l=fnames.length; i<l; i++) {
 			var fieldname = fnames[i];
-			var field = frappe.meta.get_docfield(cur_frm.doctype, fieldname, this.docname);
+			var field = frappe.meta.get_docfield(this.doctype, fieldname, this.docname);
 			if(field) {
 				fn(field);
 				this.refresh_field(fieldname);
@@ -1399,7 +1424,7 @@ frappe.ui.form.Form = class FrappeForm {
 		return doc;
 	}
 
-	set_value(field, value, if_missing) {
+	set_value(field, value, if_missing, skip_dirty_trigger=false) {
 		var me = this;
 		var _set = function(f, v) {
 			var fieldobj = me.fields_dict[f];
@@ -1419,7 +1444,7 @@ frappe.ui.form.Form = class FrappeForm {
 						me.refresh_field(f);
 						return Promise.resolve();
 					} else {
-						return frappe.model.set_value(me.doctype, me.doc.name, f, v);
+						return frappe.model.set_value(me.doctype, me.doc.name, f, v, me.fieldtype, skip_dirty_trigger);
 					}
 				}
 			} else {
@@ -1550,11 +1575,11 @@ frappe.ui.form.Form = class FrappeForm {
 	set_indicator_formatter(fieldname, get_color, get_text) {
 		// get doctype from parent
 		var doctype;
-		if(frappe.meta.docfield_map[this.doctype][fieldname]) {
+		if (frappe.meta.docfield_map[this.doctype][fieldname]) {
 			doctype = this.doctype;
 		} else {
 			frappe.meta.get_table_fields(this.doctype).every(function(df) {
-				if(frappe.meta.docfield_map[df.options][fieldname]) {
+				if (frappe.meta.docfield_map[df.options][fieldname]) {
 					doctype = df.options;
 					return false;
 				} else {
@@ -1565,11 +1590,11 @@ frappe.ui.form.Form = class FrappeForm {
 
 		frappe.meta.docfield_map[doctype][fieldname].formatter =
 			function(value, df, options, doc) {
-				if(value) {
+				if (value) {
 					var label;
-					if(get_text) {
+					if (get_text) {
 						label = get_text(doc);
-					} else if(frappe.form.link_formatters[df.options]) {
+					} else if (frappe.form.link_formatters[df.options]) {
 						label = frappe.form.link_formatters[df.options](value, doc);
 					} else {
 						label = value;
@@ -1577,7 +1602,14 @@ frappe.ui.form.Form = class FrappeForm {
 
 					const escaped_name = encodeURIComponent(value);
 
-					return `<a class="indicator ${get_color(doc || {})}" href="/app/${frappe.router.slug(df.options)}/${escaped_name}" data-doctype="${doctype}" data-name="${value}">${label}</a>`;
+					return `
+						<a class="indicator ${get_color(doc || {})}"
+							href="/app/${frappe.router.slug(df.options)}/${escaped_name}"
+							data-doctype="${df.options}"
+							data-name="${value}">
+							${label}
+						</a>
+					`;
 				} else {
 					return '';
 				}
@@ -1614,28 +1646,36 @@ frappe.ui.form.Form = class FrappeForm {
 		// make new doctype from the current form
 		// will handover to `make_methods` if defined
 		// or will create and match link fields
-		var me = this;
+		let me = this;
 		if(this.make_methods && this.make_methods[doctype]) {
 			return this.make_methods[doctype](this);
 		} else if(this.custom_make_buttons && this.custom_make_buttons[doctype]) {
 			this.custom_buttons[__(this.custom_make_buttons[doctype])].trigger('click');
 		} else {
 			frappe.model.with_doctype(doctype, function() {
-				var new_doc = frappe.model.get_new_doc(doctype);
+				let new_doc = frappe.model.get_new_doc(doctype, null, null, true);
 
 				// set link fields (if found)
-				frappe.get_meta(doctype).fields.forEach(function(df) {
-					if(df.fieldtype==='Link' && df.options===me.doctype) {
-						new_doc[df.fieldname] = me.doc.name;
-					} else if (['Link', 'Dynamic Link'].includes(df.fieldtype) && me.doc[df.fieldname]) {
-						new_doc[df.fieldname] = me.doc[df.fieldname];
-					}
-				});
+				me.set_link_field(doctype, new_doc);
 
 				frappe.ui.form.make_quick_entry(doctype, null, null, new_doc);
 				// frappe.set_route('Form', doctype, new_doc.name);
 			});
 		}
+	}
+
+	set_link_field(doctype, new_doc) {
+		let me = this;
+		frappe.get_meta(doctype).fields.forEach(function(df) {
+			if (df.fieldtype === 'Link' && df.options === me.doctype) {
+				new_doc[df.fieldname] = me.doc.name;
+			} else if (['Link', 'Dynamic Link'].includes(df.fieldtype) && me.doc[df.fieldname]) {
+				new_doc[df.fieldname] = me.doc[df.fieldname];
+			} else if (df.fieldtype === 'Table' && df.options && df.reqd) {
+				let row = new_doc[df.fieldname][0];
+				me.set_link_field(df.options, row);
+			}
+		});
 	}
 
 	update_in_all_rows(table_fieldname, fieldname, value) {
@@ -1728,19 +1768,28 @@ frappe.ui.form.Form = class FrappeForm {
 	setup_docinfo_change_listener() {
 		let doctype = this.doctype;
 		let docname = this.docname;
-		let listener_name = `update_docinfo_for_${doctype}_${docname}`;
-		// to avoid duplicates
-		frappe.realtime.off(listener_name);
-		frappe.realtime.on(listener_name, ({doc, key, action='update'}) => {
-			let doc_list = (frappe.model.docinfo[doctype][docname][key] || []);
-			if (action === 'add') {
-				frappe.model.docinfo[doctype][docname][key].push(doc);
-			}
 
-			let docindex = doc_list.findIndex(old_doc => {
+		if (this.doc && !this.is_new()) {
+			frappe.socketio.doc_subscribe(doctype, docname);
+		}
+		frappe.realtime.off("docinfo_update");
+		frappe.realtime.on("docinfo_update", ({ doc, key, action = "update" }) => {
+			if (
+				!doc.reference_doctype ||
+				!doc.reference_name ||
+				doc.reference_doctype !== doctype ||
+				doc.reference_name !== docname
+			) {
+				return;
+			}
+			let doc_list = frappe.model.docinfo[doctype][docname][key] || [];
+			let docindex = doc_list.findIndex((old_doc) => {
 				return old_doc.name === doc.name;
 			});
 
+			if (action === "add") {
+				frappe.model.docinfo[doctype][docname][key].push(doc);
+			}
 			if (docindex > -1) {
 				if (action === 'update') {
 					frappe.model.docinfo[doctype][docname][key].splice(docindex, 1, doc);

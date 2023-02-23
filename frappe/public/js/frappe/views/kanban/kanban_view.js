@@ -1,3 +1,5 @@
+import KanbanSettings from "./kanban_settings";
+
 frappe.provide('frappe.views');
 
 frappe.views.KanbanView = class KanbanView extends frappe.views.ListView {
@@ -57,6 +59,7 @@ frappe.views.KanbanView = class KanbanView extends frappe.views.ListView {
 			.then(board => {
 				this.board = board;
 				this.board.filters_array = JSON.parse(this.board.filters || '[]');
+				this.board.fields = JSON.parse(this.board.fields || '[]');
 				this.filters = this.board.filters_array;
 			});
 	}
@@ -193,6 +196,25 @@ frappe.views.KanbanView = class KanbanView extends frappe.views.ListView {
 		};
 	}
 
+	get_view_settings() {
+		return {
+			label: __("Kanban Settings", null, "Button in kanban view menu"),
+			action: () => this.show_kanban_settings(),
+			standard: true,
+		};
+	}
+
+	show_kanban_settings() {
+		frappe.model.with_doctype(this.doctype, () => {
+			new KanbanSettings({
+				kanbanview: this,
+				doctype: this.doctype,
+				settings: this.board,
+				meta: frappe.get_meta(this.doctype)
+			});
+		});
+	}
+
 	get required_libs() {
 		return [
 			'assets/frappe/js/lib/fluxify.min.js',
@@ -224,13 +246,9 @@ frappe.views.KanbanView.get_kanbans = function (doctype) {
 };
 
 
-frappe.views.KanbanView.show_kanban_dialog = function (doctype, show_existing) {
-	let dialog = null;
-
-	frappe.views.KanbanView.get_kanbans(doctype).then(kanbans => {
-		dialog = new_kanban_dialog(kanbans, show_existing);
-		dialog.show();
-	});
+frappe.views.KanbanView.show_kanban_dialog = function (doctype) {
+	let dialog = new_kanban_dialog();
+	dialog.show();
 
 	function make_kanban_board(board_name, field_name, project) {
 		return frappe.call({
@@ -252,58 +270,75 @@ frappe.views.KanbanView.show_kanban_dialog = function (doctype, show_existing) {
 		});
 	}
 
-	function new_kanban_dialog(kanbans, show_existing) {
-		if (dialog) return dialog;
+	function new_kanban_dialog() {
+		/* Kanban dialog can show either "Save" or "Customize Form" option depending if any Select fields exist in the DocType for Kanban creation
+		 */
 
-		const fields = get_fields_for_dialog(kanbans.map(kanban => kanban.name), show_existing);
-
-		let primary_action_label = __('Save');
+		const select_fields = frappe.get_meta(doctype).fields.filter((df) => {
+			return df.fieldtype === "Select" && df.fieldname !== "kanban_column";
+		});
+		const dialog_fields = get_fields_for_dialog(select_fields);
+		const to_save = select_fields.length > 0;
+		const primary_action_label = to_save ? __("Save") : __("Customize Form");
+		const dialog_title = to_save ? __("New Kanban Board") : __("No Select Field Found");
 
 		let primary_action = () => {
-			const values = dialog.get_values();
-			if (!values.selected_kanban || values.selected_kanban == 'Create New Board') {
-				make_kanban_board(values.board_name, values.field_name, values.project)
-					.then(() => dialog.hide(), (err) => frappe.msgprint(err));
+			if (to_save) {
+				const values = dialog.get_values();
+				make_kanban_board(values.board_name, values.field_name, values.project).then(
+					() => dialog.hide(),
+					(err) => frappe.msgprint(err)
+				);
 			} else {
-				frappe.set_route(kanbans.find(kanban => kanban.name == values.selected_kanban).route);
+				frappe.set_route("Form", "Customize Form", {"doc_type": doctype});
 			}
 		};
 
-		dialog = new frappe.ui.Dialog({
-			title: __('New Kanban Board'),
-			fields,
+		return new frappe.ui.Dialog({
+			title: dialog_title,
+			fields: dialog_fields,
 			primary_action_label,
 			primary_action
 		});
-		return dialog;
 	}
 
-	function get_fields_for_dialog(kanban_options, show_existing = false) {
-		kanban_options.push('Create New Board');
+
+	function get_fields_for_dialog(select_fields) {
+		if (!select_fields.length) {
+			return [
+				{
+					fieldtype: "HTML",
+					options: `
+					<div>
+						<p class="text-medium">
+						${__(
+							'No fields found that can be used as a Kanban Column. Use the Customize Form to add a Custom Field of type "Select".'
+						)}
+						</p>
+					</div>
+				`,
+				},
+			];
+		}
 
 		let fields = [
 			{
-				fieldtype: 'Select',
-				fieldname: 'selected_kanban',
-				label: __('Choose Kanban Board'),
+				fieldtype: "Data",
+				fieldname: "board_name",
+				label: __("Kanban Board Name"),
 				reqd: 1,
-				depends_on: `eval: ${show_existing}`,
-				mandatory_depends_on: `eval: ${show_existing}`,
-				options: kanban_options,
+				description: ["Note", "ToDo"].includes(doctype)
+					? __("This Kanban Board will be private")
+					: "",
 			},
 			{
-				fieldname: 'new_kanban_board_sb',
-				fieldtype: 'Section Break',
-				depends_on: `eval: !${show_existing} || doc.selected_kanban == "Create New Board"`,
+				fieldtype: "Select",
+				fieldname: "field_name",
+				label: __("Columns based on"),
+				options: select_fields.map((df) => ({ label: df.label, value: df.fieldname })),
+				default: select_fields[0],
+				reqd: 1,
 			},
-			{
-				fieldtype: 'Data',
-				fieldname: 'board_name',
-				label: __('Kanban Board Name'),
-				mandatory_depends_on: 'eval: doc.selected_kanban == "Create New Board"',
-				description: ['Note', 'ToDo'].includes(doctype) ?
-					__('This Kanban Board will be private') : ''
-			}
 		];
 
 		if (doctype === 'Task') {
@@ -313,38 +348,6 @@ frappe.views.KanbanView.show_kanban_dialog = function (doctype, show_existing) {
 				label: __('Project'),
 				options: 'Project'
 			});
-		}
-
-		const select_fields =
-			frappe.get_meta(doctype).fields
-				.filter(df => {
-					return df.fieldtype === 'Select' &&
-						df.fieldname !== 'kanban_column';
-				});
-
-		if (select_fields.length > 0) {
-			fields.push({
-				fieldtype: 'Select',
-				fieldname: 'field_name',
-				label: __('Columns based on'),
-				options: select_fields.map(df => ({ label: df.label, value: df.fieldname })),
-				default: select_fields[0],
-				mandatory_depends_on: 'eval: doc.selected_kanban == "Create New Board"',
-			});
-		} else {
-			fields = [{
-				fieldtype: 'HTML',
-				options: `
-					<div>
-						<p class="text-medium">
-						${__('No fields found that can be used as a Kanban Column. Use the Customize Form to add a Custom Field of type "Select".')}
-						</p>
-						<a class="btn btn-xs btn-default" href="/app/customize-form?doc_type=${doctype}">
-							${__('Customize Form')}
-						</a>
-					</div>
-				`
-			}];
 		}
 
 		return fields;
