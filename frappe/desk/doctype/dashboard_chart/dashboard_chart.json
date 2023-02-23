@@ -42,7 +42,8 @@
   "column_break_2",
   "color",
   "section_break_10",
-  "last_synced_on"
+  "last_synced_on",
+  "roles"
  ],
  "fields": [
   {
@@ -272,13 +273,20 @@
    "fieldtype": "Link",
    "label": "Parent Document Type",
    "options": "DocType"
+  },
+  {
+   "fieldname": "roles",
+   "fieldtype": "Table",
+   "label": "Roles",
+   "options": "Has Role"
   }
  ],
  "links": [],
- "modified": "2023-02-03 15:11:49.369572",
+ "modified": "2022-07-27 11:09:09.203236",
  "modified_by": "Administrator",
  "module": "Desk",
  "name": "Dashboard Chart",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
@@ -319,5 +327,6 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "track_changes": 1
 }
