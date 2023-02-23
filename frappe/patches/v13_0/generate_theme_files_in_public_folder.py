@@ -2,6 +2,7 @@
 # MIT License. See license.txt
 
 from __future__ import unicode_literals
+
 import frappe
 
 
@@ -13,8 +14,7 @@ def execute():
 	for theme in themes:
 		doc = frappe.get_doc("Website Theme", theme.name)
 		try:
-			doc.generate_bootstrap_theme()
 			doc.save()
-		except: # noqa: E722
-			print('Ignoring....')
+		except Exception:
+			print("Ignoring....")
 			print(frappe.get_traceback())

@@ -557,8 +557,8 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 	refresh() {
 		this.toggle_message(true);
 		this.toggle_report(false);
-		this.show_loading_screen();
 		let filters = this.get_filter_values(true);
+		this.show_loading_screen();
 
 		// only one refresh at a time
 		if (this.last_ajax) {
@@ -593,6 +593,7 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 
 			if (data.prepared_report) {
 				this.prepared_report = true;
+				this.prepared_report_document = data.doc
 				// If query_string contains prepared_report_name then set filters
 				// to match the mentioned prepared report doc and disable editing
 				if (query_params.prepared_report_name) {
@@ -995,7 +996,7 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 				{
 					fieldname: 'sb_1',
 					fieldtype: 'Section Break',
-					label: 'Y axis'
+					label: 'Y Axis',
 				},
 				{
 					fieldname: 'y_axis_fields', fieldtype: 'Table',
@@ -1166,9 +1167,12 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		const missing_mandatory = mandatory.filter(f => !f.get_value());
 		if (raise && missing_mandatory.length > 0) {
 			let message = __('Please set filters');
+			this.hide_loading_screen();
 			this.toggle_message(raise, message);
 			throw "Filter missing";
 		}
+
+		raise && this.toggle_message(false);
 
 		const filters = this.filters
 			.filter(f => f.get_value())
@@ -1298,6 +1302,14 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 			layout_direction: frappe.utils.is_rtl() ? "rtl" : "ltr"
 		});
 
+		let filter_values = [],
+			name_len = 0;
+		for (var key of Object.keys(applied_filters)) {
+			name_len = name_len + applied_filters[key].toString().length;
+			if (name_len > 200) break;
+			filter_values.push(applied_filters[key]);
+		}
+		print_settings.report_name = `${__(this.report_name)}_${filter_values.join("_")}.pdf`;
 		frappe.render_pdf(html, print_settings);
 	}
 
@@ -1785,7 +1797,7 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 	}
 
 	toggle_nothing_to_show(flag) {
-		let message = this.prepared_report
+		let message = (this.prepared_report && !this.prepared_report_document)
 			? __('This is a background report. Please set the appropriate filters and then generate a new one.')
 			: this.get_no_result_message();
 
