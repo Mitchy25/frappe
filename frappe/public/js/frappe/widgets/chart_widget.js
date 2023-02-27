@@ -106,8 +106,8 @@ export default class ChartWidget extends Widget {
 				if (
 					this.chart_doc.timeseries &&
 					this.chart_doc.chart_type !== "Custom"
-				) {
-					this.render_time_series_filters();
+					) {
+						this.render_time_series_filters();
 				}
 			}
 			frappe.run_serially([
@@ -215,9 +215,6 @@ export default class ChartWidget extends Widget {
 			this.update_chart_object();
 			this.data = data;
 			
-			console.log(this.data)
-			console.log(this.data.custom_options)
-			console.log(this.data.options)
 			this.render();
 		});
 	}
@@ -402,7 +399,6 @@ export default class ChartWidget extends Widget {
 								}
 							];
 						}
-
 						this.setup_filter_dialog(fields);
 					});
 			});
@@ -421,18 +417,21 @@ export default class ChartWidget extends Widget {
 					me.filters = values;
 					me.save_chart_config_for_user({'filters': me.filters});
 					me.fetch_and_update_chart();
+					
+				}
+				if (me.chart_doc.chart_type == "Custom") {
+					me.refresh();
 				}
 			},
 			primary_action_label: "Set"
 		});
-
 		dialog.show();
-
 		if (this.chart_doc.chart_type == 'Report') {
 			//Set query report object so that it can be used while fetching filter values in the report
 			frappe.query_report = new frappe.views.QueryReport({'filters': dialog.fields_list});
 			frappe.query_reports[this.chart_doc.report_name].onload
 					&& frappe.query_reports[this.chart_doc.report_name].onload(frappe.query_report);
+
 		}
 		dialog.set_values(this.filters);
 	}
@@ -508,7 +507,7 @@ export default class ChartWidget extends Widget {
 		this.chart_actions.appendTo(this.action_area);
 	}
 
-	fetch(filters, refresh = false, args) {
+	fetch(filters, refresh = true, args) {
 		let method = this.settings.method;
 
 		if (this.chart_doc.chart_type == "Report") {
@@ -529,6 +528,7 @@ export default class ChartWidget extends Widget {
 				heatmap_year: args && args.heatmap_year ?  args.heatmap_year : null,
 			};
 		}
+
 		return frappe.xcall(method, args);
 	}
 
@@ -551,7 +551,7 @@ export default class ChartWidget extends Widget {
 				this.dashboard_chart.update(this.data);
 			}
 		}
-
+		
 		if (!this.data || !this.data.labels || !Object.keys(this.data).length) {
 			this.chart_wrapper.hide();
 			this.loading.hide();
@@ -567,7 +567,6 @@ export default class ChartWidget extends Widget {
 			}
 
 			const chart_args = this.get_chart_args();
-
 			if (!this.dashboard_chart) {
 				this.dashboard_chart = frappe.utils.make_chart(this.chart_wrapper[0], chart_args);
 			}
@@ -619,12 +618,14 @@ export default class ChartWidget extends Widget {
 				options = field.options;
 			}
 		}
-
+		
 		if (this.chart_doc.chart_type == "Report" && this.report_result && this.report_result.chart && this.report_result.chart.fieldtype) {
 			fieldtype = this.report_result.chart.fieldtype;
 			options = this.report_result.chart.options;
 		}
 
+		//TODO: Fix: Figure out how to send JS functions through toolTipsOptions in python
+		if (chart_args.tooltipOptions)
 		chart_args.tooltipOptions = {
 			formatTooltipY: value => frappe.format(value, { fieldtype, options }, { always_show_decimals: true, inline: true })
 		};
@@ -653,6 +654,7 @@ export default class ChartWidget extends Widget {
 		if (this.chart_doc.custom_options) {
 			set_options(this.chart_doc.custom_options);
 		}
+		
 		return chart_args;
 	}
 
@@ -805,5 +807,6 @@ export default class ChartWidget extends Widget {
 					}
 				}
 			});
+			
 	}
 }
