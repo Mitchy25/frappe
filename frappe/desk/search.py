@@ -176,7 +176,10 @@ def search_widget(
 
 			order_by_based_on_meta = get_order_by(doctype, meta)
 			# 2 is the index of _relevance column
-			order_by = "_relevance, {0}, `tab{1}`.idx desc".format(order_by_based_on_meta, doctype)
+			if doctype == "Sales Invoice":
+				order_by = "creation DESC, _relevance, {0}, `tab{1}`.idx desc".format(order_by_based_on_meta, doctype)
+			else:
+				order_by = "_relevance, {0}, `tab{1}`.idx desc".format(order_by_based_on_meta, doctype)
 
 			ptype = "select" if frappe.only_has_select_perm(doctype) else "read"
 			ignore_permissions = (
@@ -199,7 +202,7 @@ def search_widget(
 				ignore_permissions=ignore_permissions,
 				reference_doctype=reference_doctype,
 				as_list=not as_dict,
-				strict=False,
+				strict=False,			
 			)
 
 			if doctype in translated_doctypes:
@@ -213,8 +216,10 @@ def search_widget(
 			# Sorting the values array so that relevant results always come first
 			# This will first bring elements on top in which query is a prefix of element
 			# Then it will bring the rest of the elements and sort them in lexicographical order
-			values = sorted(values, key=lambda x: relevance_sorter(x, txt, as_dict))
-
+			# If Sales Invoice Link, sort results by creation date in descending order
+			if doctype != "Sales Invoice": 
+				values = sorted(values, key=lambda x: relevance_sorter(x, txt, as_dict))
+	
 			# remove _relevance from results
 			if as_dict:
 				for r in values:
