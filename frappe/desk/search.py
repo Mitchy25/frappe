@@ -191,9 +191,10 @@ def search_widget(
 			if doctype in translated_doctypes:
 				page_length = None
 
-			#breakpoint()
+			# Sales Partner doctype will only show list of company bank accounts
 			if doctype == "Bank Account" and reference_doctype == "Sales Partner":
 				filters.append("is_company_account = 1")
+
 			values = frappe.get_list(
 				doctype,
 				filters=filters,
@@ -205,8 +206,7 @@ def search_widget(
 				ignore_permissions=ignore_permissions,
 				reference_doctype=reference_doctype,
 				as_list=not as_dict,
-				strict=False,
-				debug=True,			
+				strict=False,			
 			)
 
 			if doctype in translated_doctypes:
