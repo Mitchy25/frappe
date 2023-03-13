@@ -67,7 +67,6 @@ def search_widget(
 	reference_doctype=None,
 	ignore_user_permissions=False,
 ):
-
 	start = cint(start)
 
 	if isinstance(filters, string_types):
@@ -171,6 +170,7 @@ def search_widget(
 				)
 			)
 
+			
 			# In order_by, `idx` gets second priority, because it stores link count
 			from frappe.model.db_query import get_order_by
 
@@ -191,6 +191,9 @@ def search_widget(
 			if doctype in translated_doctypes:
 				page_length = None
 
+			#breakpoint()
+			if doctype == "Bank Account" and reference_doctype == "Sales Partner":
+				filters.append("is_company_account = 1")
 			values = frappe.get_list(
 				doctype,
 				filters=filters,
@@ -202,7 +205,8 @@ def search_widget(
 				ignore_permissions=ignore_permissions,
 				reference_doctype=reference_doctype,
 				as_list=not as_dict,
-				strict=False,			
+				strict=False,
+				debug=True,			
 			)
 
 			if doctype in translated_doctypes:
