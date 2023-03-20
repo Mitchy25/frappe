@@ -93,6 +93,9 @@ frappe.ui.form.ControlLink = frappe.ui.form.ControlData.extend({
 	},
 	parse_validate_and_set_in_model(value, e) {
 		if (this.parse) value = this.parse(value);
+		if (this.last_value == value){
+			return
+		}  
 		this.label = this.get_translated(value);
 
 		return this.validate_and_set_in_model(value, e, true);
