@@ -6,6 +6,8 @@ from __future__ import unicode_literals
 
 import json
 import re
+import datetime
+
 
 import wrapt
 from six import string_types
@@ -48,8 +50,10 @@ def search_link(
 		reference_doctype=reference_doctype,
 		ignore_user_permissions=ignore_user_permissions,
 	)
-	frappe.response["results"] = build_for_autosuggest(frappe.response["values"])
-	del frappe.response["values"]
+	if doctype == "Batch":
+		frappe.response["results"] = build_batch_content(frappe.response["values"])
+	else:
+		frappe.response["results"] = build_for_autosuggest(frappe.response["values"]) 
 
 
 # this is called by the search box
@@ -208,7 +212,6 @@ def search_widget(
 				as_list=not as_dict,
 				strict=False,			
 			)
-
 			if doctype in translated_doctypes:
 				# Filtering the values array so that query is included in very element
 				values = (
@@ -256,6 +259,26 @@ def build_for_autosuggest(res):
 		out = {"value": r[0], "description": ", ".join(unique(cstr(d) for d in r if d)[1:])}
 		results.append(out)
 	return results
+
+def build_batch_content(res):
+	results = []
+	for r in res:
+		des = ""
+		if r[2] > 0:
+			des += f"Stock: <b style='color:#33cc33;'> {r[2]} </b>"
+		else:
+			des += f"Stock: <b style='color:#ff0000;'> {r[2]} </b>"
+		if r[3]:
+			des += ","
+			if r[3] > datetime.date.today():
+				des += f" Expiry Date: <b style='color:#ff0000;'> {r[3]} </b>"
+			else:
+				des += f" Expiry Date: <b style='color:#33cc33;'> {r[3]} </b>"
+		out = {"value": r[0], "description": des}
+		results.append(out)
+
+	return results
+	
 
 
 def scrub_custom_query(query, key, txt):
