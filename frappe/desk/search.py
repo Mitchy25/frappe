@@ -50,8 +50,9 @@ def search_link(
 		reference_doctype=reference_doctype,
 		ignore_user_permissions=ignore_user_permissions,
 	)
+
 	if doctype == "Batch":
-		frappe.response["results"] = build_batch_content(frappe.response["values"])
+		frappe.response["results"] = build_batch_content(filters, frappe.response["values"])
 	else:
 		frappe.response["results"] = build_for_autosuggest(frappe.response["values"]) 
 
@@ -260,21 +261,34 @@ def build_for_autosuggest(res):
 		results.append(out)
 	return results
 
-def build_batch_content(res):
+def build_batch_content(filters, res):
+	filters = json.loads(filters)
+	if filters:
+		code = ""
+		if "item_code" in filters.keys():
+			code = filters["item_code"]
+		else:
+			code = filters["item"]
+		res = frappe.db.sql(f"""
+		SELECT NAME as "name",  expiry_date, batch_qty
+		FROM `tabBatch` 
+		WHERE item = "{code}"
+		""", as_dict=True)
+
 	results = []
 	for r in res:
 		des = ""
-		if r[2] > 0:
-			des += f"Stock: <b style='color:#33cc33;'> {r[2]} </b>"
+		if int(r["batch_qty"]) > 0:
+			des += f"Stock: <b style='color:#33cc33;'> {r['batch_qty']} </b>"
 		else:
-			des += f"Stock: <b style='color:#ff0000;'> {r[2]} </b>"
-		if r[3]:
+			des += f"Stock: <b style='color:#ff0000;'> {r['batch_qty']} </b>"
+		if r["expiry_date"]:
 			des += ","
-			if r[3] > datetime.date.today():
-				des += f" Expiry Date: <b style='color:#ff0000;'> {r[3]} </b>"
+			if r["expiry_date"] > datetime.date.today():
+				des += f" Expiry Date: <b style='color:#ff0000;'> {r['expiry_date']} </b>"
 			else:
-				des += f" Expiry Date: <b style='color:#33cc33;'> {r[3]} </b>"
-		out = {"value": r[0], "description": des}
+				des += f" Expiry Date: <b style='color:#33cc33;'> {r['expiry_date']} </b>"
+		out = {"value": r["name"], "description": des}
 		results.append(out)
 
 	return results
