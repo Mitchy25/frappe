@@ -529,7 +529,6 @@ frappe.request.report_error = function(xhr, request_opts) {
 			'<h5>Response JSON</h5>',
 			'<pre>' + JSON.stringify(data, null, '\t')+ '</pre>'
 		].join("\n");
-
 		var communication_composer = new frappe.views.CommunicationComposer({
 			subject: 'Error Report [' + frappe.datetime.nowdate() + ']',
 			recipients: error_report_email,
@@ -539,7 +538,7 @@ frappe.request.report_error = function(xhr, request_opts) {
 				name: frappe.session.user
 			}
 		});
-		communication_composer.dialog.$wrapper.css("z-index", cint(frappe.msg_dialog.$wrapper.css("z-index")) + 1);
+		// communication_composer.dialog.$wrapper.css("z-index", frappe.msg_dialog ? cint(frappe.msg_dialog.$wrapper.css("z-index")) + 1 : 2);
 	}
 
 	if (exc) {
@@ -548,28 +547,24 @@ frappe.request.report_error = function(xhr, request_opts) {
 		request_opts = frappe.request.cleanup_request_opts(request_opts);
 
 		// window.msg_dialog = frappe.msgprint({message:error_message, indicator:'red', big: true});
-
-		if (!frappe.error_dialog) {
-			frappe.error_dialog = new frappe.ui.Dialog({
-				title: __('Server Error'),
-				primary_action_label: __('Report'),
-				primary_action: () => {
-					if (error_report_email) {
-						show_communication();
-					} else {
-						frappe.msgprint(__('Support Email Address Not Specified'));
-					}
-					frappe.error_dialog.hide();
-				},
-				secondary_action_label: __('Copy error to clipboard'),
-				secondary_action: () => {
-					copy_markdown_to_clipboard();
-					frappe.error_dialog.hide();
+		frappe.error_dialog = new frappe.ui.Dialog({
+			title: __('Server Error'),
+			primary_action_label: __('Report'),
+			primary_action: () => {
+				if (error_report_email) {
+					show_communication();
+				} else {
+					frappe.msgprint(__('Support Email Address Not Specified'));
 				}
-			});
-			frappe.error_dialog.wrapper.classList.add('msgprint-dialog');
-
-		}
+				frappe.error_dialog.hide();
+			},
+			secondary_action_label: __('Copy error to clipboard'),
+			secondary_action: () => {
+				copy_markdown_to_clipboard();
+				frappe.error_dialog.hide();
+			}
+		});
+		frappe.error_dialog.wrapper.classList.add('msgprint-dialog');
 
 		let parts = strip(exc).split('\n');
 
