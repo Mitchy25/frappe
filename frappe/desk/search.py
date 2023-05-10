@@ -7,6 +7,7 @@ from __future__ import unicode_literals
 import json
 import re
 import datetime
+from dateutil.relativedelta import relativedelta
 
 
 import wrapt
@@ -52,7 +53,7 @@ def search_link(
 	)
 
 	if doctype == "Batch":
-		frappe.response["results"] = build_batch_content(filters, frappe.response["values"])
+		frappe.response["results"] = build_batch_content(filters, txt.strip(), frappe.response["values"])
 	else:
 		frappe.response["results"] = build_for_autosuggest(frappe.response["values"]) 
 
@@ -261,7 +262,7 @@ def build_for_autosuggest(res):
 		results.append(out)
 	return results
 
-def build_batch_content(filters, res):
+def build_batch_content(filters, txt, res):
 	filters = json.loads(filters)
 	if filters:
 		code = ""
@@ -272,8 +273,9 @@ def build_batch_content(filters, res):
 		res = frappe.db.sql(f"""
 		SELECT NAME as "name",  expiry_date, batch_qty
 		FROM `tabBatch` 
-		WHERE item = "{code}"
-		""", as_dict=True)
+		WHERE item = "{code}" AND batch_qty > 0 AND name LIKE "%{txt}%"
+		ORDER BY expiry_date ASC
+		""", as_dict=True, debug=True)
 
 	results = []
 	for r in res:
@@ -284,7 +286,7 @@ def build_batch_content(filters, res):
 			des += f"Stock: <b style='color:#ff0000;'> {r['batch_qty']} </b>"
 		if r["expiry_date"]:
 			des += ","
-			if r["expiry_date"] > datetime.date.today():
+			if r["expiry_date"] < (datetime.date.today() + relativedelta(months = 6)):
 				des += f" Expiry Date: <b style='color:#ff0000;'> {r['expiry_date']} </b>"
 			else:
 				des += f" Expiry Date: <b style='color:#33cc33;'> {r['expiry_date']} </b>"
