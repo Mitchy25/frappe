@@ -223,14 +223,13 @@ class CustomizeForm(Document):
 				self.flags.update_db = True
 
 		elif prop == "allow_on_submit" and df.get(prop):
-			pass
-			# if not frappe.db.get_value(
-			# 	"DocField", {"parent": self.doc_type, "fieldname": df.fieldname}, "allow_on_submit"
-			# ):
-			# 	frappe.msgprint(
-			# 		_("Row {0}: Not allowed to enable Allow on Submit for standard fields").format(df.idx)
-			# 	)
-			# 	return False
+			if not frappe.db.get_value(
+				"DocField", {"parent": self.doc_type, "fieldname": df.fieldname}, "allow_on_submit"
+			):
+				frappe.msgprint(
+					_("Row {0}: Not allowed to enable Allow on Submit for standard fields").format(df.idx)
+				)
+				return False
 
 		elif prop == "reqd" and (
 			(
