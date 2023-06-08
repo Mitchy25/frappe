@@ -561,7 +561,14 @@ frappe.ui.form.Form = class FrappeForm {
 		for (var key in frappe.route_field_inputs) {
 			if(key in me.fields_dict){
 				let value = frappe.route_field_inputs[key]
-				me.set_value(key, value);
+				if (Array.isArray(value)) { 
+					value.forEach(child => {
+						me.add_child(key, value)
+					});
+				} else {
+					me.set_value(key, value);
+				}
+				
 			}
 		}
 		delete frappe.route_field_inputs;

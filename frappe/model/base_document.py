@@ -233,6 +233,84 @@ class BaseDocument(object):
 					key, self.name, str(type(value))[1:-1], value
 				)
 			)
+	def append_item_with_batch(self, key, value, preference = "shortdated", requirement = False, throw = False):
+		if "item_code" not in value:
+			raise ValueError(
+				'append_item_with_batch dict value missing item_code. This function can only accept items'
+			)
+		if not frappe.get_value("Item", value['item_code'], "has_batch_no"):
+			self.append(key, value)
+			return
+		from erpnext.stock.doctype.batch.batch import get_batches
+		from dateutil.relativedelta import relativedelta
+		batches = get_batches(value['item_code'], value["warehouse"], qty=1, throw=False, serial_no=None)
+
+		#@STAN - Can we not exclude all batches that have 0 qty here?
+
+		expiry_cutoff = datetime.date.today() + relativedelta(years=1)
+		shorted_dated_batches = [i for i in batches if i["expiry_date"] and i["expiry_date"] <= expiry_cutoff]
+		normal_batches = [i for i in batches if not i["expiry_date"] or i["expiry_date"] > expiry_cutoff]
+		append_list = []
+		import copy
+		def assign_to_batch(current_batch, batches):
+			if value['qty'] > current_batch['qty']:
+				value_copy['qty'] = current_batch['qty']
+				value['qty'] -= value_copy['qty']
+				batches.remove(current_batch)
+			else:
+				value['qty'] = 0
+				# batches.remove(current_batch)
+			value_copy['batch_no'] = current_batch['batch_id']
+			append_list.append(value_copy)
+		def try_batch(batches):
+			if batches:
+				assign_to_batch(batches[0], batches)
+				return ["Repeat", value]
+			else:
+				if requirement:
+					if throw:
+						raise ValueError(
+							f"Item {value['item_code']} could not be fully assigned to batches and therefore failed."
+						)
+					else:
+						return ["Failed", value]
+				else:
+					return ["Continue", value]
+		while value['qty'] > 0 and (shorted_dated_batches or normal_batches):
+			value_copy = copy.copy(value)
+			if preference == "shortdated":
+				results = try_batch(shorted_dated_batches)
+			else:
+				results = try_batch(normal_batches)
+
+			value = results[1]
+			if results[0] == "Failed":
+				return [False, results[1]]
+			elif results[0] == "Repeat":
+				continue
+			else:
+				pass
+
+			if preference == "shortdated":
+				results = try_batch(normal_batches)
+			else:
+				results = try_batch(shorted_dated_batches)
+			if results[0] == "Failed":
+				return [False, results[1]]
+		if value['qty'] > 0:
+			if throw:
+				raise ValueError(
+					f"Item {value['item_code']} could not be fully assigned to batches and therefore failed."
+					)
+			else:
+				success = False
+		else:
+			success = True
+		if success:
+			for item in append_list:
+				if item['qty'] > 0:
+					self.append("items", item)
+		return [success, value]
 
 	def extend(self, key, value):
 		if isinstance(value, list):

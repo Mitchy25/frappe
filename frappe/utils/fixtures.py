@@ -69,5 +69,5 @@ def export_fixtures(app=None):
 				frappe.get_app_path(app, "fixtures", frappe.scrub(fixture) + ".json"),
 				filters=filters,
 				or_filters=or_filters,
-				order_by="idx asc, creation asc",
+				order_by="name asc, creation asc",
 			)

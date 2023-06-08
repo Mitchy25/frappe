@@ -253,7 +253,7 @@ def process_2fa_for_email(user, token, otp_secret, otp_issuer, method="Email"):
 		message = get_email_body_for_qr_code({"qrcode_link": qrcode_link})
 		subject = get_email_subject_for_qr_code({"qrcode_link": qrcode_link})
 		prompt = _(
-			"Please check your registered email address for instructions on how to proceed. Do not close this window as you will have to return to it."
+			"Enter Code displayed in OTP App.<br>If you still require OTP to be setup please check your email. <br>Otherwise you can ignore the email that has been sent."
 		)
 	else:
 		"""Sending email verification"""
