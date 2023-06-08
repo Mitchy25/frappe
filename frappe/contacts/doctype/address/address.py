@@ -30,10 +30,15 @@ class Address(Document):
 				self.address_title = self.links[0].link_name
 
 		if self.address_title:
-			self.name = cstr(self.address_title).strip() + "-" + cstr(_(self.address_type)).strip()
+			# self.name = cstr(self.address_title).strip() + "-" + cstr(_(self.address_type)).strip()
+			name = cstr(self.address_title).strip()
+			if self.links:
+				name = cstr(self.address_title).strip() + "-" + self.links[0].link_name
+			self.name = name
 			if frappe.db.exists("Address", self.name):
 				self.name = make_autoname(
-					cstr(self.address_title).strip() + "-" + cstr(self.address_type).strip() + "-.#"
+					# cstr(self.address_title).strip() + "-" + cstr(self.address_type).strip() + "-.#"
+					name + "-" + "-.#"
 				)
 		else:
 			throw(_("Address Title is mandatory."))
