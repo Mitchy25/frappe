@@ -650,7 +650,7 @@ class FilterArea {
 
 			if (
 				fields_dict[fieldname] && 
-				(condition === "=" || (fields_dict[fieldname].df.fieldtype not in ["Link","Select"] && condition === "like"))
+				(condition === "=" || (!(fields_dict[fieldname].df.fieldtype in ["Link","Select"]) && condition === "like"))
 			) {
 				// standard filter
 				out.promise = out.promise.then(() =>
