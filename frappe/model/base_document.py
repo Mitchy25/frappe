@@ -234,18 +234,17 @@ class BaseDocument(object):
 				)
 			)
 	def append_item_with_batch(self, key, value, preference = "shortdated", requirement = False, throw = False):
-		if "item_code" not in value:
+		if "item_code" not in value and self.get("update_stock", True):
 			raise ValueError(
 				'append_item_with_batch dict value missing item_code. This function can only accept items'
 			)
-		if not frappe.get_value("Item", value['item_code'], "has_batch_no"):
+		if not self.get("update_stock", True) or not frappe.get_value("Item", value['item_code'], "has_batch_no"):
 			self.append(key, value)
 			return
 		from erpnext.stock.doctype.batch.batch import get_batches
 		from dateutil.relativedelta import relativedelta
 		batches = get_batches(value['item_code'], value["warehouse"], qty=1, throw=False, serial_no=None)
-
-		#@STAN - Can we not exclude all batches that have 0 qty here?
+		batches = [batch for batch in batches if batch["qty"] > 0]
 
 		expiry_cutoff = datetime.date.today() + relativedelta(years=1)
 		shorted_dated_batches = [i for i in batches if i["expiry_date"] and i["expiry_date"] <= expiry_cutoff]
