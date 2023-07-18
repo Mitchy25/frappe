@@ -19,6 +19,7 @@ from frappe.utils import cint, cstr, has_gravatar
 
 class Contact(Document):
 	def autoname(self):
+		return
 		# concat first and last name
 		self.name = " ".join(
 			filter(None, [cstr(self.get(f)).strip() for f in ["first_name", "last_name"]])
