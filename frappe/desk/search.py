@@ -226,7 +226,7 @@ def search_widget(
 			# This will first bring elements on top in which query is a prefix of element
 			# Then it will bring the rest of the elements and sort them in lexicographical order
 			# If Sales Invoice Link, sort results by creation date in descending order
-			if doctype != "Sales Invoice": 
+			if doctype != "Sales Invoice" and txt: 
 				values = sorted(values, key=lambda x: relevance_sorter(x, txt, as_dict))
 	
 			# remove _relevance from results
