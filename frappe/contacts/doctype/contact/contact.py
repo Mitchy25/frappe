@@ -97,20 +97,30 @@ class Contact(Document):
 	def set_primary_email(self):
 		if not self.email_ids:
 			self.email_id = ""
+			self.marketing_email = ""
 			return
 
 		if len([email.email_id for email in self.email_ids if email.is_primary]) > 1:
 			frappe.throw(_("Only one {0} can be set as primary.").format(frappe.bold("Email ID")))
 
+		if len([email.email_id for email in self.email_ids if email.is_marketing]) > 1:
+			frappe.throw(_("Only one {0} can be set as marketing.").format(frappe.bold("Email ID")))
+
 		primary_email_exists = False
+		marketing_email_exists = False
 		for d in self.email_ids:
 			if d.is_primary == 1:
 				primary_email_exists = True
 				self.email_id = d.email_id.strip()
-				break
+			if d.is_marketing == 1:
+				marketing_email_exists = True
+				self.marketing_email = d.email_id.strip()
+
 
 		if not primary_email_exists:
 			self.email_id = ""
+		if not marketing_email_exists:
+			self.marketing_email = ""
 
 	def set_primary(self, fieldname):
 		# Used to set primary mobile and phone no.
