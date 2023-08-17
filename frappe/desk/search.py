@@ -274,7 +274,7 @@ def build_batch_content(filters, txt, res):
 		SELECT NAME as "name",  expiry_date, batch_qty
 		FROM `tabBatch` 
 		WHERE item = "{code}" AND name LIKE "%{txt}%"
-		ORDER BY expiry_date ASC
+		ORDER BY creation DESC
 		""", as_dict=True)
 
 	results = []
