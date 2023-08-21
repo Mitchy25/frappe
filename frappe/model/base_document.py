@@ -233,7 +233,15 @@ class BaseDocument(object):
 					key, self.name, str(type(value))[1:-1], value
 				)
 			)
-	def append_item_with_batch(self, key, value, preference = "shortdated", requirement = False, throw = False):
+	def append_item_with_batch(self, key, value, shortdated_first = True, single_type_only = False, throw = False):
+		"""
+		self: This Doc
+		key: Document field appending to
+		shortdated_first: Determine if shortdated batches are appended to first or last
+		single_type_only: Determines if item has to be fulfilled by a type of batch. depending on shortdated_first
+		shortdated_first: true single_type_only: true = shortdated items only.
+		throw: determines if function should throw error on failure
+		"""
 		if "item_code" not in value and self.get("update_stock", True):
 			raise ValueError(
 				'append_item_with_batch dict value missing item_code. This function can only accept items'
@@ -266,7 +274,7 @@ class BaseDocument(object):
 				assign_to_batch(batches[0], batches)
 				return ["Repeat", value]
 			else:
-				if requirement:
+				if single_type_only:
 					if throw:
 						raise ValueError(
 							f"Item {value['item_code']} could not be fully assigned to batches and therefore failed."
@@ -277,7 +285,7 @@ class BaseDocument(object):
 					return ["Continue", value]
 		while value['qty'] > 0 and (shorted_dated_batches or normal_batches):
 			value_copy = copy.copy(value)
-			if preference == "shortdated":
+			if shortdated_first == True:
 				results = try_batch(shorted_dated_batches)
 			else:
 				results = try_batch(normal_batches)
@@ -290,7 +298,7 @@ class BaseDocument(object):
 			else:
 				pass
 
-			if preference == "shortdated":
+			if shortdated_first == True:
 				results = try_batch(normal_batches)
 			else:
 				results = try_batch(shorted_dated_batches)
