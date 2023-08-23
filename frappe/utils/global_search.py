@@ -474,6 +474,7 @@ def search(text, start=0, limit=20, doctype=""):
 			frappe.qb.from_(global_search)
 			.select(global_search.doctype, global_search.name, global_search.content, rank)
 			.orderby("rank", order=frappe.qb.desc)
+			.orderby("name", order=frappe.qb.desc)
 			.limit(limit)
 		)
 
@@ -501,7 +502,6 @@ def search(text, start=0, limit=20, doctype=""):
 					frappe.clear_messages()
 
 				sorted_results.extend([r])
-
 	return sorted_results
 
 
