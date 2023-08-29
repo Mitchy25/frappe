@@ -24,7 +24,8 @@ export default class GridRow {
 				if($(e.target).hasClass('grid-row-check') || $(e.target).hasClass('row-index') || $(e.target).parent().hasClass('row-index')) {
 					return;
 				}
-				if(me.grid.allow_on_grid_editing() && me.grid.is_editable()) {
+				
+				if((me.grid.allow_on_grid_editing() && me.grid.is_editable()) || $(e.target).hasClass("memo_icon_button")) {
 					// pass
 				} else {
 					me.toggle_view();
