@@ -345,6 +345,9 @@ def export_query():
 	file_format_type = data.get("file_format_type")
 	custom_columns = frappe.parse_json(data.get("custom_columns", "[]"))
 	include_indentation = data.get("include_indentation")
+	filter_export = data.get("filter_export")
+	if filter_export:
+		filter_export = data.get("filters")
 	visible_idx = data.get("visible_idx")
 
 	if isinstance(visible_idx, string_types):
@@ -365,7 +368,7 @@ def export_query():
 		from frappe.utils.xlsxutils import make_xlsx
 
 		data["result"] = handle_duration_fieldtype_values(data.get("result"), data.get("columns"))
-		xlsx_data, column_widths = build_xlsx_data(columns, data, visible_idx, include_indentation)
+		xlsx_data, column_widths = build_xlsx_data(columns, data, visible_idx, include_indentation, filter_export=filter_export)
 		xlsx_file = make_xlsx(xlsx_data, "Query Report", column_widths=column_widths)
 
 		frappe.response["filename"] = report_name + ".xlsx"
@@ -405,7 +408,7 @@ def handle_duration_fieldtype_values(result, columns):
 	return result
 
 
-def build_xlsx_data(columns, data, visible_idx, include_indentation, ignore_visible_idx=False):
+def build_xlsx_data(columns, data, visible_idx, include_indentation, ignore_visible_idx=False, filter_export=False):
 	result = [[]]
 	column_widths = []
 
@@ -437,6 +440,13 @@ def build_xlsx_data(columns, data, visible_idx, include_indentation, ignore_visi
 				row_data = row
 
 			result.append(row_data)
+
+	if filter_export:
+		filter_export = json.loads(filter_export)
+		result_filter = [["Filter Name", "Filter Value"]]
+		for key, value in filter_export.items():
+			result_filter.append([key, value])
+		result = result_filter + result
 
 	return result, column_widths
 
