@@ -445,6 +445,8 @@ def build_xlsx_data(columns, data, visible_idx, include_indentation, ignore_visi
 		filter_export = json.loads(filter_export)
 		result_filter = [["Filter Name", "Filter Value"]]
 		for key, value in filter_export.items():
+			if value == []:
+				value = ""
 			result_filter.append([key, value])
 		result = result_filter + result
 
