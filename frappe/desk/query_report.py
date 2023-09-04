@@ -346,8 +346,10 @@ def export_query():
 	custom_columns = frappe.parse_json(data.get("custom_columns", "[]"))
 	include_indentation = data.get("include_indentation")
 	filter_export = data.get("filter_export")
-	if filter_export:
+	if filter_export != "0":
 		filter_export = data.get("filters")
+	else:
+		filter_export = None
 	visible_idx = data.get("visible_idx")
 
 	if isinstance(visible_idx, string_types):
@@ -440,7 +442,6 @@ def build_xlsx_data(columns, data, visible_idx, include_indentation, ignore_visi
 				row_data = row
 
 			result.append(row_data)
-
 	if filter_export:
 		filter_export = json.loads(filter_export)
 		result_filter = [["Filter Name", "Filter Value"]]
