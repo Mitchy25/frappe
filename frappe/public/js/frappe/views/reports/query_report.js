@@ -1339,6 +1339,11 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 				options: ['Excel', 'CSV'],
 				default: 'Excel',
 				reqd: 1
+			},
+			{
+				fieldtype: 'Check',
+				label: __('Export Filters'),
+				fieldname: 'filter_export',
 			}
 		];
 
@@ -1350,7 +1355,7 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 			});
 		}
 
-		this.export_dialog = frappe.prompt(export_dialog_fields, ({ file_format, include_indentation }) => {
+		this.export_dialog = frappe.prompt(export_dialog_fields, ({ file_format, filter_export, include_indentation }) => {
 			this.make_access_log('Export', file_format);
 			if (file_format === 'CSV') {
 				const column_row = this.columns.reduce((acc, col) => {
@@ -1359,8 +1364,16 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 					}
 					return acc;
 				}, []);
-				const data = this.get_data_for_csv(include_indentation);
+				var data = this.get_data_for_csv(include_indentation);
 				const out = [column_row].concat(data);
+				let filters = this.get_filter_values(true);
+				if (filter_export) {
+					var filter_data = [['Filter Value','Filter Value']]
+					for (let key in filters) {
+						filter_data.push([key, filters[key]])
+					}
+					data = data.concat(filter_data)
+				}
 
 				frappe.tools.downloadify(out, null, this.report_name);
 			} else {
