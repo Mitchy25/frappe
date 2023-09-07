@@ -1134,12 +1134,16 @@ frappe.ui.form.Form = class FrappeForm {
 	}
 
 	email_doc(message) {
+		let attach_doc = true;
+		if (this.doc.hasOwnProperty("exclude_invoice") && this.doc.exclude_invoice) {
+			attach_doc = false;
+		}
 		new frappe.views.CommunicationComposer({
 			doc: this.doc,
 			frm: this,
 			subject: __(this.meta.name) + ': ' + this.docname,
 			recipients: this.doc.email || this.doc.email_id || this.doc.contact_email,
-			attach_document_print: true,
+			attach_document_print: attach_doc,
 			message: message
 		});
 	}
