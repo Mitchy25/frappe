@@ -1395,6 +1395,7 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 					filters: filters,
 					visible_idx,
 					include_indentation,
+					filter_export
 				};
 
 				open_url_post(frappe.request.url, args);
