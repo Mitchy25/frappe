@@ -263,7 +263,8 @@ def build_for_autosuggest(res):
 	return results
 
 def build_batch_content(filters, txt, res):
-	filters = json.loads(filters)
+	if filters:
+		filters = json.loads(filters)
 	if filters:
 		code = ""
 		if "item_code" in filters.keys():
