@@ -253,8 +253,8 @@ class BaseDocument(object):
 		from dateutil.relativedelta import relativedelta
 		batches = get_batches(value['item_code'], value["warehouse"], qty=1, throw=False, serial_no=None)
 		batches = [batch for batch in batches if batch["qty"] > 0]
-
-		expiry_cutoff = datetime.date.today() + relativedelta(years=1)
+		expiry_date = int(frappe.get_value("Item", value['item_code'], "shortdated_timeframe_in_months"))
+		expiry_cutoff = datetime.date.today() + relativedelta(months=expiry_date)
 		shorted_dated_batches = [i for i in batches if i["expiry_date"] and i["expiry_date"] <= expiry_cutoff]
 		normal_batches = [i for i in batches if not i["expiry_date"] or i["expiry_date"] > expiry_cutoff]
 		append_list = []

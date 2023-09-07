@@ -263,7 +263,8 @@ def build_for_autosuggest(res):
 	return results
 
 def build_batch_content(filters, txt, res):
-	filters = json.loads(filters)
+	if filters:
+		filters = json.loads(filters)
 	if filters:
 		code = ""
 		if "item_code" in filters.keys():
@@ -277,23 +278,28 @@ def build_batch_content(filters, txt, res):
 		ORDER BY creation DESC
 		""", as_dict=True)
 
-	results = []
-	for r in res:
-		des = ""
-		if int(r["batch_qty"]) > 0:
-			des += f"Stock: <b style='color:#33cc33;'> {r['batch_qty']} </b>"
-		else:
-			des += f"Stock: <b style='color:#ff0000;'> {r['batch_qty']} </b>"
-		if r["expiry_date"]:
-			des += ","
-			if r["expiry_date"] < (datetime.date.today() + relativedelta(months = 6)):
-				des += f" Expiry Date: <b style='color:#ff0000;'> {r['expiry_date']} </b>"
+		results = []
+		expiry_months = int(frappe.get_value("Item", code, "shortdated_timeframe_in_months"))
+		for r in res:
+			
+			des = ""
+			if int(r["batch_qty"]) > 0:
+				des += f"Stock: <b style='color:#33cc33;'> {r['batch_qty']} </b>"
 			else:
-				des += f" Expiry Date: <b style='color:#33cc33;'> {r['expiry_date']} </b>"
-		out = {"value": r["name"], "description": des}
-		results.append(out)
-
-	return results
+				des += f"Stock: <b style='color:#ff0000;'> {r['batch_qty']} </b>"
+			if r["expiry_date"]:
+				des += ","
+				if r["expiry_date"] < (datetime.date.today() + relativedelta(months = expiry_months)):
+					des += f" Expiry Date: <b style='color:#ff0000;'> {r['expiry_date']} </b>"
+				else:
+					des += f" Expiry Date: <b style='color:#33cc33;'> {r['expiry_date']} </b>"
+			out = {"value": r["name"], "description": des}
+			results.append(out)
+			return results
+	else:
+		import numpy as np
+		return [{'value': i} for i in np.array(res).flatten().tolist()]
+	
 	
 
 
