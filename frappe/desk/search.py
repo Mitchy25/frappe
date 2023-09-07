@@ -295,7 +295,7 @@ def build_batch_content(filters, txt, res):
 					des += f" Expiry Date: <b style='color:#33cc33;'> {r['expiry_date']} </b>"
 			out = {"value": r["name"], "description": des}
 			results.append(out)
-			return results
+		return results
 	else:
 		import numpy as np
 		return [{'value': i} for i in np.array(res).flatten().tolist()]
