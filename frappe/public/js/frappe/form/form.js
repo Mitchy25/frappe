@@ -52,7 +52,7 @@ frappe.ui.form.Form = class FrappeForm {
 		if(this.meta.istable) {
 			this.meta.in_dialog = 1;
 		}
-
+		this.__changed_fields = {}
 		this.perm = frappe.perm.get_perm(this.doctype); // for create
 		this.action_perm_type_map = {
 			"Create": "create",
@@ -685,7 +685,9 @@ frappe.ui.form.Form = class FrappeForm {
 				if (me.comment_box) {
 					me.comment_box.submit();
 				}
-				me.refresh();
+				if (!r.inserted) {
+					me.refresh();
+				}
 			} else {
 				if(on_error) {
 					on_error();
@@ -1138,12 +1140,17 @@ frappe.ui.form.Form = class FrappeForm {
 		if (this.doc.hasOwnProperty("exclude_invoice") && this.doc.exclude_invoice) {
 			attach_doc = false;
 		}
+		let printFormat;
+		if (this.doc.doctype == "Sales Invoice") {
+			printFormat = "Sales Invoice Only"
+		}
 		new frappe.views.CommunicationComposer({
 			doc: this.doc,
 			frm: this,
 			subject: __(this.meta.name) + ': ' + this.docname,
 			recipients: this.doc.email || this.doc.email_id || this.doc.contact_email,
 			attach_document_print: attach_doc,
+			select_print_format: printFormat,
 			message: message
 		});
 	}
