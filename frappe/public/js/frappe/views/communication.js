@@ -36,6 +36,12 @@ frappe.views.CommunicationComposer = class {
 
 		$(this.dialog.$wrapper.find(".form-section").get(0)).addClass('to_section');
 
+		let $printFormat = $(this.dialog.$wrapper.find("select[data-fieldname='select_print_format']"));
+		$printFormat.prop('disabled', true);
+		$printFormat.css('cursor', 'not-allowed');
+		$printFormat.css("opacity", "0.5");
+		$printFormat.val("Sales Invoice Only");
+		
 		if (this.doc.hasOwnProperty("exclude_invoice") && this.doc.exclude_invoice) {
 			var $checkbox = $(this.dialog.$wrapper.find(".input-area input[data-fieldname='attach_document_print']"));
 			$checkbox.prop('disabled', true);
@@ -459,7 +465,14 @@ frappe.views.CommunicationComposer = class {
 			$(fields.select_print_format.input)
 				.empty()
 				.add_options(print_formats)
-				.val(print_formats[0]);
+			
+			//Check if passed through else pick first
+			if (this.select_print_format) {
+				$(fields.select_print_format.input).val(this.select_print_format);
+			} else {
+				$(fields.select_print_format.input).val(print_formats[0]);
+			}
+				
 		} else {
 			$(fields.attach_document_print.wrapper).toggle(false);
 		}
