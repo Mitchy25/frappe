@@ -26,7 +26,7 @@ PDF_CONTENT_ERRORS = [
 ]
 
 
-def get_pdf(html, options=None, output=None):
+def get_pdf(html, options=None, output=None, meta=None):
 	html = scrub_urls(html)
 	html, options = prepare_options(html, options)
 
@@ -75,10 +75,13 @@ def get_pdf(html, options=None, output=None):
 
 	if "password" in options:
 		writer.encrypt(password)
-
 	filedata = get_file_data_from_writer(writer)
-
-	return filedata
+	
+	if meta.get('base64'):
+		import base64
+		return base64.b64encode(filedata).decode()
+	else:
+		return filedata
 
 
 def get_file_data_from_writer(writer_obj):
