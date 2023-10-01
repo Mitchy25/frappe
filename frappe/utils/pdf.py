@@ -26,7 +26,7 @@ PDF_CONTENT_ERRORS = [
 ]
 
 
-def get_pdf(html, options=None, output=None, meta=None):
+def get_pdf(html, options=None, output=None, meta={}):
 	html = scrub_urls(html)
 	html, options = prepare_options(html, options)
 
