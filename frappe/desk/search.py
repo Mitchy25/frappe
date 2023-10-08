@@ -274,7 +274,7 @@ def build_batch_content(filters, txt, res):
 		res = frappe.db.sql(f"""
 		SELECT NAME as "name",  expiry_date, batch_qty
 		FROM `tabBatch` 
-		WHERE item = "{code}" AND name LIKE "%{txt}%"
+		WHERE item = "{code}" AND name LIKE "%{txt}%" AND disabled = 0
 		ORDER BY creation DESC
 		""", as_dict=True)
 
