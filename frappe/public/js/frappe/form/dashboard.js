@@ -360,8 +360,14 @@ frappe.ui.form.Dashboard = class FormDashboard {
 			let dynamic_fieldname = this.data.dynamic_links[fieldname][1];
 			filter[dynamic_fieldname] = this.data.dynamic_links[fieldname][0];
 		}
-
-		filter[fieldname] = this.frm.doc.name;
+		if (Array.isArray(fieldname)) {
+			fieldname.forEach(element => {
+				filter[element] = this.frm.doc.name;
+			});
+		} else { 
+			filter[fieldname] = this.frm.doc.name;
+		}
+		
 		return filter;
 	}
 
