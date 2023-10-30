@@ -211,6 +211,9 @@ def get_context(context):
 
 		attachments = self.get_attachment(doc)
 		recipients, cc, bcc = self.get_list_of_recipients(doc, context)
+		assigned_to = [i for i in self.get_assigned_users() if "@" in i]
+		recipients += assigned_to
+		recipients = list(set(recipients))
 		if not (recipients or cc or bcc):
 			return
 
