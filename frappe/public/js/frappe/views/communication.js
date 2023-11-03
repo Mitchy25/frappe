@@ -42,7 +42,7 @@ frappe.views.CommunicationComposer = class {
 		$printFormat.css("opacity", "0.5");
 		$printFormat.val("Sales Invoice Only");
 		
-		if (this.doc.hasOwnProperty("exclude_invoice") && this.doc.exclude_invoice) {
+		if (this.doc.hasOwnProperty("exclude_invoice") && this.doc.exclude_invoice && this.doc.company != "FxMed") {
 			var $checkbox = $(this.dialog.$wrapper.find(".input-area input[data-fieldname='attach_document_print']"));
 			$checkbox.prop('disabled', true);
 			$checkbox.css('cursor', 'not-allowed');
