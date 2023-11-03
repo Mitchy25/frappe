@@ -1137,7 +1137,8 @@ frappe.ui.form.Form = class FrappeForm {
 
 	email_doc(message) {
 		let attach_doc = true;
-		if (this.doc.hasOwnProperty("exclude_invoice") && this.doc.exclude_invoice) {
+
+		if (this.doc.hasOwnProperty("exclude_invoice") && this.doc.exclude_invoice && this.doc.company != "FxMed") {
 			attach_doc = false;
 		}
 		let printFormat;
