@@ -200,6 +200,11 @@ def search_widget(
 			# Sales Partner doctype will only show list of company bank accounts
 			if doctype == "Bank Account" and reference_doctype == "Sales Partner":
 				filters.append("is_company_account = 1")
+			
+
+			if doctype == "Customer":
+				# filters.append("customer_status != 'Disabled'")
+				filters.append("disabled != 1")
 
 			values = frappe.get_list(
 				doctype,
