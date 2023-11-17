@@ -31,13 +31,14 @@
    "default": "0",
    "fieldname": "is_primary_mobile_no",
    "fieldtype": "Check",
+   "hidden": 1,
    "in_list_view": 1,
    "label": "Is Primary Mobile"
   }
  ],
  "istable": 1,
  "links": [],
- "modified": "2020-04-06 18:28:10.486220",
+ "modified": "2023-07-26 08:43:50.091736",
  "modified_by": "Administrator",
  "module": "Contacts",
  "name": "Contact Phone",

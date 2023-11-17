@@ -19,7 +19,7 @@ def update_document_title(
 	"""
 	Update title from header in form view
 	"""
-
+	
 	for key, val in [("docname", docname), ("new_title", new_title), ("new_name", new_name)]:
 		if not isinstance(val, (str, type(None))):
 			frappe.throw("{0}={1} must be of type str or None".format(key, val))
@@ -28,6 +28,9 @@ def update_document_title(
 	doc.check_permission(permtype="write")
 
 	title_field = doc.meta.get_title_field()
+
+	if not doc.meta.allow_rename:
+		frappe.msgprint(_("{0} not allowed to be renamed").format(_(doctype)), raise_exception=1)
 
 	title_updated = new_title and (title_field != "name") and (new_title != doc.get(title_field))
 	name_updated = new_name and (new_name != doc.name)
