@@ -204,6 +204,7 @@ frappe.ui.form.Dashboard = class FormDashboard {
 				$(this).removeClass('hidden');
 			}
 		});
+
 		!this.frm.is_new() && this.set_open_count();
 	}
 
@@ -369,6 +370,13 @@ frappe.ui.form.Dashboard = class FormDashboard {
 		}
 		
 		return filter;
+	}
+
+	remove_accounting_section() {
+		var parent = $('div.form-heatmap').closest('div').parent();
+		if ($('[data-doctype="dashboard-accounting"]').length > 0) {
+			parent.find('[data-doctype="dashboard-accounting"]').remove();
+		}
 	}
 
 	set_open_count() {
