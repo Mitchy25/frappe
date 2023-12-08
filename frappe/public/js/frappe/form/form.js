@@ -817,7 +817,7 @@ frappe.ui.form.Form = class FrappeForm {
 			[(me.doc.doctype).bold(), me.doc.name, links_text]);
 
 		let can_cancel = links.every((link) => frappe.model.can_cancel(link.doctype));
-		debugger
+		
 		if (can_cancel) {
 			confirm_message += __('Do you want to cancel all linked documents?');
 		} else {
