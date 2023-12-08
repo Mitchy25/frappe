@@ -32,6 +32,9 @@
 			{% if(contact_list[i].email_id) { %}
 				{%= __("Email") %}: {%= contact_list[i].email_id %}<span class="text-muted"> ({%= __("Primary") %})</span><br>
 			{% endif %}
+			{% if(contact_list[i].marketing_email) { %}
+				{%= __("Email") %}: {%= contact_list[i].marketing_email %}<span class="text-muted"> ({%= __("Marketing") %})</span><br>
+			{% endif %}
 			{% if(contact_list[i].email_ids) { %}
 				{% for(var j=0, k=contact_list[i].email_ids.length; j<k; j++) { %}
 					{%= __("Email") %}: {%= contact_list[i].email_ids[j].email_id %}<br>

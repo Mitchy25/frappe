@@ -509,6 +509,7 @@ frappe.ui.form.Form = class FrappeForm {
 				// header must be refreshed before client methods
 				// because add_custom_button
 				//TODO: This is 
+				() => this.dashboard.remove_accounting_section(),
 				() => this.refresh_header(switched),
 				// trigger global trigger
 				// to use this
@@ -630,6 +631,7 @@ frappe.ui.form.Form = class FrappeForm {
 		}
 
 		this.dashboard.refresh();
+
 		frappe.breadcrumbs.update();
 
 		this.show_submit_message();
@@ -815,6 +817,7 @@ frappe.ui.form.Form = class FrappeForm {
 			[(me.doc.doctype).bold(), me.doc.name, links_text]);
 
 		let can_cancel = links.every((link) => frappe.model.can_cancel(link.doctype));
+		
 		if (can_cancel) {
 			confirm_message += __('Do you want to cancel all linked documents?');
 		} else {
