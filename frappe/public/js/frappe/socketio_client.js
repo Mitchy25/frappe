@@ -134,7 +134,7 @@ frappe.socketio = {
 	},
 	doc_subscribe: function (doctype, docname) {
 		if (frappe.flags.doc_subscribe) {
-			console.log('throttled');
+			// console.log('throttled');
 			return;
 		}
 
