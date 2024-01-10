@@ -338,7 +338,7 @@ frappe.request.is_fresh = function(args, threshold) {
 		if ((new Date() - past_request.timestamp) < threshold
 			&& frappe.utils.deep_equal(args, past_request.args)) {
 			// eslint-disable-next-line no-console
-			console.log('throttled');
+			// console.log('throttled');
 			return true;
 		}
 	}
