@@ -271,7 +271,7 @@ class BaseDocument(object):
 			expiry_cutoff = datetime.date.today() + relativedelta(months=expiry_date)
 			shorted_dated_batches = [i for i in batches if i["expiry_date"] and i["expiry_date"] <= expiry_cutoff]
 			normal_batches = [i for i in batches if not i["expiry_date"] or i["expiry_date"] > expiry_cutoff]
-			def assign_to_batch(current_batch, batches):
+			def assign_to_batch(current_batch, batches, shortdated):
 				if value['qty'] > current_batch['qty']:
 					value_copy['qty'] = current_batch['qty']
 					value['qty'] -= value_copy['qty']
@@ -280,10 +280,12 @@ class BaseDocument(object):
 					value['qty'] = 0
 					# batches.remove(current_batch)
 				value_copy['batch_no'] = current_batch['batch_id']
+				if shortdated:
+					value_copy['shortdated_batch'] = shortdated
 				append_list.append(value_copy)
-			def try_batch(batches):
+			def try_batch(batches, shortdated):
 				if batches:
-					assign_to_batch(batches[0], batches)
+					assign_to_batch(batches[0], batches, shortdated)
 					return ["Repeat", value]
 				else:
 					if single_type_only:
@@ -298,9 +300,9 @@ class BaseDocument(object):
 			while value['qty'] > 0 and (shorted_dated_batches or normal_batches):
 				value_copy = copy.copy(value)
 				if shortdated_first == True:
-					results = try_batch(shorted_dated_batches)
+					results = try_batch(shorted_dated_batches, True)
 				else:
-					results = try_batch(normal_batches)
+					results = try_batch(normal_batches, False)
 
 				value = results[1]
 				if results[0] == "Failed":
@@ -311,9 +313,9 @@ class BaseDocument(object):
 					pass
 
 				if shortdated_first == True:
-					results = try_batch(normal_batches)
+					results = try_batch(normal_batches, False)
 				else:
-					results = try_batch(shorted_dated_batches)
+					results = try_batch(shorted_dated_batches, True)
 				if results[0] == "Failed":
 					return [False, results[1]]
 			if value['qty'] > 0:
