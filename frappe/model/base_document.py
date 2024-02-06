@@ -265,6 +265,8 @@ class BaseDocument(object):
 		else:
 			from erpnext.stock.doctype.batch.batch import get_batches
 			from dateutil.relativedelta import relativedelta
+			if not value.get('warehouse'):
+				value['warehouse'] = self.set_warehouse
 			batches = get_batches(value['item_code'], value["warehouse"], qty=1, throw=False, serial_no=None)
 			batches = [batch for batch in batches if batch["qty"] > 0]
 			expiry_date = int(frappe.get_value("Item", value['item_code'], "shortdated_timeframe_in_months"))
@@ -290,8 +292,12 @@ class BaseDocument(object):
 				else:
 					if single_type_only:
 						if throw:
+							if shortdated_first:
+								assign_type = "Only Shortdated"
+							else:
+								assign_type = "Only Longdated"
 							raise ValueError(
-								f"Item {value['item_code']} could not be fully assigned to batches and therefore failed."
+								f"Item {value['item_code']} could not be fully assigned to {assign_type} batches and therefore failed."
 							)
 						else:
 							return ["Failed", value]
