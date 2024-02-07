@@ -6,9 +6,10 @@ frappe.provide('frappe.widget.utils');
 frappe.provide('frappe.views');
 frappe.provide('frappe.query_reports');
 
+ 
 frappe.standard_pages['query-report'] = function() {
 	var wrapper = frappe.container.add_page('query-report');
-
+	
 	frappe.ui.make_app_page({
 		parent: wrapper,
 		title: __('Query Report'),
@@ -22,6 +23,13 @@ frappe.standard_pages['query-report'] = function() {
 	$(wrapper).bind('show', function() {
 		frappe.query_report.show();
 	});
+	var me = frappe.query_report
+	$(document).on('change',".dt-filter", function (e) {
+		var col = $(this).attr('data-col-index')
+		me.data_table_filters[col] = $(this).val()
+	});
+
+
 };
 
 frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
@@ -570,7 +578,6 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		if (query_params.prepared_report_name) {
 			filters.prepared_report_name = query_params.prepared_report_name;
 		}
-
 		return new Promise(resolve => {
 			this.last_ajax = frappe.call({
 				method: 'frappe.desk.query_report.run',
@@ -876,6 +883,12 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		if (this.report_settings.after_datatable_render) {
 			this.report_settings.after_datatable_render(this.datatable);
 		}
+		for (let col in this.data_table_filters) {
+			let value = this.data_table_filters[col]
+			let col_wrapper = $(this.datatable.wrapper).find(`[data-col-index='${col}'] .dt-filter`)
+			col_wrapper.prop("value", value)
+		}
+		this.datatable.columnmanager.applyFilter(this.datatable.columnmanager.getAppliedFilters())
 	}
 
 	show_loading_screen() {
