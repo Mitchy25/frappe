@@ -207,9 +207,9 @@ def search_widget(
 				filters.append("is_company_account = 1")
 			
 
-			if doctype == "Customer":
-				# filters.append("customer_status != 'Disabled'")
-				filters.append("disabled != 1")
+			# if doctype == "Customer":
+			# 	# filters.append("customer_status != 'Disabled'")
+			# 	filters.append("disabled != 1")
 
 			values = frappe.get_list(
 				doctype,
