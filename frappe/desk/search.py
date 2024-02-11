@@ -161,7 +161,12 @@ def search_widget(
 			if meta.get("fields", {"fieldname": "enabled", "fieldtype": "Check"}):
 				filters.append([doctype, "enabled", "=", 1])
 			if meta.get("fields", {"fieldname": "disabled", "fieldtype": "Check"}):
-				filters.append([doctype, "disabled", "!=", 1])
+				add_disabled = True
+				for i in filters:
+					if 'disabled' in i:
+						add_disabled = False
+				if add_disabled:
+					filters.append([doctype, "disabled", "!=", 1])
 
 			# format a list of fields combining search fields and filter fields
 			fields = get_std_fields_list(meta, searchfield or "name")
