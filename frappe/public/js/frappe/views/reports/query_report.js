@@ -38,6 +38,7 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 	}
 
 	init() {
+		this.data_table_filters = {}
 		if (this.init_promise) {
 			return this.init_promise;
 		}
@@ -567,7 +568,6 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		this.toggle_report(false);
 		let filters = this.get_filter_values(true);
 		this.show_loading_screen();
-
 		// only one refresh at a time
 		if (this.last_ajax) {
 			this.last_ajax.abort();
