@@ -153,7 +153,7 @@ def close_all_assignments(doctype, name):
 
 @frappe.whitelist()
 def remove(doctype, name, assign_to):
-	return set_status(doctype, name, assign_to, status="Cancelled")
+	return set_status(doctype, name, assign_to, status="Canceled")
 
 
 def set_status(doctype, name, assign_to, status="Cancelled"):
