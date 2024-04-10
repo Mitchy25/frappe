@@ -296,7 +296,7 @@ frappe.views.CommunicationComposer = class {
 
 			function prepend_reply(reply) {
 				if (me.reply_added === email_template) return;
-
+				
 				const content_field = me.dialog.fields_dict.content;
 				const subject_field = me.dialog.fields_dict.subject;
 
@@ -377,6 +377,10 @@ frappe.views.CommunicationComposer = class {
 		if (this.frm && !this.is_a_reply && !this.content_set) {
 			const email_template = this.frm.meta.default_email_template || '';
 			await this.dialog.set_value("email_template", email_template);
+		}
+
+		if (this.email_template){
+			await this.dialog.set_value("email_template", this.email_template);
 		}
 
 		for (const fieldname of ['email_template', 'cc', 'bcc']) {
