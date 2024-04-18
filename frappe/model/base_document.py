@@ -268,9 +268,20 @@ class BaseDocument(object):
 			if not value.get('warehouse'):
 				value['warehouse'] = self.set_warehouse
 			batches = get_batches(value['item_code'], value["warehouse"], qty=1, throw=False, serial_no=None)
-			batches = [batch for batch in batches if batch["qty"] > 0]
+			
+			posting_date = self.get("posting_date", datetime.datetime.today().date())
+			if type(posting_date) is str:
+				posting_date = datetime.datetime.strptime(posting_date, "%Y-%m-%d").date()
+			elif type(posting_date) is datetime.datetime:
+				posting_date = posting_date.date()
+			elif not posting_date:
+				posting_date = datetime.datetime.today().date()
+
+			batches = [batch for batch in batches if batch["qty"] > 0 and not batch["expiry_date"] or batch["expiry_date"] >= posting_date]
+
 			expiry_date = int(frappe.get_value("Item", value['item_code'], "shortdated_timeframe_in_months"))
-			expiry_cutoff = datetime.date.today() + relativedelta(months=expiry_date)
+			expiry_cutoff = posting_date + relativedelta(months=expiry_date)
+
 			shorted_dated_batches = [i for i in batches if i["expiry_date"] and i["expiry_date"] <= expiry_cutoff]
 			normal_batches = [i for i in batches if not i["expiry_date"] or i["expiry_date"] > expiry_cutoff]
 			def assign_to_batch(current_batch, batches, shortdated):
