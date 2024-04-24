@@ -311,7 +311,7 @@ def build_batch_content(filters, txt, res):
 			des += f"Stock: <b style='color:#ff0000;'> {r['batch_qty']} </b>"
 		if r["expiry_date"]:
 			des += ","
-			if r["expiry_date"] < (datetime.date.today() + relativedelta(months = r['shortdated_timeframe_in_months'])):
+			if r["expiry_date"] < datetime.date.today():
 				des += f" Expiry Date: <b style='color:#ff0000;'> {r['expiry_date']} </b>"
 			elif r["expiry_date"] < (datetime.date.today() + relativedelta(months = r['shortdated_timeframe_in_months'])):
 				des += f" Expiry Date: <b style='color:#Ffae42;'> {r['expiry_date']} </b>"
