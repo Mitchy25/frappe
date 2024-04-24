@@ -233,7 +233,7 @@ class BaseDocument(object):
 					key, self.name, str(type(value))[1:-1], value
 				)
 			)
-	def append_item_with_batch(self, key, value, shortdated_first = True, single_type_only = False, throw = False, partial_fulfillment = True):
+	def append_item_with_batch(self, key, value, shortdated_first = True, single_type_only = False, throw = False, partial_fulfillment = True, specific_batch = None):
 		"""
 		self: This Doc
 		key: Document field appending to
@@ -277,7 +277,10 @@ class BaseDocument(object):
 			elif type(posting_date) is datetime.datetime:
 				posting_date = posting_date.date()
 			batches = [batch for batch in batches if batch["qty"] > 0 and (not batch["expiry_date"] or batch["expiry_date"] >= posting_date)]
-
+			if specific_batch:
+				batches = [batch for batch in batches if batch['batch_id'] == specific_batch]
+				shortdated_first = False
+				single_type_only = True
 			expiry_date = int(frappe.get_value("Item", value['item_code'], "shortdated_timeframe_in_months"))
 			expiry_cutoff = posting_date + relativedelta(months=expiry_date)
 
