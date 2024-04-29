@@ -1136,8 +1136,8 @@ Object.assign(frappe.utils, {
 	},
 
 	map_defaults: {
-		center: [19.0800, 72.8961],
-		zoom: 13,
+		center: [-41.2924, 174.7787],
+		zoom: 4,
 		tiles: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
 		options: {
 			attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
