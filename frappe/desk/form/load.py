@@ -189,7 +189,7 @@ def get_comments(
 
 	comments = frappe.get_all(
 		"Comment",
-		fields=["name", "creation", "content", "owner", "comment_type"],
+		fields=["name", "creation", "content", "owner", "comment_type", "notify_on_load"],
 		filters={
 			"reference_doctype": doctype,
 			"reference_name": name,
