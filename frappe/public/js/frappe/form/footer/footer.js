@@ -29,7 +29,7 @@ frappe.ui.form.Footer = Class.extend({
 				fieldtype: 'Comment',
 				fieldname: 'comment'
 			},
-			on_submit: (comment) => {
+			on_submit: (comment,notifyOnLoad = false) => {
 				if (strip_html(comment).trim() != "" || comment.includes('img')) {
 					this.frm.comment_box.disable();
 					frappe.xcall("frappe.desk.form.utils.add_comment", {
@@ -37,7 +37,8 @@ frappe.ui.form.Footer = Class.extend({
 						reference_name: this.frm.docname,
 						content: comment,
 						comment_email: frappe.session.user,
-						comment_by: frappe.session.user_fullname
+						comment_by: frappe.session.user_fullname,
+						notify_on_load: notifyOnLoad
 					}).then((comment) => {
 						let comment_item = this.frm.timeline.get_comment_timeline_item(comment);
 						this.frm.comment_box.set_value('');
@@ -59,7 +60,7 @@ frappe.ui.form.Footer = Class.extend({
 	},
 	refresh: function() {
 		if (this.frm.doc.__islocal) {
-			this.parent.addClass("hide");
+			this.parent.addClass("hide");	
 		} else {
 			this.parent.removeClass("hide");
 			this.frm.timeline.refresh();

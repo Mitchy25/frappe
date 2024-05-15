@@ -1,4 +1,5 @@
 {
+ "actions": [],
  "creation": "2019-02-07 10:10:46.845678",
  "doctype": "DocType",
  "editable_grid": 1,
@@ -17,7 +18,8 @@
   "link_name",
   "reference_owner",
   "section_break_10",
-  "content"
+  "content",
+  "notify_on_load"
  ],
  "fields": [
   {
@@ -102,9 +104,17 @@
    "ignore_xss_filter": 1,
    "in_list_view": 1,
    "label": "Content"
+  },
+  {
+   "default": "0",
+   "fieldname": "notify_on_load",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Notify On Load"
   }
  ],
- "modified": "2019-09-02 21:00:10.784787",
+ "links": [],
+ "modified": "2024-05-03 11:38:18.567489",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "Comment",

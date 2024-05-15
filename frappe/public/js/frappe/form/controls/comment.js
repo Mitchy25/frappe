@@ -19,6 +19,19 @@ frappe.ui.form.ControlComment = frappe.ui.form.ControlTextEditor.extend({
 				<button class="btn btn-default btn-comment btn-xs">
 					${__("Comment")}
 				</button>
+				${cur_frm && cur_frm.doc.doctype == "Sales Invoice" ? `
+				<div class="checkbox">
+                	<label style="margin-top: 1%;">
+                        <span class="input-area">
+							<input type="checkbox" autocomplete="off" class="input-with-feedback" id="notifyOnLoadCheckbox">
+						</span>
+						<span class="disp-area" style="display: none;">
+							<input type="checkbox" disabled="" class="disabled-selected">
+						</span>
+                        <span class="label-area">Notify On Load</span>
+                    </label>
+                    <p class="help-box small text-muted"></p>
+                </div>`  : ''}
 			</div>
 		`) : $('<div class="frappe-control"></div>');
 
@@ -55,7 +68,14 @@ frappe.ui.form.ControlComment = frappe.ui.form.ControlTextEditor.extend({
 	},
 
 	submit() {
-		this.on_submit && this.on_submit(this.get_value());
+		var notifyOnLoad = false;
+		const notifyCheckbox = this.comment_wrapper.find('.input-with-feedback#notifyOnLoadCheckbox');
+		if (notifyCheckbox && notifyCheckbox.prop('checked')){
+			notifyOnLoad = 1;
+		} else {
+			notifyOnLoad = 0;
+		}
+		this.on_submit && this.on_submit(this.get_value(), notifyOnLoad);
 	},
 
 	update_state() {
