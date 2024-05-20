@@ -282,8 +282,8 @@ class BaseDocument(object):
 			expiry_date = int(frappe.get_value("Item", value['item_code'], "shortdated_timeframe_in_months"))
 			expiry_cutoff = posting_date + relativedelta(months=expiry_date)
 
-			shortdated_batches = [i for i in batches if i["expiry_date"] and i["expiry_date"] <= expiry_cutoff and batch["disabled"] == 0]
-			normal_batches = [i for i in batches if not i["expiry_date"] or i["expiry_date"] > expiry_cutoff and batch["disabled"] == 0]
+			shortdated_batches = [i for i in batches if i["expiry_date"] and i["expiry_date"] <= expiry_cutoff and i["disabled"] == 0]
+			normal_batches = [i for i in batches if not i["expiry_date"] or i["expiry_date"] > expiry_cutoff and i["disabled"] == 0]
 			def assign_to_batch(current_batch, batches, shortdated):
 				if value['qty'] > current_batch['qty']:
 					value_copy['qty'] = current_batch['qty']
@@ -314,10 +314,10 @@ class BaseDocument(object):
 							return ["Failed", value]
 					else:
 						return ["Continue", value]
-			while value['qty'] > 0 and (shorted_dated_batches or normal_batches):
+			while value['qty'] > 0 and (shortdated_batches or normal_batches):
 				value_copy = copy.copy(value)
 				if shortdated_first == True:
-					results = try_batch(shorted_dated_batches, True)
+					results = try_batch(shortdated_batches, True)
 				else:
 					results = try_batch(normal_batches, False)
 
@@ -332,7 +332,7 @@ class BaseDocument(object):
 				if shortdated_first == True:
 					results = try_batch(normal_batches, False)
 				else:
-					results = try_batch(shorted_dated_batches, True)
+					results = try_batch(shortdated_batches, True)
 				if results[0] == "Failed":
 					return [False, results[1]]
 			if value['qty'] > 0:
