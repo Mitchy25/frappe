@@ -276,14 +276,14 @@ class BaseDocument(object):
 				posting_date = datetime.datetime.strptime(posting_date, "%Y-%m-%d").date()
 			elif type(posting_date) is datetime.datetime:
 				posting_date = posting_date.date()
-			batches = [batch for batch in batches if batch["qty"] > 0 and (not batch["expiry_date"] or batch["expiry_date"] >= posting_date) and batch["disabled"] != 0]
+			batches = [batch for batch in batches if batch["qty"] > 0 and (not batch["expiry_date"] or batch["expiry_date"] >= posting_date) and batch["disabled"] == 0]
 			if specific_batch:
 				batches = [batch for batch in batches if batch['batch_id'] == specific_batch]
 			expiry_date = int(frappe.get_value("Item", value['item_code'], "shortdated_timeframe_in_months"))
 			expiry_cutoff = posting_date + relativedelta(months=expiry_date)
 
-			shorted_dated_batches = [i for i in batches if i["expiry_date"] and i["expiry_date"] <= expiry_cutoff]
-			normal_batches = [i for i in batches if not i["expiry_date"] or i["expiry_date"] > expiry_cutoff]
+			shortdated_batches = [i for i in batches if i["expiry_date"] and i["expiry_date"] <= expiry_cutoff and batch["disabled"] == 0]
+			normal_batches = [i for i in batches if not i["expiry_date"] or i["expiry_date"] > expiry_cutoff and batch["disabled"] == 0]
 			def assign_to_batch(current_batch, batches, shortdated):
 				if value['qty'] > current_batch['qty']:
 					value_copy['qty'] = current_batch['qty']
