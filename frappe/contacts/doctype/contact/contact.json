@@ -249,7 +249,7 @@
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-08-03 08:56:15.663939",
+ "modified": "2024-04-30 11:53:46.696354",
  "modified_by": "Administrator",
  "module": "Contacts",
  "name": "Contact",
@@ -379,6 +379,7 @@
    "role": "All"
   }
  ],
+ "search_fields": "first_name, last_name, email_id, phone, mobile_no",
  "sort_field": "modified",
  "sort_order": "ASC"
 }

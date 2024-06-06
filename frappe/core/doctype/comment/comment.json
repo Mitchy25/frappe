@@ -109,12 +109,11 @@
    "default": "0",
    "fieldname": "notify_on_load",
    "fieldtype": "Check",
-   "hidden": 1,
-   "label": "Notify On Load"
+   "label": "Notify on Load"
   }
  ],
  "links": [],
- "modified": "2024-05-03 11:38:18.567489",
+ "modified": "2024-05-09 10:53:06.724109",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "Comment",
