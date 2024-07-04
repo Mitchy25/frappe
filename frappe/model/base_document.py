@@ -251,6 +251,7 @@ class BaseDocument(object):
 
 		import copy
 		append_list = []
+		idx_list = []
 		if not self.get("update_stock", True) or not frappe.get_value("Item", value['item_code'], "has_batch_no"):
 			value_copy = copy.copy(value)
 			if self.get("update_stock", True) and "actual_qty" in value and value['qty'] > value['actual_qty']:
@@ -279,9 +280,9 @@ class BaseDocument(object):
 			batches = [batch for batch in batches if batch["qty"] > 0 and (not batch["expiry_date"] or batch["expiry_date"] >= posting_date) and batch["disabled"] == 0]
 			if specific_batch:
 				batches = [batch for batch in batches if batch['batch_id'] == specific_batch]
+
 			expiry_date = int(frappe.get_value("Item", value['item_code'], "shortdated_timeframe_in_months"))
 			expiry_cutoff = posting_date + relativedelta(months=expiry_date)
-
 			shortdated_batches = [i for i in batches if i["expiry_date"] and i["expiry_date"] <= expiry_cutoff and i["disabled"] == 0]
 			normal_batches = [i for i in batches if not i["expiry_date"] or i["expiry_date"] > expiry_cutoff and i["disabled"] == 0]
 			def assign_to_batch(current_batch, batches, shortdated):
@@ -348,7 +349,8 @@ class BaseDocument(object):
 			for item in append_list:
 				if item['qty'] > 0:
 					self.append("items", item)
-		return [success, value]
+					idx_list.append(self.items[-1].idx)
+		return [success, value, idx_list]
 
 	def extend(self, key, value):
 		if isinstance(value, list):
