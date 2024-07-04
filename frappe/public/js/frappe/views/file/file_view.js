@@ -384,8 +384,8 @@ frappe.views.FileView = class FileView extends frappe.views.ListView {
 					<input class="list-row-checkbox"
 						type="checkbox" data-name="${file.name}">
 				</span>
-				<span class="level-item  ellipsis" title="${file.file_name}">
-					<a class="ellipsis" href="${route_url}" title="${file.file_name}">
+				<span class="level-item  ellipsis" title="${frappe.utils.escape_html(file.file_name)}">
+					<a class="ellipsis" href="${route_url}" title="${frappe.utils.escape_html(file.file_name)}">
 						${file.subject_html}
 					</a>
 				</span>
@@ -495,6 +495,9 @@ frappe.views.FileView.grid_view =
 function redirect_to_home_if_invalid_route() {
 	const route = frappe.get_route();
 	if (route[2] === "List") {
+		// Remove List/File/List from route history to avoid redirect loop on going back
+		frappe.route_history.pop();
+
 		// if the user somehow redirects to List/File/List
 		// redirect back to Home
 		frappe.set_route("List", "File", "Home");

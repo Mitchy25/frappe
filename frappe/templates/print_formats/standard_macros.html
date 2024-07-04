@@ -56,9 +56,9 @@
 							<td class="{{ get_align_class(tdf) }}" {{ fieldmeta(df) }}>
 							{% if doc.child_print_templates %}
 								{%- set child_templates = doc.child_print_templates.get(df.fieldname) -%}
-								<div class="value">{{ print_value(tdf, d, doc, visible_columns, child_templates) }}</div></td>
+								<div class="value">{{ _(print_value(tdf, d, doc, visible_columns, child_templates)) }}</div></td>
 							{% else %}
-								<div class="value">{{ print_value(tdf, d, doc, visible_columns) }}</div></td>
+								<div class="value">{{ _(print_value(tdf, d, doc, visible_columns)) }}</div></td>
 							{% endif %}
 						{% endfor %}
 					</tr>
@@ -109,7 +109,7 @@ data-fieldname="{{ df.fieldname }}" data-fieldtype="{{ df.fieldtype }}"
 <div style="padding: 10px 0px" {{ fieldmeta(df) }}>
 	{%- if df.fieldtype in ("Text", "Code", "Long Text") %}<label>{{ _(df.label) }}</label>{%- endif %}
 	{%- if df.fieldtype=="Code" %}
-		<pre class="value">{{ doc.get(df.fieldname) }}</pre>
+		<pre class="value">{{ doc.get(df.fieldname)|e }}</pre>
 	{% else -%}
 		{{ doc.get_formatted(df.fieldname, parent_doc or doc, translated=df.translatable) }}
 {% endif -%}
