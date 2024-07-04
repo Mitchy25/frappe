@@ -2,7 +2,6 @@
 # Copyright (c) 2015, Frappe Technologies and contributors
 # For license information, please see license.txt
 
-from __future__ import unicode_literals
 
 import functools
 
@@ -139,16 +138,23 @@ def get_default_address(doctype, name, sort_key="is_primary_address"):
 
 @frappe.whitelist()
 def get_address_display(address_dict):
-	if not address_dict:
+	return render_address(address_dict)
+
+
+def render_address(address, check_permissions=True):
+	if not address:
 		return
 
-	if not isinstance(address_dict, dict):
-		address_dict = frappe.db.get_value("Address", address_dict, "*", as_dict=True, cache=True) or {}
+	if not isinstance(address, dict):
+		address = frappe.get_cached_doc("Address", address)
+		if check_permissions:
+			address.check_permission()
+		address = address.as_dict()
 
-	name, template = get_address_templates(address_dict)
+	name, template = get_address_templates(address)
 
 	try:
-		return frappe.render_template(template, address_dict)
+		return frappe.render_template(template, address)
 	except TemplateSyntaxError:
 		frappe.throw(_("There is an error in your Address Template {0}").format(name))
 
@@ -229,8 +235,9 @@ def get_address_templates(address):
 
 def get_company_address(company):
 	ret = frappe._dict()
-	ret.company_address = get_default_address("Company", company)
-	ret.company_address_display = get_address_display(ret.company_address)
+	if company:
+		ret.company_address = get_default_address("Company", company)
+		ret.company_address_display = render_address(ret.company_address, check_permissions=False)
 
 	return ret
 
@@ -266,19 +273,23 @@ def address_query(doctype, txt, searchfield, start, page_len, filters):
 		"""select
 			`tabAddress`.name, `tabAddress`.city, `tabAddress`.country
 		from
-			`tabAddress`, `tabDynamic Link`
+			`tabAddress`
+		join `tabDynamic Link`
+			on (`tabDynamic Link`.parent = `tabAddress`.name and `tabDynamic Link`.parenttype = 'Address')
 		where
-			`tabDynamic Link`.parent = `tabAddress`.name and
-			`tabDynamic Link`.parenttype = 'Address' and
 			`tabDynamic Link`.link_doctype = %(link_doctype)s and
 			`tabDynamic Link`.link_name = %(link_name)s and
 			ifnull(`tabAddress`.disabled, 0) = 0 and
 			({search_condition})
 			{mcond} {condition}
 		order by
-			if(locate(%(_txt)s, `tabAddress`.name), locate(%(_txt)s, `tabAddress`.name), 99999),
+			case
+				when locate(%(_txt)s, `tabAddress`.name) != 0
+				then locate(%(_txt)s, `tabAddress`.name)
+				else 99999
+			end,
 			`tabAddress`.idx desc, `tabAddress`.name
-		limit %(start)s, %(page_len)s """.format(
+		limit %(page_len)s offset %(start)s""".format(
 			mcond=get_match_cond(doctype),
 			key=searchfield,
 			search_condition=search_condition,
