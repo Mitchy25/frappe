@@ -28,6 +28,7 @@ def get_list(
 	doctype,
 	fields=None,
 	filters=None,
+	group_by=None,
 	order_by=None,
 	limit_start=None,
 	limit_page_length=20,
@@ -52,6 +53,7 @@ def get_list(
 		fields=fields,
 		filters=filters,
 		or_filters=or_filters,
+		group_by=group_by,
 		order_by=order_by,
 		limit_start=limit_start,
 		limit_page_length=limit_page_length,
@@ -86,6 +88,10 @@ def get(doctype, name=None, filters=None, parent=None):
 		doc = frappe.get_doc(doctype)  # single
 
 	doc.check_permission()
+
+	if frappe.get_system_settings("apply_perm_level_on_api_calls"):
+		doc.apply_fieldlevel_read_permissions()
+
 	return doc.as_dict()
 
 

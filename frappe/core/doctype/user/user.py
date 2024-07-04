@@ -769,14 +769,6 @@ def get_email_awaiting(user):
 	)
 	if waiting:
 		return waiting
-	else:
-		frappe.db.sql(
-			"""update `tabUser Email`
-				set awaiting_password =0
-				where parent = %(user)s""",
-			{"user": user},
-		)
-		return False
 
 
 def ask_pass_update():
@@ -877,7 +869,7 @@ def sign_up(email, full_name, redirect_to):
 
 
 @frappe.whitelist(allow_guest=True)
-@rate_limit(limit=get_password_reset_limit, seconds=24 * 60 * 60, methods=["POST"])
+@rate_limit(limit=get_password_reset_limit, seconds=24 * 60 * 60)
 def reset_password(user):
 	if user == "Administrator":
 		return "not allowed"
@@ -909,7 +901,7 @@ def user_query(doctype, txt, searchfield, start, page_len, filters):
 	conditions = []
 
 	user_type_condition = "and user_type != 'Website User'"
-	if filters and filters.get("ignore_user_type"):
+	if filters and filters.get("ignore_user_type") and frappe.session.data.user_type == "System User":
 		user_type_condition = ""
 		filters.pop("ignore_user_type")
 

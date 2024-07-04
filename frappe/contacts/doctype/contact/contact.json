@@ -373,10 +373,13 @@
    "write": 1
   },
   {
-   "permlevel": 1,
+   "create": 1,
+   "delete": 1,
+   "if_owner": 1,
    "read": 1,
    "report": 1,
-   "role": "All"
+   "role": "All",
+   "write": 1
   }
  ],
  "search_fields": "first_name, last_name, email_id, phone, mobile_no",
