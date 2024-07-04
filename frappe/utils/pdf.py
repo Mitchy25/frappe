@@ -47,7 +47,7 @@ def get_pdf(html, options=None, output=None, meta={}):
 
 		# https://pythonhosted.org/PyPDF2/PdfFileReader.html
 		# create in-memory binary streams from filedata and create a PdfFileReader object
-		reader = PdfFileReader(io.BytesIO(filedata))
+		reader = PdfFileReader(io.BytesIO(filedata), overwriteWarnings=False)
 	except OSError as e:
 		if any([error in str(e) for error in PDF_CONTENT_ERRORS]):
 			if not filedata:
@@ -177,6 +177,8 @@ def read_options_from_html(html):
 		"page-size",
 		"header-spacing",
 		"orientation",
+		"page-width",
+		"page-height",
 	):
 		try:
 			pattern = re.compile(r"(\.print-format)([\S|\s][^}]*?)(" + str(attr) + r":)(.+)(mm;)")

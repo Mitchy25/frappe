@@ -3,7 +3,7 @@ import datetime
 import hashlib
 import re
 from http import cookies
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 
 import jwt
 import pytz
@@ -458,6 +458,7 @@ class OAuthWebRequestValidator(RequestValidator):
 				user = None
 				payload = jwt.decode(
 					id_token_hint,
+					algorithms=["HS256"],
 					options={
 						"verify_signature": False,
 						"verify_aud": False,
@@ -480,7 +481,7 @@ class OAuthWebRequestValidator(RequestValidator):
 						id_token_hint,
 						key=client_secret,
 						audience=client_id,
-						algorithm="HS256",
+						algorithms=["HS256"],
 						options={
 							"verify_exp": False,
 						},
@@ -573,7 +574,7 @@ def get_userinfo(user):
 		if frappe.utils.validate_url(user.user_image, valid_schemes=valid_url_schemes):
 			picture = user.user_image
 		else:
-			picture = frappe_server_url + "/" + user.user_image
+			picture = urljoin(frappe_server_url, user.user_image)
 
 	userinfo = frappe._dict(
 		{
