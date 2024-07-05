@@ -278,7 +278,10 @@ setup_wizard_exception = [
 ]
 
 before_migrate = []
-after_migrate = ["frappe.website.doctype.website_theme.website_theme.after_migrate"]
+after_migrate = [
+	"frappe.website.doctype.website_theme.website_theme.after_migrate",
+	"frappe.patches.v13_0.eol_warning.execute",
+]
 
 otp_methods = ["OTP App", "Email", "SMS"]
 
@@ -365,3 +368,20 @@ global_search_doctypes = {
 		{"doctype": "Web Form"},
 	]
 }
+
+# Request Hooks
+before_request = [
+	"frappe.recorder.record",
+	"frappe.monitor.start",
+	"frappe.rate_limiter.apply",
+]
+after_request = ["frappe.rate_limiter.update", "frappe.monitor.stop", "frappe.recorder.dump"]
+
+# Background Job Hooks
+before_job = [
+	"frappe.monitor.start",
+]
+after_job = [
+	"frappe.monitor.stop",
+	"frappe.utils.file_lock.release_document_locks",
+]

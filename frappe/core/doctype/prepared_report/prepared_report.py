@@ -11,6 +11,7 @@ import frappe
 from frappe.desk.form.load import get_attachments
 from frappe.desk.query_report import generate_report_result
 from frappe.model.document import Document
+from frappe.monitor import add_data_to_monitor
 from frappe.utils import gzip_compress, gzip_decompress
 from frappe.utils.background_jobs import enqueue
 
@@ -27,6 +28,8 @@ class PreparedReport(Document):
 def run_background(prepared_report):
 	instance = frappe.get_doc("Prepared Report", prepared_report)
 	report = frappe.get_doc("Report", instance.ref_report_doctype)
+
+	add_data_to_monitor(report=instance.ref_report_doctype)
 
 	try:
 		report.custom_columns = []
@@ -97,9 +100,9 @@ def delete_expired_prepared_reports():
 def delete_prepared_reports(reports):
 	reports = frappe.parse_json(reports)
 	for report in reports:
-		frappe.delete_doc(
-			"Prepared Report", report["name"], ignore_permissions=True, delete_permanently=True
-		)
+		prepared_report = frappe.get_doc("Prepared Report", report["name"])
+		if prepared_report.has_permission():
+			prepared_report.delete(ignore_permissions=True, delete_permanently=True)
 
 
 def create_json_gz_file(data, dt, dn):

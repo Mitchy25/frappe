@@ -86,6 +86,9 @@ def has_permission(
 	if user == "Administrator":
 		return True
 
+	if ptype == "share" and frappe.get_system_settings("disable_document_sharing"):
+		return False
+
 	meta = frappe.get_meta(doctype)
 
 	if doc:
@@ -154,7 +157,7 @@ def get_doc_permissions(doc, user=None, ptype=None):
 		return (doc.get("owner") or "").lower() == frappe.session.user.lower()
 
 	if has_controller_permissions(doc, ptype, user=user) is False:
-		push_perm_check_log("Not allowed via controller permission check")
+		push_perm_check_log(_("Not allowed via controller permission check"))
 		return {ptype: 0}
 
 	permissions = copy.deepcopy(get_role_permissions(meta, user=user, is_owner=is_user_owner()))
@@ -204,7 +207,7 @@ def get_role_permissions(doctype_meta, user=None, is_owner=None):
 	if not user:
 		user = frappe.session.user
 
-	cache_key = (doctype_meta.name, user)
+	cache_key = (doctype_meta.name, user, bool(is_owner))
 
 	if user == "Administrator":
 		return allow_everything()
@@ -671,4 +674,5 @@ def filter_allowed_docs_for_doctype(user_permissions, doctype, with_default_doc=
 def push_perm_check_log(log):
 	if frappe.flags.get("has_permission_check_logs") == None:
 		return
-	frappe.flags.get("has_permission_check_logs").append(_(log))
+
+	frappe.flags.get("has_permission_check_logs").append(log)
