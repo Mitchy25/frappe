@@ -1,27 +1,26 @@
 // Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and Contributors
 // MIT License. See LICENSE
 
-
 frappe.ui.form.LinkedWith = class LinkedWith {
 	constructor(opts) {
 		$.extend(this, opts);
 	}
 
 	show() {
-		if(!this.dialog)
-			this.make_dialog();
+		if (!this.dialog) this.make_dialog();
 
 		$(this.dialog.body).html(
 			`<div class="text-muted text-center" style="padding: 30px 0px">
 				${__("Loading")}...
-			</div>`);
+			</div>`
+		);
 
 		this.dialog.show();
 	}
 
 	make_dialog() {
 		this.dialog = new frappe.ui.Dialog({
-			title: __("Linked With")
+			title: __("Linked With"),
 		});
 
 		this.dialog.on_page_show = () => {
@@ -38,22 +37,24 @@ frappe.ui.form.LinkedWith = class LinkedWith {
 	}
 
 	make_html() {
-		let html = '';
+		let html = "";
 		const linked_docs = this.frm.__linked_docs;
 		const linked_doctypes = Object.keys(linked_docs);
 
 		if (linked_doctypes.length === 0) {
 			html = __("Not Linked to any record");
 		} else {
-			html = linked_doctypes.map(doctype => {
-				const docs = linked_docs[doctype];
-				return `
+			html = linked_doctypes
+				.map((doctype) => {
+					const docs = linked_docs[doctype];
+					return `
 					<div class="list-item-table margin-bottom">
 						${this.make_doc_head(doctype)}
-						${docs.map(doc => this.make_doc_row(doc, doctype)).join('')}
+						${docs.map((doc) => this.make_doc_row(doc, doctype)).join("")}
 					</div>
 				`;
-			}).join('');
+				})
+				.join("");
 		}
 
 		$(this.dialog.body).html(html);

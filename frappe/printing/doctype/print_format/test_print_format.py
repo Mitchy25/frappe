@@ -1,22 +1,18 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# See license.txt
-from __future__ import print_function, unicode_literals
-
+# License: MIT. See LICENSE
 import re
-import unittest
 
 import frappe
+from frappe.tests.utils import FrappeTestCase
 
 test_records = frappe.get_test_records("Print Format")
 
 
-class TestPrintFormat(unittest.TestCase):
+class TestPrintFormat(FrappeTestCase):
 	def test_print_user(self, style=None):
 		print_html = frappe.get_print("User", "Administrator", style=style)
 		self.assertTrue("<label>First Name: </label>" in print_html)
-		self.assertTrue(
-			re.findall(r'<div class="col-xs-[^"]*">[\s]*administrator[\s]*</div>', print_html)
-		)
+		self.assertTrue(re.findall(r'<div class="col-xs-[^"]*">[\s]*administrator[\s]*</div>', print_html))
 		return print_html
 
 	def test_print_user_standard(self):

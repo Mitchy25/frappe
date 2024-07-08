@@ -18,9 +18,7 @@ def get_columns():
 
 	# Each app is shown in order as a column
 	installed_apps = frappe.get_installed_apps(_ensure_on_bench=True)
-	columns += [
-		{"label": app, "fieldname": app, "fieldtype": values_field_type} for app in installed_apps
-	]
+	columns += [{"label": app, "fieldname": app, "fieldtype": values_field_type} for app in installed_apps]
 
 	return columns
 
@@ -37,7 +35,7 @@ def get_data():
 
 		v = delist(v)
 
-		if isinstance(v, (dict, list)):
+		if isinstance(v, dict | list):
 			try:
 				return frappe.as_json(v)
 			except Exception:
@@ -51,8 +49,7 @@ def get_data():
 			for k, v in values.items():
 				row = {"hook_name": hook, "hook_key": fmt_hook_values(k), "hook_values": fmt_hook_values(v)}
 				for app in installed_apps:
-					app_hooks = delist(frappe.get_hooks(hook, app_name=app))
-					if app_hooks:
+					if app_hooks := delist(frappe.get_hooks(hook, app_name=app)):
 						row[app] = fmt_hook_values(app_hooks.get(k))
 				data.append(row)
 		else:

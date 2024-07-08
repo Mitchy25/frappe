@@ -1,7 +1,5 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# MIT License. See license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 import json
 
@@ -9,7 +7,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document, get_controller
 from frappe.utils import cint, quoted
-from frappe.website.render import resolve_path
+from frappe.website.path_resolver import resolve_path
 
 no_cache = 1
 
@@ -82,6 +80,9 @@ def get_list_data(
 	"""Returns processed HTML page for a standard listing."""
 	limit_start = cint(limit_start)
 
+	if frappe.is_table(doctype):
+		frappe.throw(_("Child DocTypes are not allowed"), title=_("Invalid DocType"))
+
 	if not txt and frappe.form_dict.search:
 		txt = frappe.form_dict.search
 		del frappe.form_dict["search"]
@@ -124,13 +125,11 @@ def get_list_data(
 def set_route(context):
 	"""Set link for the list item"""
 	if context.web_form_name:
-		context.route = "{0}?name={1}".format(context.pathname, quoted(context.doc.name))
+		context.route = f"{context.pathname}?name={quoted(context.doc.name)}"
 	elif context.doc and getattr(context.doc, "route", None):
 		context.route = context.doc.route
 	else:
-		context.route = "{0}/{1}".format(
-			context.pathname or quoted(context.doc.doctype), quoted(context.doc.name)
-		)
+		context.route = f"{context.pathname or quoted(context.doc.doctype)}/{quoted(context.doc.name)}"
 
 
 def prepare_filters(doctype, controller, kwargs):
@@ -144,6 +143,8 @@ def prepare_filters(doctype, controller, kwargs):
 
 	if hasattr(controller, "website") and controller.website.get("condition_field"):
 		filters[controller.website["condition_field"]] = 1
+	elif meta.is_published_field:
+		filters[meta.is_published_field] = 1
 
 	if filters.pathname:
 		# resolve additional filters from path
@@ -153,7 +154,7 @@ def prepare_filters(doctype, controller, kwargs):
 				filters[key] = val
 
 	# filter the filters to include valid fields only
-	for fieldname, val in list(filters.items()):
+	for fieldname in list(filters.keys()):
 		if not meta.has_field(fieldname):
 			del filters[fieldname]
 
@@ -227,7 +228,12 @@ def get_list(
 	if txt:
 		if meta.search_fields:
 			for f in meta.get_search_fields():
-				if f == "name" or meta.get_field(f).fieldtype in ("Data", "Text", "Small Text", "Text Editor"):
+				if f == "name" or meta.get_field(f).fieldtype in (
+					"Data",
+					"Text",
+					"Small Text",
+					"Text Editor",
+				):
 					or_filters.append([doctype, f, "like", "%" + txt + "%"])
 		else:
 			if isinstance(filters, dict):

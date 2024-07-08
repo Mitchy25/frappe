@@ -1,7 +1,5 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# MIT License. See license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 """assign/unassign to ToDo"""
 
@@ -30,16 +28,18 @@ def get(args=None):
 
 	return frappe.get_all(
 		"ToDo",
-		fields=["owner", "name"],
-		filters=dict(
-			reference_type=args.get("doctype"), reference_name=args.get("name"), status=("!=", "Cancelled")
-		),
+		fields=["allocated_to as owner", "name"],
+		filters={
+			"reference_type": args.get("doctype"),
+			"reference_name": args.get("name"),
+			"status": ("not in", ("Cancelled", "Closed")),
+		},
 		limit=5,
 	)
 
 
 @frappe.whitelist()
-def add(args=None):
+def add(args=None, *, ignore_permissions=False):
 	"""add in someone's to do list
 	args = {
 	        "assign_to": [],
@@ -61,8 +61,10 @@ def add(args=None):
 			"reference_type": args["doctype"],
 			"reference_name": args["name"],
 			"status": "Open",
-			"owner": assign_to,
+			"allocated_to": assign_to,
 		}
+		if not ignore_permissions:
+			frappe.get_doc(args["doctype"], args["name"]).check_permission()
 
 		if frappe.get_all("ToDo", filters=filters):
 			users_with_duplicate_todo.append(assign_to)
@@ -75,7 +77,7 @@ def add(args=None):
 			d = frappe.get_doc(
 				{
 					"doctype": "ToDo",
-					"owner": assign_to,
+					"allocated_to": assign_to,
 					"reference_type": args["doctype"],
 					"reference_name": args["name"],
 					"description": args.get("description"),
@@ -96,7 +98,9 @@ def add(args=None):
 			# if assignee does not have permissions, share or inform
 			if not frappe.has_permission(doc=doc, user=assign_to):
 				if frappe.get_system_settings("disable_document_sharing"):
-					msg = _("User {0} is not permitted to access this document.").format(frappe.bold(assign_to))
+					msg = _("User {0} is not permitted to access this document.").format(
+						frappe.bold(assign_to)
+					)
 					msg += "<br>" + _(
 						"As document sharing is disabled, please give them the required permissions before assigning."
 					)
@@ -106,12 +110,13 @@ def add(args=None):
 					shared_with_users.append(assign_to)
 
 			# make this document followed by assigned user
-			follow_document(args["doctype"], args["name"], assign_to)
+			if frappe.get_cached_value("User", assign_to, "follow_assigned_documents"):
+				follow_document(args["doctype"], args["name"], assign_to)
 
 			# notify
 			notify_assignment(
 				d.assigned_by,
-				d.owner,
+				d.allocated_to,
 				d.reference_type,
 				d.reference_name,
 				action="ASSIGN",
@@ -143,95 +148,127 @@ def add_multiple(args=None):
 		add(args)
 
 
-def close_all_assignments(doctype, name):
-	assignments = frappe.db.get_all(
+def close_all_assignments(doctype, name, ignore_permissions=False):
+	assignments = frappe.get_all(
 		"ToDo",
-		fields=["owner"],
+		fields=["allocated_to", "name"],
 		filters=dict(reference_type=doctype, reference_name=name, status=("!=", "Cancelled")),
 	)
 	if not assignments:
 		return False
 
 	for assign_to in assignments:
-		set_status(doctype, name, assign_to.owner, status="Closed")
+		set_status(
+			doctype,
+			name,
+			todo=assign_to.name,
+			assign_to=assign_to.allocated_to,
+			status="Closed",
+			ignore_permissions=ignore_permissions,
+		)
 
 	return True
 
 
 @frappe.whitelist()
-def remove(doctype, name, assign_to):
-	return set_status(doctype, name, assign_to, status="Canceled")
+def remove(doctype, name, assign_to, ignore_permissions=False):
+	return set_status(doctype, name, "", assign_to, status="Cancelled", ignore_permissions=ignore_permissions)
 
 
-def set_status(doctype, name, assign_to, status="Cancelled"):
+@frappe.whitelist()
+def close(doctype: str, name: str, assign_to: str, ignore_permissions=False):
+	if assign_to != frappe.session.user:
+		frappe.throw(_("Only the assignee can complete this to-do."))
+
+	return set_status(doctype, name, "", assign_to, status="Closed", ignore_permissions=ignore_permissions)
+
+
+def set_status(doctype, name, todo=None, assign_to=None, status="Cancelled", ignore_permissions=False):
 	"""remove from todo"""
+
+	if not ignore_permissions:
+		frappe.get_doc(doctype, name).check_permission()
 	try:
-		todo = frappe.db.get_value(
-			"ToDo",
-			{
-				"reference_type": doctype,
-				"reference_name": name,
-				"owner": assign_to,
-				"status": ("!=", status),
-			},
-		)
+		if not todo:
+			todo = frappe.db.get_value(
+				"ToDo",
+				{
+					"reference_type": doctype,
+					"reference_name": name,
+					"allocated_to": assign_to,
+					"status": ("!=", status),
+				},
+			)
 		if todo:
 			todo = frappe.get_doc("ToDo", todo)
 			todo.status = status
 			todo.save(ignore_permissions=True)
 
-			notify_assignment(todo.assigned_by, todo.owner, todo.reference_type, todo.reference_name)
+			notify_assignment(todo.assigned_by, todo.allocated_to, todo.reference_type, todo.reference_name)
 	except frappe.DoesNotExistError:
 		pass
 
 	# clear assigned_to if field exists
-	if frappe.get_meta(doctype).get_field("assigned_to") and status == "Cancelled":
+	if frappe.get_meta(doctype).get_field("assigned_to") and status in ("Cancelled", "Closed"):
 		frappe.db.set_value(doctype, name, "assigned_to", None)
 
 	return get({"doctype": doctype, "name": name})
 
 
-def clear(doctype, name):
+def clear(doctype, name, ignore_permissions=False):
 	"""
 	Clears assignments, return False if not assigned.
 	"""
-	assignments = frappe.db.get_all(
-		"ToDo", fields=["owner"], filters=dict(reference_type=doctype, reference_name=name)
+	assignments = frappe.get_all(
+		"ToDo",
+		fields=["allocated_to", "name"],
+		filters=dict(reference_type=doctype, reference_name=name),
 	)
 	if not assignments:
 		return False
 
 	for assign_to in assignments:
-		set_status(doctype, name, assign_to.owner, "Cancelled")
+		set_status(
+			doctype,
+			name,
+			todo=assign_to.name,
+			assign_to=assign_to.allocated_to,
+			status="Cancelled",
+			ignore_permissions=ignore_permissions,
+		)
 
 	return True
 
 
-def notify_assignment(assigned_by, owner, doc_type, doc_name, action="CLOSE", description=None):
+def notify_assignment(assigned_by, allocated_to, doc_type, doc_name, action="CLOSE", description=None):
 	"""
 	Notify assignee that there is a change in assignment
 	"""
-	if not (assigned_by and owner and doc_type and doc_name):
+	if not (assigned_by and allocated_to and doc_type and doc_name):
 		return
 
+	assigned_user = frappe.db.get_value("User", allocated_to, ["language", "enabled"], as_dict=True)
+
 	# return if self assigned or user disabled
-	if assigned_by == owner or not frappe.db.get_value("User", owner, "enabled"):
+	if assigned_by == allocated_to or not assigned_user.enabled:
 		return
 
 	# Search for email address in description -- i.e. assignee
 	user_name = frappe.get_cached_value("User", frappe.session.user, "full_name")
 	title = get_title(doc_type, doc_name)
-	description_html = "<div>{0}</div>".format(description) if description else None
+	description_html = f"<div>{description}</div>" if description else None
 
 	if action == "CLOSE":
-		subject = _("Your assignment on {0} {1} has been removed by {2}").format(
-			frappe.bold(doc_type), get_title_html(title), frappe.bold(user_name)
+		subject = _("Your assignment on {0} {1} has been removed by {2}", lang=assigned_user.language).format(
+			frappe.bold(_(doc_type)), get_title_html(title), frappe.bold(user_name)
 		)
 	else:
 		user_name = frappe.bold(user_name)
-		document_type = frappe.bold(doc_type)
+		document_type = frappe.bold(_(doc_type, lang=assigned_user.language))
 		title = get_title_html(title)
-		subject = _("{0} assigned a new task {1} {2} to you").format(user_name, document_type, title)
+		subject = _("{0} assigned a new task {1} {2} to you", lang=assigned_user.language).format(
+			user_name, document_type, title
+		)
 
 	notification_doc = {
 		"type": "Assignment",
@@ -242,7 +279,8 @@ def notify_assignment(assigned_by, owner, doc_type, doc_name, action="CLOSE", de
 		"email_content": description_html,
 	}
 
-	enqueue_create_notification(owner, notification_doc)
+	enqueue_create_notification(allocated_to, notification_doc)
+
 
 
 def format_message_for_assign_to(users):

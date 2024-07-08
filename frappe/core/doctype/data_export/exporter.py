@@ -1,23 +1,31 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# MIT License. See license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 import csv
 import os
 import re
 
-from six import string_types
-
 import frappe
 import frappe.permissions
 from frappe import _
 from frappe.core.doctype.access_log.access_log import make_access_log
-from frappe.core.doctype.data_import_legacy.importer import get_data_keys
+from frappe.model.utils import is_virtual_doctype
 from frappe.utils import cint, cstr, format_datetime, format_duration, formatdate, parse_json
 from frappe.utils.csvutils import UnicodeWriter
 
 reflags = {"I": re.I, "L": re.L, "M": re.M, "U": re.U, "S": re.S, "X": re.X, "D": re.DEBUG}
+
+
+def get_data_keys():
+	return frappe._dict(
+		{
+			"data_separator": _("Start entering data below this line"),
+			"main_table": _("Table") + ":",
+			"parent_table": _("Parent Table") + ":",
+			"columns": _("Column Name") + ":",
+			"doctype": _("DocType") + ":",
+		}
+	)
 
 
 @frappe.whitelist()
@@ -86,7 +94,7 @@ class DataExporter:
 
 		self.docs_to_export = {}
 		if self.doctype:
-			if isinstance(self.doctype, string_types):
+			if isinstance(self.doctype, str):
 				self.doctype = [self.doctype]
 
 			if len(self.doctype) > 1:
@@ -158,9 +166,7 @@ class DataExporter:
 		self.writer.writerow([_("Notes:")])
 		self.writer.writerow([_("Please do not change the template headings.")])
 		self.writer.writerow([_("First data column must be blank.")])
-		self.writer.writerow(
-			[_('If you are uploading new records, leave the "name" (ID) column blank.')]
-		)
+		self.writer.writerow([_('If you are uploading new records, leave the "name" (ID) column blank.')])
 		self.writer.writerow(
 			[_('If you are uploading new records, "Naming Series" becomes mandatory, if present.')]
 		)
@@ -187,8 +193,23 @@ class DataExporter:
 		# build list of valid docfields
 		tablecolumns = []
 		table_name = "tab" + dt
+
 		for f in frappe.db.get_table_columns_description(table_name):
 			field = meta.get_field(f.name)
+			if f.name in ["owner", "creation"]:
+				std_field = next((x for x in frappe.model.std_fields if x["fieldname"] == f.name), None)
+				if std_field:
+					field = frappe._dict(
+						{
+							"fieldname": std_field.get("fieldname"),
+							"label": std_field.get("label"),
+							"fieldtype": std_field.get("fieldtype"),
+							"options": std_field.get("options"),
+							"idx": 0,
+							"parent": dt,
+						}
+					)
+
 			if field and (
 				(self.select_columns and f.name in self.select_columns[dt]) or not self.select_columns
 			):
@@ -212,7 +233,9 @@ class DataExporter:
 							"label": "Parent",
 							"fieldtype": "Data",
 							"reqd": 1,
-							"info": _("Parent is the name of the document to which the data will get added to."),
+							"info": _(
+								"Parent is the name of the document to which the data will get added to."
+							),
 						}
 					),
 					True,
@@ -324,7 +347,7 @@ class DataExporter:
 		order_by = None
 		table_columns = frappe.db.get_table_columns(self.parent_doctype)
 		if "lft" in table_columns and "rgt" in table_columns:
-			order_by = "`tab{doctype}`.`lft` asc".format(doctype=self.parent_doctype)
+			order_by = f"`tab{self.parent_doctype}`.`lft` asc"
 		# get permitted data only
 		self.data = frappe.get_list(
 			self.doctype, fields=["*"], filters=self.filters, limit_page_length=None, order_by=order_by
@@ -361,6 +384,8 @@ class DataExporter:
 			if self.all_doctypes:
 				# add child tables
 				for c in self.child_doctypes:
+					if is_virtual_doctype(c["doctype"]):
+						continue
 					child_doctype_table = DocType(c["doctype"])
 					data_row = (
 						frappe.qb.from_(child_doctype_table)
@@ -371,7 +396,6 @@ class DataExporter:
 					)
 					for ci, child in enumerate(data_row.run(as_dict=True)):
 						self.add_data_row(rows, c["doctype"], c["parentfield"], child, ci)
-
 			for row in rows:
 				self.writer.writerow(row)
 
@@ -379,7 +403,7 @@ class DataExporter:
 		d = doc.copy()
 		meta = frappe.get_meta(dt)
 		if self.all_doctypes:
-			d.name = '"' + d.name + '"'
+			d.name = f'"{d.name}"'
 
 		if len(rows) < rowidx + 1:
 			rows.append([""] * (len(self.columns) + 1))
@@ -403,23 +427,20 @@ class DataExporter:
 				row[_column_start_end.start + i + 1] = value
 
 	def build_response_as_excel(self):
-		filename = frappe.generate_hash("", 10)
+		from frappe.desk.utils import provide_binary_file
+		from frappe.utils.xlsxutils import make_xlsx
+
+		filename = frappe.generate_hash(length=10)
 		with open(filename, "wb") as f:
 			f.write(cstr(self.writer.getvalue()).encode("utf-8"))
 		f = open(filename)
 		reader = csv.reader(f)
-
-		from frappe.utils.xlsxutils import make_xlsx
-
 		xlsx_file = make_xlsx(reader, "Data Import Template" if self.template else "Data Export")
 
 		f.close()
 		os.remove(filename)
 
-		# write out response as a xlsx type
-		frappe.response["filename"] = self.doctype + ".xlsx"
-		frappe.response["filecontent"] = xlsx_file.getvalue()
-		frappe.response["type"] = "binary"
+		provide_binary_file(self.doctype, "xlsx", xlsx_file.getvalue())
 
 	def _append_name_column(self, dt=None):
 		self.append_field_column(

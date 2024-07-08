@@ -1,19 +1,21 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# See license.txt
-from __future__ import unicode_literals
-
-import unittest
-
-from six.moves.urllib.parse import quote
+# Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and Contributors
+# License: MIT. See LICENSE
+from typing import TYPE_CHECKING
 
 import frappe
-from frappe.core.doctype.communication.communication import get_emails
+from frappe.core.doctype.communication.communication import Communication, get_emails, parse_email
+from frappe.core.doctype.communication.email import add_attachments, make
 from frappe.email.doctype.email_queue.email_queue import EmailQueue
+from frappe.tests.utils import FrappeTestCase
+
+if TYPE_CHECKING:
+	from frappe.contacts.doctype.contact.contact import Contact
+	from frappe.email.doctype.email_account.email_account import EmailAccount
 
 test_records = frappe.get_test_records("Communication")
 
 
-class TestCommunication(unittest.TestCase):
+class TestCommunication(FrappeTestCase):
 	def test_email(self):
 		valid_email_list = [
 			"Full Name <full@example.com>",
@@ -35,11 +37,13 @@ class TestCommunication(unittest.TestCase):
 			"[invalid!email].com",
 		]
 
-		for x in valid_email_list:
-			self.assertTrue(frappe.utils.parse_addr(x)[1])
+		for i, x in enumerate(valid_email_list):
+			with self.subTest(i=i, x=x):
+				self.assertTrue(frappe.utils.parse_addr(x)[1])
 
-		for x in invalid_email_list:
-			self.assertFalse(frappe.utils.parse_addr(x)[0])
+		for i, x in enumerate(invalid_email_list):
+			with self.subTest(i=i, x=x):
+				self.assertFalse(frappe.utils.parse_addr(x)[0])
 
 	def test_name(self):
 		valid_email_list = [
@@ -132,7 +136,7 @@ class TestCommunication(unittest.TestCase):
 		self.assertNotEqual(2, len(comm.timeline_links))
 
 	def test_contacts_attached(self):
-		contact_sender = frappe.get_doc(
+		contact_sender: "Contact" = frappe.get_doc(
 			{
 				"doctype": "Contact",
 				"first_name": "contact_sender",
@@ -141,7 +145,7 @@ class TestCommunication(unittest.TestCase):
 		contact_sender.add_email("comm_sender@example.com")
 		contact_sender.insert(ignore_permissions=True)
 
-		contact_recipient = frappe.get_doc(
+		contact_recipient: "Contact" = frappe.get_doc(
 			{
 				"doctype": "Contact",
 				"first_name": "contact_recipient",
@@ -150,7 +154,7 @@ class TestCommunication(unittest.TestCase):
 		contact_recipient.add_email("comm_recipient@example.com")
 		contact_recipient.insert(ignore_permissions=True)
 
-		contact_cc = frappe.get_doc(
+		contact_cc: "Contact" = frappe.get_doc(
 			{
 				"doctype": "Contact",
 				"first_name": "contact_cc",
@@ -159,7 +163,7 @@ class TestCommunication(unittest.TestCase):
 		contact_cc.add_email("comm_cc@example.com")
 		contact_cc.insert(ignore_permissions=True)
 
-		comm = frappe.get_doc(
+		comm: Communication = frappe.get_doc(
 			{
 				"doctype": "Communication",
 				"communication_medium": "Email",
@@ -171,10 +175,7 @@ class TestCommunication(unittest.TestCase):
 		).insert(ignore_permissions=True)
 
 		comm = frappe.get_doc("Communication", comm.name)
-
-		contact_links = []
-		for timeline_link in comm.timeline_links:
-			contact_links.append(timeline_link.link_name)
+		contact_links = [x.link_name for x in comm.timeline_links]
 
 		self.assertIn(contact_sender.name, contact_links)
 		self.assertIn(contact_recipient.name, contact_links)
@@ -213,45 +214,29 @@ class TestCommunication(unittest.TestCase):
 
 		comms = get_communication_data("Note", note.name, as_dict=True)
 
-		data = []
-		for comm in comms:
-			data.append(comm.name)
-
+		data = [comm.name for comm in comms]
 		self.assertIn(comm_note_1.name, data)
 		self.assertIn(comm_note_2.name, data)
 
-	def test_link_in_email(self):
-		create_email_account()
+	def test_parse_email(self):
+		to = "Jon Doe <jon.doe@example.org>"
+		cc = """=?UTF-8?Q?Max_Mu=C3=9F?= <max.muss@examle.org>,
+	erp+Customer+that%20company@example.org"""
+		bcc = ""
 
-		notes = {}
-		for i in range(2):
-			frappe.delete_doc_if_exists("Note", f"test document link in email {i}")
-			notes[i] = frappe.get_doc(
-				{
-					"doctype": "Note",
-					"title": "test document link in email {0}".format(i),
-				}
-			).insert(ignore_permissions=True)
+		results = list(parse_email([to, cc, bcc]))
+		self.assertEqual([("Customer", "that company")], results)
 
-		comm = frappe.get_doc(
-			{
-				"doctype": "Communication",
-				"communication_medium": "Email",
-				"subject": "Document Link in Email",
-				"sender": "comm_sender@example.com",
-				"recipients": "comm_recipient+{0}+{1}@example.com,comm_recipient+{0}={2}@example.com".format(
-					quote("Note"), quote(notes[0].name), quote(notes[1].name)
-				),
-			}
-		).insert(ignore_permissions=True)
+		results = list(parse_email([to, bcc]))
+		self.assertEqual(results, [])
 
-		doc_links = [
-			(timeline_link.link_doctype, timeline_link.link_name) for timeline_link in comm.timeline_links
-		]
-		self.assertIn(("Note", notes[0].name), doc_links)
-		self.assertIn(("Note", notes[1].name), doc_links)
+		to = "jane.doe+A+Test@example.org"
+		cc = ""
+		bcc = "=?UTF-8?Q?Max_Mu=C3=9F?= <max.muss+Note=Very%20important@examle.org>"
+		results = list(parse_email([to, cc, bcc]))
+		self.assertEqual([("A", "Test"), ("Note", "Very important")], results)
 
-	def test_parse_emails(self):
+	def test_get_emails(self):
 		emails = get_emails(
 			[
 				"comm_recipient+DocType+DocName@example.com",
@@ -264,14 +249,195 @@ class TestCommunication(unittest.TestCase):
 		self.assertEqual(emails[1], "first.lastname@email.com")
 		self.assertEqual(emails[2], "test@user.com")
 
+	def test_signature_in_email_content(self):
+		email_account = create_email_account()
+		signature = email_account.signature
+		base_communication = {
+			"doctype": "Communication",
+			"communication_medium": "Email",
+			"subject": "Document Link in Email",
+			"sender": "comm_sender@example.com",
+		}
+		comm_with_signature = frappe.get_doc(
+			base_communication
+			| {
+				"content": f"""<div class="ql-editor read-mode">
+				Hi,
+				How are you?
+				</div><p></p><br><p class="signature">{signature}</p>""",
+			}
+		).insert(ignore_permissions=True)
+		comm_without_signature = frappe.get_doc(
+			base_communication
+			| {
+				"content": """<div class="ql-editor read-mode">
+				Hi,
+				How are you?
+				</div>"""
+			}
+		).insert(ignore_permissions=True)
 
-def create_email_account():
+		self.assertEqual(comm_with_signature.content, comm_without_signature.content)
+		self.assertEqual(comm_with_signature.content.count(signature), 1)
+		self.assertEqual(comm_without_signature.content.count(signature), 1)
+
+	def test_mark_as_spam(self):
+		frappe.get_doc(
+			{
+				"doctype": "Email Rule",
+				"email_id": "spammer@example.com",
+				"is_spam": 1,
+			}
+		).insert(ignore_permissions=True)
+
+		spam_comm: Communication = frappe.get_doc(
+			{
+				"doctype": "Communication",
+				"communication_medium": "Email",
+				"subject": "This is spam",
+				"sender": "spammer@example.com",
+				"recipients": "comm_recipient@example.com",
+				"sent_or_received": "Received",
+			}
+		).insert(ignore_permissions=True)
+
+		self.assertEqual(spam_comm.email_status, "Spam")
+
+		normal_comm: Communication = frappe.get_doc(
+			{
+				"doctype": "Communication",
+				"communication_medium": "Email",
+				"subject": "This is spam",
+				"sender": "friendlyhuman@example.com",
+				"recipients": "comm_recipient@example.com",
+				"sent_or_received": "Received",
+			}
+		).insert(ignore_permissions=True)
+		self.assertNotEqual(normal_comm.email_status, "Spam")
+
+
+class TestCommunicationEmailMixin(FrappeTestCase):
+	def new_communication(self, recipients=None, cc=None, bcc=None) -> Communication:
+		recipients = ", ".join(recipients or [])
+		cc = ", ".join(cc or [])
+		bcc = ", ".join(bcc or [])
+
+		return frappe.get_doc(
+			{
+				"doctype": "Communication",
+				"communication_type": "Communication",
+				"communication_medium": "Email",
+				"content": "Test content",
+				"recipients": recipients,
+				"cc": cc,
+				"bcc": bcc,
+				"sender": "sender@test.com",
+			}
+		).insert(ignore_permissions=True)
+
+	def new_user(self, email, **user_data):
+		user_data.setdefault("first_name", "first_name")
+		user = frappe.new_doc("User")
+		user.email = email
+		user.update(user_data)
+		user.insert(ignore_permissions=True, ignore_if_duplicate=True)
+		return user
+
+	def test_recipients(self):
+		to_list = ["to@test.com", "receiver <to+1@test.com>", "to@test.com"]
+		comm = self.new_communication(recipients=to_list)
+		res = comm.get_mail_recipients_with_displayname()
+		self.assertCountEqual(res, ["to@test.com", "receiver <to+1@test.com>"])
+		comm.delete()
+
+	def test_cc(self):
+		def test(assertion, cc_list=None, set_user_as=None, include_sender=False, thread_notify=False):
+			if set_user_as:
+				frappe.set_user(set_user_as)
+
+			user = self.new_user(email="cc+1@test.com", thread_notify=thread_notify)
+			comm = self.new_communication(recipients=["to@test.com"], cc=cc_list)
+			res = comm.get_mail_cc_with_displayname(include_sender=include_sender)
+
+			frappe.set_user("Administrator")
+			user.delete()
+			comm.delete()
+
+			self.assertEqual(res, assertion)
+
+		# test filter_thread_notification_disbled_users and filter_mail_recipients
+		test(["cc <cc+2@test.com>"], cc_list=["cc+1@test.com", "cc <cc+2@test.com>", "to@test.com"])
+
+		# test include_sender
+		test(["sender@test.com"], include_sender=True, thread_notify=True)
+		test(["cc+1@test.com"], include_sender=True, thread_notify=True, set_user_as="cc+1@test.com")
+
+	def test_bcc(self):
+		bcc_list = [
+			"bcc+1@test.com",
+			"cc <bcc+2@test.com>",
+		]
+		user = self.new_user(email="bcc+2@test.com", enabled=0)
+		comm = self.new_communication(bcc=bcc_list)
+		res = comm.get_mail_bcc_with_displayname()
+		self.assertCountEqual(res, bcc_list)
+		user.delete()
+		comm.delete()
+
+	def test_sendmail(self):
+		to_list = ["to <to@test.com>"]
+		cc_list = ["cc <cc+1@test.com>", "cc <cc+2@test.com>"]
+
+		comm = self.new_communication(recipients=to_list, cc=cc_list)
+		comm.send_email()
+		doc = EmailQueue.find_one_by_filters(communication=comm.name)
+		mail_receivers = [each.recipient for each in doc.recipients]
+		self.assertIsNotNone(doc)
+		self.assertCountEqual(to_list + cc_list, mail_receivers)
+		doc.delete()
+		comm.delete()
+
+	def test_add_attachments_by_filename(self):
+		to_list = ["to <to@test.com>"]
+		comm = self.new_communication(recipients=to_list)
+
+		file = frappe.new_doc("File")
+		file.file_name = "test_add_attachments_by_filename.txt"
+		file.content = "test_add_attachments_by_filename"
+		file.insert(ignore_permissions=True)
+
+		add_attachments(comm.name, [file.name])
+
+		attached_file_name, attached_content_hash = frappe.db.get_value(
+			"File",
+			{"attached_to_name": comm.name, "attached_to_doctype": comm.doctype},
+			["file_name", "content_hash"],
+		)
+		self.assertEqual(attached_content_hash, file.content_hash)
+		self.assertEqual(attached_file_name, file.file_name)
+
+	def test_add_attachments_by_file_content(self):
+		to_list = ["to <to@test.com>"]
+		comm = self.new_communication(recipients=to_list)
+		file_name = "test_add_attachments_by_file_content.txt"
+		file_content = "test_add_attachments_by_file_content"
+		add_attachments(comm.name, [{"fcontent": file_content, "fname": file_name}])
+		attached_file_name = frappe.db.get_value(
+			"File",
+			{"attached_to_name": comm.name, "attached_to_doctype": comm.doctype},
+		)
+		attached_file = frappe.get_doc("File", attached_file_name)
+		self.assertEqual(attached_file.file_name, file_name)
+		self.assertEqual(attached_file.get_content(), file_content)
+
+
+def create_email_account() -> "EmailAccount":
 	frappe.delete_doc_if_exists("Email Account", "_Test Comm Account 1")
 
 	frappe.flags.mute_emails = False
 	frappe.flags.sent_mail = None
 
-	email_account = frappe.get_doc(
+	return frappe.get_doc(
 		{
 			"is_default": 1,
 			"is_global": 1,
@@ -280,6 +446,7 @@ def create_email_account():
 			"append_to": "ToDo",
 			"email_account_name": "_Test Comm Account 1",
 			"enable_outgoing": 1,
+			"default_outgoing": 1,
 			"smtp_server": "test.example.com",
 			"email_id": "test_comm@example.com",
 			"password": "password",
@@ -292,9 +459,7 @@ def create_email_account():
 			"unreplied_for_mins": 20,
 			"send_notification_to": "test_comm@example.com",
 			"pop3_server": "pop.test.example.com",
-			"no_remaining": "0",
+			"imap_folder": [{"folder_name": "INBOX", "append_to": "ToDo"}],
 			"enable_automatic_linking": 1,
 		}
 	).insert(ignore_permissions=True)
-
-	return email_account

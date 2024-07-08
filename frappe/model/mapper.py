@@ -1,11 +1,12 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# MIT License. See license.txt
-
-from __future__ import unicode_literals
-
+# License: MIT. See LICENSE
 import json
 
-from six import string_types
+import frappe
+from frappe import _
+from frappe.model import child_table_fields, default_fields, table_fields
+from frappe.utils import cstr
+
 
 import frappe
 from frappe import _
@@ -67,14 +68,14 @@ def get_mapped_doc(
 	postprocess=None,
 	ignore_permissions=False,
 	ignore_child_tables=False,
+	cached=False,
 ):
-
 	apply_strict_user_permissions = frappe.get_system_settings("apply_strict_user_permissions")
 
 	# main
 	if not target_doc:
 		target_doc = frappe.new_doc(table_maps[from_doctype]["doctype"])
-	elif isinstance(target_doc, string_types):
+	elif isinstance(target_doc, str):
 		target_doc = frappe.get_doc(json.loads(target_doc))
 
 	if (
@@ -84,7 +85,10 @@ def get_mapped_doc(
 	):
 		target_doc.raise_no_permission_to("create")
 
-	source_doc = frappe.get_doc(from_doctype, from_docname)
+	if cached:
+		source_doc = frappe.get_cached_doc(from_doctype, from_docname)
+	else:
+		source_doc = frappe.get_doc(from_doctype, from_docname)
 
 	if not ignore_permissions:
 		if not source_doc.has_permission("read"):
@@ -137,6 +141,9 @@ def get_mapped_doc(
 							True if target_doc.get(target_parentfield) else False
 						)
 
+					if table_map.get("ignore"):
+						continue
+
 					if table_map.get("add_if_empty") and row_exists_for_parentfield.get(target_parentfield):
 						continue
 
@@ -148,13 +155,10 @@ def get_mapped_doc(
 	if postprocess:
 		postprocess(source_doc, target_doc)
 
+	target_doc.run_method("after_mapping", source_doc)
 	target_doc.set_onload("load_after_mapping", True)
 
-	if (
-		apply_strict_user_permissions
-		and not ignore_permissions
-		and not target_doc.has_permission("create")
-	):
+	if apply_strict_user_permissions and not ignore_permissions and not target_doc.has_permission("create"):
 		target_doc.raise_no_permission_to("create")
 
 	return target_doc
@@ -163,11 +167,10 @@ def get_mapped_doc(
 def map_doc(source_doc, target_doc, table_map, source_parent=None):
 	if table_map.get("validation"):
 		for key, condition in table_map["validation"].items():
-			if condition[0] == "=":
-				if source_doc.get(key) != condition[1]:
-					frappe.throw(
-						_("Cannot map because following condition fails: ") + key + "=" + cstr(condition[1])
-					)
+			if condition[0] == "=" and source_doc.get(key) != condition[1]:
+				frappe.throw(
+					_("Cannot map because following condition fails:") + f" {key}={cstr(condition[1])}"
+				)
 
 	map_fields(source_doc, target_doc, table_map, source_parent)
 
@@ -188,6 +191,7 @@ def map_fields(source_doc, target_doc, table_map, source_parent):
 			if (d.no_copy == 1 or d.fieldtype in table_fields)
 		]
 		+ list(default_fields)
+		+ list(child_table_fields)
 		+ list(table_map.get("field_no_map", []))
 	)
 
@@ -236,7 +240,7 @@ def map_fetch_fields(target_doc, df, no_copy_fields):
 	linked_doc = None
 
 	# options should be like "link_fieldname.fieldname_in_liked_doc"
-	for fetch_df in target_doc.meta.get("fields", {"fetch_from": "^{0}.".format(df.fieldname)}):
+	for fetch_df in target_doc.meta.get("fields", {"fetch_from": f"^{df.fieldname}."}):
 		if not (fetch_df.fieldtype == "Read Only" or fetch_df.read_only):
 			continue
 

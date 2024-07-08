@@ -1,14 +1,11 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# MIT License. See license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 import frappe
 from frappe.model.document import Document
 from frappe.modules import get_module_name
 from frappe.search.website_search import remove_document_from_index, update_index_for_path
-from frappe.website.render import clear_cache
-from frappe.website.utils import cleanup_page_name
+from frappe.website.utils import cleanup_page_name, clear_cache
 
 
 class WebsiteGenerator(Document):
@@ -16,7 +13,7 @@ class WebsiteGenerator(Document):
 
 	def __init__(self, *args, **kwargs):
 		self.route = None
-		super(WebsiteGenerator, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 
 	def get_website_properties(self, key=None, default=None):
 		out = getattr(self, "_website", None) or getattr(self, "website", None) or {}
@@ -33,9 +30,7 @@ class WebsiteGenerator(Document):
 			self.name = self.scrubbed_title()
 
 	def onload(self):
-		self.get("__onload").update(
-			{"is_website_generator": True, "published": self.is_website_published()}
-		)
+		self.get("__onload").update({"is_website_generator": True, "published": self.is_website_published()})
 
 	def validate(self):
 		self.set_route()
@@ -73,7 +68,7 @@ class WebsiteGenerator(Document):
 		return title_field
 
 	def clear_cache(self):
-		super(WebsiteGenerator, self).clear_cache()
+		super().clear_cache()
 		clear_cache(self.route)
 
 	def scrub(self, text):
@@ -97,7 +92,7 @@ class WebsiteGenerator(Document):
 		self.send_indexing_request("URL_DELETED")
 		# On deleting the doc, remove the page from the web_routes index
 		if self.allow_website_search_indexing():
-			remove_document_from_index(self.route)
+			frappe.enqueue(remove_document_from_index, path=self.route, enqueue_after_commit=True)
 
 	def is_website_published(self):
 		"""Return true if published in website"""
@@ -132,6 +127,8 @@ class WebsiteGenerator(Document):
 		if not route.page_title:
 			route.page_title = self.get(self.get_title_field())
 
+		route.title = route.page_title
+
 		return route
 
 	def send_indexing_request(self, operation_type="URL_UPDATED"):
@@ -142,7 +139,6 @@ class WebsiteGenerator(Document):
 			and self.is_website_published()
 			and self.meta.allow_guest_to_view
 		):
-
 			url = frappe.utils.get_url(self.route)
 			frappe.enqueue(
 				"frappe.website.doctype.website_settings.google_indexing.publish_site",
@@ -175,7 +171,7 @@ class WebsiteGenerator(Document):
 			return
 
 		if self.is_website_published():
-			frappe.enqueue(update_index_for_path, path=self.route)
+			frappe.enqueue(update_index_for_path, path=self.route, enqueue_after_commit=True)
 		elif self.route:
 			# If the website is not published
-			remove_document_from_index(self.route)
+			frappe.enqueue(remove_document_from_index, path=self.route, enqueue_after_commit=True)

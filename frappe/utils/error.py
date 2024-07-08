@@ -1,21 +1,15 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2015, Maxwell Morais and contributors
-# For license information, please see license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 import cgitb
 import datetime
+import functools
 import inspect
 import json
 import linecache
 import os
-import pydoc
 import sys
 import traceback
-
-import six
-from ldap3.core.exceptions import LDAPException
 
 import frappe
 from frappe.utils import cstr, encode
@@ -24,15 +18,31 @@ EXCLUDE_EXCEPTIONS = (
 	frappe.AuthenticationError,
 	frappe.CSRFTokenError,  # CSRF covers OAuth too
 	frappe.SecurityException,
-	LDAPException,
+	frappe.InReadOnlyMode,
 )
+
+LDAP_BASE_EXCEPTION = "LDAPException"
+
+
+def _is_ldap_exception(e):
+	"""Check if exception is from LDAP library.
+
+	This is a hack but ensures that LDAP is not imported unless it's required. This is tested in
+	unittests in case the exception changes in future.
+	"""
+
+	for t in type(e).__mro__:
+		if t.__name__ == LDAP_BASE_EXCEPTION:
+			return True
+
+	return False
 
 
 def make_error_snapshot(exception):
 	if frappe.conf.disable_error_snapshot:
 		return
 
-	if isinstance(exception, EXCLUDE_EXCEPTIONS):
+	if isinstance(exception, EXCLUDE_EXCEPTIONS) or _is_ldap_exception(exception):
 		return
 
 	logger = frappe.logger(with_more_info=True)
@@ -46,33 +56,33 @@ def make_error_snapshot(exception):
 		snapshot_folder = get_error_snapshot_path()
 		frappe.create_folder(snapshot_folder)
 
-		snapshot_file_path = os.path.join(snapshot_folder, "{0}.json".format(error_id))
+		snapshot_file_path = os.path.join(snapshot_folder, f"{error_id}.json")
 		snapshot = get_snapshot(exception)
 
 		with open(encode(snapshot_file_path), "wb") as error_file:
 			error_file.write(encode(frappe.as_json(snapshot)))
 
-		logger.error("New Exception collected with id: {}".format(error_id))
+		logger.error(f"New Exception collected with id: {error_id}")
 
 	except Exception as e:
-		logger.error("Could not take error snapshot: {0}".format(e), exc_info=True)
+		logger.error(f"Could not take error snapshot: {e}", exc_info=True)
 
 
 def get_snapshot(exception, context=10):
+	import pydoc
+
 	"""
 	Return a dict describing a given traceback (based on cgitb.text)
 	"""
 
 	etype, evalue, etb = sys.exc_info()
-	if isinstance(etype, six.class_types):
+	if isinstance(etype, type):
 		etype = etype.__name__
 
 	# creates a snapshot dict with some basic information
 
 	s = {
-		"pyver": "Python {version:s}: {executable:s} (prefix: {prefix:s})".format(
-			version=sys.version.split()[0], executable=sys.executable, prefix=sys.prefix
-		),
+		"pyver": f"Python {sys.version.split(maxsplit=1)[0]:s}: {sys.executable:s} (prefix: {sys.prefix:s})",
 		"timestamp": cstr(datetime.datetime.now()),
 		"traceback": traceback.format_exc(),
 		"frames": [],
@@ -92,16 +102,16 @@ def get_snapshot(exception, context=10):
 
 		if func != "?":
 			call = inspect.formatargvalues(
-				args, varargs, varkw, locals, formatvalue=lambda value: "={}".format(pydoc.text.repr(value))
+				args, varargs, varkw, locals, formatvalue=lambda value: f"={pydoc.text.repr(value)}"
 			)
 
 		# basic frame information
 		f = {"file": file, "func": func, "call": call, "lines": {}, "lnum": lnum}
 
-		def reader(lnum=[lnum]):
+		def reader(lnum=[lnum]):  # noqa
 			try:
 				# B023: function is evaluated immediately, binding not necessary
-				return linecache.getline(file, lnum[0])  # noqa: B023
+				return linecache.getline(file, lnum[0])
 			finally:
 				lnum[0] += 1
 
@@ -127,7 +137,7 @@ def get_snapshot(exception, context=10):
 				continue
 			if value is not cgitb.__UNDEF__:
 				if where == "global":
-					name = "global {name:s}".format(name=name)
+					name = f"global {name:s}"
 				elif where != "local":
 					name = where + " " + name.split(".")[-1]
 				f["dump"][name] = pydoc.text.repr(value)
@@ -145,7 +155,7 @@ def get_snapshot(exception, context=10):
 
 	# add all local values (of last frame) to the snapshot
 	for name, value in locals.items():
-		s["locals"][name] = value if isinstance(value, six.text_type) else pydoc.text.repr(value)
+		s["locals"][name] = value if isinstance(value, str) else pydoc.text.repr(value)
 
 	return s
 
@@ -164,7 +174,7 @@ def collect_error_snapshots():
 			fullpath = os.path.join(path, fname)
 
 			try:
-				with open(fullpath, "r") as filedata:
+				with open(fullpath) as filedata:
 					data = json.load(filedata)
 
 			except ValueError:
@@ -194,10 +204,11 @@ def collect_error_snapshots():
 
 def clear_old_snapshots():
 	"""Clear snapshots that are older than a month"""
-	frappe.db.sql(
-		"""delete from `tabError Snapshot`
-		where creation < (NOW() - INTERVAL '1' MONTH)"""
-	)
+	from frappe.query_builder import DocType, Interval
+	from frappe.query_builder.functions import Now
+
+	ErrorSnapshot = DocType("Error Snapshot")
+	frappe.db.delete(ErrorSnapshot, filters=(ErrorSnapshot.creation < (Now() - Interval(months=1))))
 
 	path = get_error_snapshot_path()
 	today = datetime.datetime.now()
@@ -211,3 +222,48 @@ def clear_old_snapshots():
 
 def get_error_snapshot_path():
 	return frappe.get_site_path("error-snapshots")
+
+
+def get_default_args(func):
+	"""Get default arguments of a function from its signature."""
+	signature = inspect.signature(func)
+	return {k: v.default for k, v in signature.parameters.items() if v.default is not inspect.Parameter.empty}
+
+
+def raise_error_on_no_output(error_message, error_type=None, keep_quiet=None):
+	"""Decorate any function to throw error incase of missing output.
+
+	TODO: Remove keep_quiet flag after testing and fixing sendmail flow.
+
+	:param error_message: error message to raise
+	:param error_type: type of error to raise
+	:param keep_quiet: control error raising with external factor.
+	:type error_message: str
+	:type error_type: Exception Class
+	:type keep_quiet: function
+
+	>>> @raise_error_on_no_output("Ingradients missing")
+	... def get_indradients(_raise_error=1):
+	...     return
+	>>> get_ingradients()
+	`Exception Name`: Ingradients missing
+	"""
+
+	def decorator_raise_error_on_no_output(func):
+		@functools.wraps(func)
+		def wrapper_raise_error_on_no_output(*args, **kwargs):
+			response = func(*args, **kwargs)
+			if callable(keep_quiet) and keep_quiet():
+				return response
+
+			default_kwargs = get_default_args(func)
+			default_raise_error = default_kwargs.get("_raise_error")
+			raise_error = kwargs.get("_raise_error") if "_raise_error" in kwargs else default_raise_error
+
+			if (not response) and raise_error:
+				frappe.throw(error_message, error_type or Exception)
+			return response
+
+		return wrapper_raise_error_on_no_output
+
+	return decorator_raise_error_on_no_output

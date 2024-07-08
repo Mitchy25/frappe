@@ -1,7 +1,5 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# MIT License. See license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 """
 Create a new document with defaults set
@@ -25,8 +23,6 @@ def get_new_doc(doctype, parent_doc=None, parentfield=None, as_dict=False):
 
 	doc = copy.deepcopy(frappe.local.new_doc_templates[doctype])
 
-	# doc = make_new_doc(doctype)
-
 	set_dynamic_default_values(doc, parent_doc, parentfield)
 
 	if as_dict:
@@ -36,9 +32,7 @@ def get_new_doc(doctype, parent_doc=None, parentfield=None, as_dict=False):
 
 
 def make_new_doc(doctype):
-	doc = frappe.get_doc(
-		{"doctype": doctype, "__islocal": 1, "owner": frappe.session.user, "docstatus": 0}
-	)
+	doc = frappe.get_doc({"doctype": doctype, "__islocal": 1, "owner": frappe.session.user, "docstatus": 0})
 
 	set_user_and_static_default_values(doc)
 
@@ -76,7 +70,9 @@ def set_user_and_static_default_values(doc):
 
 			else:
 				if df.fieldname != doc.meta.title_field:
-					static_default_value = get_static_default_value(df, doctype_user_permissions, allowed_records)
+					static_default_value = get_static_default_value(
+						df, doctype_user_permissions, allowed_records
+					)
 					if static_default_value is not None:
 						doc.set(df.fieldname, static_default_value)
 
@@ -119,7 +115,8 @@ def get_static_default_value(df, doctype_user_permissions, allowed_records):
 				return df.default
 
 	elif df.fieldtype == "Select" and df.options and df.options not in ("[Select]", "Loading..."):
-		return df.options.split("\n")[0]
+		return df.options.split("\n", 1)[0]
+
 
 
 def validate_value_via_user_permissions(

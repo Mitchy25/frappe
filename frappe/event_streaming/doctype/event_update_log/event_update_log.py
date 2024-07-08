@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2019, Frappe Technologies Pvt. Ltd. and contributors
-# For license information, please see license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 import frappe
 from frappe.model import no_value_fields, table_fields
@@ -19,9 +16,7 @@ class EventUpdateLog(Document):
 		)
 		jobs = get_jobs()
 		if not jobs or enqueued_method not in jobs[frappe.local.site]:
-			frappe.enqueue(
-				enqueued_method, doctype=self.ref_doctype, queue="long", enqueue_after_commit=True
-			)
+			frappe.enqueue(enqueued_method, doctype=self.ref_doctype, queue="long", enqueue_after_commit=True)
 
 
 def notify_consumers(doc, event):
@@ -30,8 +25,7 @@ def notify_consumers(doc, event):
 	if frappe.flags.in_install or frappe.flags.in_migrate:
 		return
 
-	consumers = check_doctype_has_consumers(doc.doctype)
-	if consumers:
+	if check_doctype_has_consumers(doc.doctype):
 		if event == "after_insert":
 			doc.flags.event_update_log = make_event_update_log(doc, update_type="Create")
 		elif event == "on_trash":
@@ -46,13 +40,20 @@ def notify_consumers(doc, event):
 					make_event_update_log(doc, update_type="Update")
 
 
-def check_doctype_has_consumers(doctype):
+ENABLED_DOCTYPES_CACHE_KEY = "event_streaming_enabled_doctypes"
+
+
+def check_doctype_has_consumers(doctype: str) -> bool:
 	"""Check if doctype has event consumers for event streaming"""
-	return frappe.cache_manager.get_doctype_map(
-		"Event Consumer Document Type",
-		doctype,
-		dict(ref_doctype=doctype, status="Approved", unsubscribed=0),
-	)
+
+	def fetch_from_db():
+		return frappe.get_all(
+			"Event Consumer Document Type",
+			filters={"ref_doctype": doctype, "status": "Approved", "unsubscribed": 0},
+			ignore_ddl=True,
+		)
+
+	return bool(frappe.cache().hget(ENABLED_DOCTYPES_CACHE_KEY, doctype, fetch_from_db))
 
 
 def get_update(old, new, for_child=False):
@@ -224,13 +225,20 @@ def get_unread_update_logs(consumer_name, dt, dn):
 		SELECT
 			update_log.name
 		FROM `tabEvent Update Log` update_log
-		JOIN `tabEvent Update Log Consumer` consumer ON consumer.parent = update_log.name
+		JOIN `tabEvent Update Log Consumer` consumer ON consumer.parent = %(log_name)s
 		WHERE
 			consumer.consumer = %(consumer)s
 			AND update_log.ref_doctype = %(dt)s
 			AND update_log.docname = %(dn)s
 	""",
-			{"consumer": consumer_name, "dt": dt, "dn": dn},
+			{
+				"consumer": consumer_name,
+				"dt": dt,
+				"dn": dn,
+				"log_name": "update_log.name"
+				if frappe.conf.db_type == "mariadb"
+				else "CAST(update_log.name AS VARCHAR)",
+			},
 			as_dict=0,
 		)
 	]

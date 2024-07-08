@@ -9,13 +9,12 @@ import frappe
 class Oauth:
 	def __init__(
 		self,
-		conn,
-		email_account,
-		email,
-		access_token,
-		mechanism="XOAUTH2",
-	):
-
+		conn: IMAP4 | POP3 | SMTP,
+		email_account: str,
+		email: str,
+		access_token: str,
+		mechanism: str = "XOAUTH2",
+	) -> None:
 		self.email_account = email_account
 		self.email = email
 		self._mechanism = mechanism
@@ -49,7 +48,9 @@ class Oauth:
 
 		except Exception:
 			frappe.log_error(
-				title="Email Connection Error - Authentication Failed",
+				"Email Connection Error - Authentication Failed",
+				reference_doctype="Email Account",
+				reference_name=self.email_account,
 			)
 			# raising a bare exception here as we have a lot of exception handling present
 			# where the connect method is called from - hence just logging and raising.

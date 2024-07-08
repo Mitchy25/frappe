@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import frappe
 
 
@@ -9,10 +7,7 @@ def execute():
 	if frappe.db.count("Communication", filters=dict(communication_type="Comment")) > 20000:
 		frappe.db.auto_commit_on_many_writes = True
 
-	for comment in frappe.get_all(
-		"Communication", fields=["*"], filters=dict(communication_type="Comment")
-	):
-
+	for comment in frappe.get_all("Communication", fields=["*"], filters=dict(communication_type="Comment")):
 		new_comment = frappe.new_doc("Comment")
 		new_comment.comment_type = comment.comment_type
 		new_comment.comment_email = comment.sender
@@ -33,4 +28,4 @@ def execute():
 		frappe.db.auto_commit_on_many_writes = False
 
 	# clean up
-	frappe.db.sql("delete from `tabCommunication` where communication_type = 'Comment'")
+	frappe.db.delete("Communication", {"communication_type": "Comment"})

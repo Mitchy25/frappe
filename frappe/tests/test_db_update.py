@@ -1,15 +1,14 @@
-import unittest
-
 import frappe
 from frappe.core.doctype.doctype.test_doctype import new_doctype
 from frappe.core.utils import find
 from frappe.custom.doctype.property_setter.property_setter import make_property_setter
 from frappe.query_builder.utils import db_type_is
 from frappe.tests.test_query_builder import run_only_if
+from frappe.tests.utils import FrappeTestCase
 from frappe.utils import cstr
 
 
-class TestDBUpdate(unittest.TestCase):
+class TestDBUpdate(FrappeTestCase):
 	def test_db_update(self):
 		doctype = "User"
 		frappe.reload_doctype("User", force=True)
@@ -21,7 +20,7 @@ class TestDBUpdate(unittest.TestCase):
 		frappe.db.updatedb(doctype)
 
 		field_defs = get_field_defs(doctype)
-		table_columns = frappe.db.get_table_columns_description("tab{}".format(doctype))
+		table_columns = frappe.db.get_table_columns_description(f"tab{doctype}")
 
 		self.assertEqual(len(field_defs), len(table_columns))
 
@@ -37,7 +36,7 @@ class TestDBUpdate(unittest.TestCase):
 			default = field_def.default if field_def.default is not None else fallback_default
 
 			self.assertEqual(fieldtype, table_column.type)
-			self.assertIn(cstr(table_column.default) or "NULL", [cstr(default), "'{}'".format(default)])
+			self.assertIn(cstr(table_column.default) or "NULL", [cstr(default), f"'{default}'"])
 
 	def test_index_and_unique_constraints(self):
 		doctype = "User"
@@ -100,6 +99,17 @@ class TestDBUpdate(unittest.TestCase):
 			len(indexes), 1, msg=f"There should be 1 index on {doctype}.{field}, found {indexes}"
 		)
 
+	@run_only_if(db_type_is.MARIADB)  # postgres uses invalid type for <=15
+	def test_bigint_conversion(self):
+		doctype = new_doctype(fields=[{"fieldname": "int_field", "fieldtype": "Int"}]).insert()
+
+		with self.assertRaises(frappe.CharacterLengthExceededError):
+			frappe.get_doc(doctype=doctype.name, int_field=2**62 - 1).insert()
+
+		doctype.fields[0].length = 14
+		doctype.save()
+		frappe.get_doc(doctype=doctype.name, int_field=2**62 - 1).insert()
+
 	@run_only_if(db_type_is.MARIADB)
 	def test_unique_index_on_install(self):
 		"""Only one unique index should be added"""
@@ -120,6 +130,7 @@ class TestDBUpdate(unittest.TestCase):
 		self.check_unique_indexes(doctype.name, field)
 		doctype.fields[0].length = 142
 		doctype.save()
+		self.check_unique_indexes(doctype.name, field)
 
 		doctype.fields[0].unique = 0
 		doctype.save()
@@ -136,7 +147,7 @@ def get_fieldtype_from_def(field_def):
 	fieldtuple = frappe.db.type_map.get(field_def.fieldtype, ("", 0))
 	fieldtype = fieldtuple[0]
 	if fieldtype in ("varchar", "datetime", "int"):
-		fieldtype += "({})".format(field_def.length or fieldtuple[1])
+		fieldtype += f"({field_def.length or fieldtuple[1]})"
 	return fieldtype
 
 
@@ -151,10 +162,7 @@ def get_other_fields_meta(meta):
 	default_fields_map = {
 		"name": ("Data", 0),
 		"owner": ("Data", 0),
-		"parent": ("Data", 0),
-		"parentfield": ("Data", 0),
 		"modified_by": ("Data", 0),
-		"parenttype": ("Data", 0),
 		"creation": ("Datetime", 0),
 		"modified": ("Datetime", 0),
 		"idx": ("Int", 8),
@@ -165,8 +173,12 @@ def get_other_fields_meta(meta):
 	if meta.track_seen:
 		optional_fields.append("_seen")
 
+	child_table_fields_map = {}
+	if meta.istable:
+		child_table_fields_map.update({field: ("Data", 0) for field in frappe.db.CHILD_TABLE_COLUMNS})
+
 	optional_fields_map = {field: ("Text", 0) for field in optional_fields}
-	fields = dict(default_fields_map, **optional_fields_map)
+	fields = dict(default_fields_map, **optional_fields_map, **child_table_fields_map)
 	field_map = [
 		frappe._dict({"fieldname": field, "fieldtype": _type, "length": _length})
 		for field, (_type, _length) in fields.items()
@@ -176,5 +188,5 @@ def get_other_fields_meta(meta):
 
 
 def get_table_column(doctype, fieldname):
-	table_columns = frappe.db.get_table_columns_description("tab{}".format(doctype))
+	table_columns = frappe.db.get_table_columns_description(f"tab{doctype}")
 	return find(table_columns, lambda d: d.get("name") == fieldname)

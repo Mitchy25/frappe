@@ -3,13 +3,11 @@ import copy
 import inspect
 import json
 import mimetypes
-import sys
 import types
 from contextlib import contextmanager
 from functools import lru_cache
 
 import RestrictedPython.Guards
-from html2text import html2text
 from RestrictedPython import compile_restricted, safe_globals
 from RestrictedPython.transformer import RestrictingNodeTransformer
 
@@ -19,8 +17,12 @@ import frappe.integrations.utils
 import frappe.utils
 import frappe.utils.data
 from frappe import _
+from frappe.core.utils import html2text
 from frappe.frappeclient import FrappeClient
 from frappe.handler import execute_cmd
+from frappe.model.delete_doc import delete_doc
+from frappe.model.mapper import get_mapped_doc
+from frappe.model.rename_doc import rename_doc
 from frappe.modules import scrub
 from frappe.utils.background_jobs import enqueue, get_jobs
 from frappe.website.utils import get_next_link, get_shade, get_toc
@@ -73,8 +75,10 @@ def safe_exec(script, _globals=None, _locals=None, restrict_commit_rollback=Fals
 		exec_globals.update(_globals)
 
 	if restrict_commit_rollback:
+		# prevent user from using these in docevents
 		exec_globals.frappe.db.pop("commit", None)
 		exec_globals.frappe.db.pop("rollback", None)
+		exec_globals.frappe.db.pop("add_index", None)
 
 	with safe_exec_flags(), patched_qb():
 		# execute script compiled by RestrictedPython
@@ -108,12 +112,7 @@ def safe_eval(code, eval_globals=None, eval_locals=None):
 
 
 def _validate_safe_eval_syntax(code):
-	BLOCKED_NODES = ()
-	if sys.version_info >= (3, 8):
-		BLOCKED_NODES += (ast.NamedExpr,)
-
-	if not BLOCKED_NODES:
-		return
+	BLOCKED_NODES = (ast.NamedExpr,)
 
 	tree = ast.parse(code, mode="eval")
 	for node in ast.walk(tree):
@@ -123,13 +122,21 @@ def _validate_safe_eval_syntax(code):
 
 @contextmanager
 def safe_exec_flags():
-	frappe.flags.in_safe_exec = True
-	yield
-	frappe.flags.in_safe_exec = False
+	if not frappe.flags.in_safe_exec:
+		frappe.flags.in_safe_exec = 0
+
+	frappe.flags.in_safe_exec += 1
+
+	try:
+		yield
+	finally:
+		# Always ensure that the flag is decremented
+		frappe.flags.in_safe_exec -= 1
 
 
 def get_safe_globals():
 	datautils = frappe._dict()
+
 	if frappe.db:
 		date_format = frappe.db.get_default("date_format") or "yyyy-mm-dd"
 		time_format = frappe.db.get_default("time_format") or "HH:mm:ss"
@@ -149,6 +156,7 @@ def get_safe_globals():
 	out = NamespaceDict(
 		# make available limited methods of frappe
 		json=NamespaceDict(loads=json.loads, dumps=json.dumps),
+		as_json=frappe.as_json,
 		dict=dict,
 		log=frappe.log,
 		_dict=frappe._dict,
@@ -167,12 +175,16 @@ def get_safe_globals():
 			errprint=frappe.errprint,
 			qb=frappe.qb,
 			get_meta=frappe.get_meta,
+			new_doc=frappe.new_doc,
 			get_doc=frappe.get_doc,
+			get_mapped_doc=get_mapped_doc,
+			get_last_doc=frappe.get_last_doc,
 			get_cached_doc=frappe.get_cached_doc,
 			get_list=frappe.get_list,
 			get_all=frappe.get_all,
 			get_system_settings=frappe.get_system_settings,
-			rename_doc=frappe.rename_doc,
+			rename_doc=rename_doc,
+			delete_doc=delete_doc,
 			utils=datautils,
 			get_url=frappe.utils.get_url,
 			render_template=frappe.render_template,
@@ -196,13 +208,30 @@ def get_safe_globals():
 			),
 			make_get_request=frappe.integrations.utils.make_get_request,
 			make_post_request=frappe.integrations.utils.make_post_request,
-			get_payment_gateway_controller=frappe.integrations.utils.get_payment_gateway_controller,
 			make_put_request=frappe.integrations.utils.make_put_request,
+			make_patch_request=frappe.integrations.utils.make_patch_request,
+			make_delete_request=frappe.integrations.utils.make_delete_request,
 			socketio_port=frappe.conf.socketio_port,
 			get_hooks=get_hooks,
 			enqueue=safe_enqueue,
 			sanitize_html=frappe.utils.sanitize_html,
 			log_error=frappe.log_error,
+			log=frappe.log,
+			db=NamespaceDict(
+				get_list=frappe.get_list,
+				get_all=frappe.get_all,
+				get_value=frappe.db.get_value,
+				set_value=frappe.db.set_value,
+				get_single_value=frappe.db.get_single_value,
+				get_default=frappe.db.get_default,
+				exists=frappe.db.exists,
+				count=frappe.db.count,
+				escape=frappe.db.escape,
+				sql=read_sql,
+				commit=frappe.db.commit,
+				rollback=frappe.db.rollback,
+				add_index=frappe.db.add_index,
+			),
 			lang=getattr(frappe.local, "lang", "en"),
 		),
 		FrappeClient=FrappeClient,
@@ -217,30 +246,12 @@ def get_safe_globals():
 		dev_server=frappe.local.dev_server,
 		run_script=run_script,
 		is_job_queued=is_job_queued,
+		get_visible_columns=get_visible_columns,
 	)
 
 	add_module_properties(
 		frappe.exceptions, out.frappe, lambda obj: inspect.isclass(obj) and issubclass(obj, Exception)
 	)
-
-	if not frappe.flags.in_setup_help:
-		out.get_visible_columns = get_visible_columns
-		out.frappe.date_format = date_format
-		out.frappe.time_format = time_format
-		out.frappe.db = NamespaceDict(
-			get_list=frappe.get_list,
-			get_all=frappe.get_all,
-			get_value=frappe.db.get_value,
-			set_value=frappe.db.set_value,
-			get_single_value=frappe.db.get_single_value,
-			get_default=frappe.db.get_default,
-			exists=frappe.db.exists,
-			count=frappe.db.count,
-			escape=frappe.db.escape,
-			sql=read_sql,
-			commit=frappe.db.commit,
-			rollback=frappe.db.rollback,
-		)
 
 	if frappe.response:
 		out.frappe.response = frappe.response
@@ -255,7 +266,9 @@ def get_safe_globals():
 	# allow iterators and list comprehension
 	out._getiter_ = iter
 	out._iter_unpack_sequence_ = RestrictedPython.Guards.guarded_iter_unpack_sequence
-	out.sorted = sorted
+
+	# add common python builtins
+	out.update(get_python_builtins())
 
 	return out
 
@@ -292,9 +305,7 @@ def call_whitelisted_function(function, **kwargs):
 def run_script(script, **kwargs):
 	"""run another server script"""
 
-	return call_with_form_dict(
-		lambda: frappe.get_doc("Server Script", script).execute_method(), kwargs
-	)
+	return call_with_form_dict(lambda: frappe.get_doc("Server Script", script).execute_method(), kwargs)
 
 
 def call_with_form_dict(function, kwargs):
@@ -322,13 +333,34 @@ def patched_qb():
 			frappe.qb.terms = _terms
 
 
-@lru_cache()
+@lru_cache
 def _flatten(module):
 	new_mod = NamespaceDict()
 	for name, obj in inspect.getmembers(module, lambda x: not inspect.ismodule(x)):
 		if not name.startswith("_"):
 			new_mod[name] = obj
 	return new_mod
+
+
+def get_python_builtins():
+	return {
+		"abs": abs,
+		"all": all,
+		"any": any,
+		"bool": bool,
+		"dict": dict,
+		"enumerate": enumerate,
+		"isinstance": isinstance,
+		"issubclass": issubclass,
+		"list": list,
+		"max": max,
+		"min": min,
+		"range": range,
+		"set": set,
+		"sorted": sorted,
+		"sum": sum,
+		"tuple": tuple,
+	}
 
 
 def get_hooks(hook=None, default=None, app_name=None):
@@ -339,9 +371,34 @@ def get_hooks(hook=None, default=None, app_name=None):
 def read_sql(query, *args, **kwargs):
 	"""a wrapper for frappe.db.sql to allow reads"""
 	query = str(query)
-	if frappe.flags.in_safe_exec and not query.strip().lower().startswith("select"):
-		raise frappe.PermissionError("Only SELECT SQL allowed in scripting")
+	check_safe_sql_query(query)
 	return frappe.db.sql(query, *args, **kwargs)
+
+
+def check_safe_sql_query(query: str, throw: bool = True) -> bool:
+	"""Check if SQL query is safe for running in restricted context.
+
+	Safe queries:
+	        1. Read only 'select' or 'explain' queries
+	        2. CTE on mariadb where writes are not allowed.
+	"""
+
+	query = query.strip().lower()
+	whitelisted_statements = ("select", "explain")
+
+	if query.startswith(whitelisted_statements) or (
+		query.startswith("with") and frappe.db.db_type == "mariadb"
+	):
+		return True
+
+	if throw:
+		frappe.throw(
+			_("Query must be of SELECT or read-only WITH type."),
+			title=_("Unsafe SQL query"),
+			exc=frappe.PermissionError,
+		)
+
+	return False
 
 
 def _getitem(obj, key):
@@ -401,9 +458,9 @@ def _get_attr_for_eval(object, name, default=ARGUMENT_NOT_SET):
 
 def _validate_attribute_read(object, name):
 	if isinstance(name, str) and (name in UNSAFE_ATTRIBUTES):
-		raise SyntaxError("{name} is an unsafe attribute".format(name=name))
+		raise SyntaxError(f"{name} is an unsafe attribute")
 
-	if isinstance(object, (types.ModuleType, types.CodeType, types.TracebackType, types.FrameType)):
+	if isinstance(object, types.ModuleType | types.CodeType | types.TracebackType | types.FrameType):
 		raise SyntaxError(f"Reading {object} attributes is not allowed")
 
 	if name.startswith("_"):
@@ -414,16 +471,14 @@ def _write(obj):
 	# guard function for RestrictedPython
 	if isinstance(
 		obj,
-		(
-			types.ModuleType,
-			types.CodeType,
-			types.TracebackType,
-			types.FrameType,
-			type,
-			types.FunctionType,  # covers lambda
-			types.MethodType,
-			types.BuiltinFunctionType,  # covers methods
-		),
+		types.ModuleType
+		| types.CodeType
+		| types.TracebackType
+		| types.FrameType
+		| type
+		| types.FunctionType
+		| types.MethodType
+		| types.BuiltinFunctionType,
 	):
 		raise SyntaxError(f"Not allowed to write to object {obj} of type {type(obj)}")
 	return obj
@@ -468,13 +523,16 @@ VALID_UTILS = (
 	"get_timestamp",
 	"get_eta",
 	"get_time_zone",
+	"get_system_timezone",
 	"convert_utc_to_user_timezone",
+	"convert_utc_to_system_timezone",
 	"now",
 	"nowdate",
 	"today",
 	"nowtime",
 	"get_first_day",
 	"get_quarter_start",
+	"get_quarter_ending",
 	"get_first_day_of_week",
 	"get_year_start",
 	"get_last_day_of_week",

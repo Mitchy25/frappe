@@ -1,7 +1,5 @@
 # Copyright (c) 2017, Frappe Technologies Pvt. Ltd. and Contributors
-# MIT License. See license.txt
-from __future__ import unicode_literals
-
+# License: MIT. See LICENSE
 import time
 import unittest
 
@@ -25,9 +23,30 @@ from frappe.utils import cint, set_request
 from . import get_system_setting, update_system_settings
 
 
-class TestTwoFactor(unittest.TestCase):
+import pyotp
+
+import frappe
+from frappe.auth import HTTPRequest, get_login_attempt_tracker, validate_ip_address
+from frappe.tests.utils import FrappeTestCase
+from frappe.twofactor import (
+	ExpiredLoginException,
+	authenticate_for_2factor,
+	confirm_otp_token,
+	get_cached_user_pass,
+	get_default,
+	get_otpsecret_for_,
+	get_verification_obj,
+	should_run_2fa,
+	two_factor_is_enabled_for_,
+)
+from frappe.utils import cint, set_request
+
+from . import get_system_setting, update_system_settings
+
+
+class TestTwoFactor(FrappeTestCase):
 	def __init__(self, *args, **kwargs):
-		super(TestTwoFactor, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 		self.default_allowed_login_attempts = get_system_setting("allow_consecutive_login_attempts")
 
 	def setUp(self):
@@ -63,7 +82,7 @@ class TestTwoFactor(unittest.TestCase):
 		self.assertTrue(verification_obj)
 		self.assertTrue(tmp_id)
 		for k in ["_usr", "_pwd", "_otp_secret"]:
-			self.assertTrue(frappe.cache().get("{0}{1}".format(tmp_id, k)), "{} not available".format(k))
+			self.assertTrue(frappe.cache().get(f"{tmp_id}{k}"), f"{k} not available")
 
 	def test_two_factor_is_enabled(self):
 		"""
@@ -234,10 +253,10 @@ def disable_2fa():
 def toggle_2fa_all_role(state=None):
 	"""Enable or disable 2fa for 'all' role on the system."""
 	all_role = frappe.get_doc("Role", "All")
-	if state == None:
-		state = False if all_role.two_factor_auth == True else False
-	if state not in [True, False]:
+	state = state if state is not None else False
+	if not isinstance(state, bool):
 		return
+
 	all_role.two_factor_auth = cint(state)
 	all_role.save(ignore_permissions=True)
 	frappe.db.commit()

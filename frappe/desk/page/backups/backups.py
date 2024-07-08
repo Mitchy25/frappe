@@ -1,37 +1,41 @@
-from __future__ import unicode_literals
-
 import datetime
 import os
 
 import frappe
 from frappe import _
 from frappe.utils import cint, get_site_path, get_url
-from frappe.utils.data import convert_utc_to_user_timezone
+from frappe.utils.data import convert_utc_to_system_timezone
 
 
 def get_context(context):
 	def get_time(path):
 		dt = os.path.getmtime(path)
-		return convert_utc_to_user_timezone(datetime.datetime.utcfromtimestamp(dt)).strftime(
+		return convert_utc_to_system_timezone(datetime.datetime.utcfromtimestamp(dt)).strftime(
 			"%a %b %d %H:%M %Y"
 		)
+
+	def get_encrytion_status(path):
+		if "-enc" in path:
+			return True
 
 	def get_size(path):
 		size = os.path.getsize(path)
 		if size > 1048576:
-			return "{0:.1f}M".format(float(size) / 1048576)
+			return f"{float(size) / 1048576:.1f}M"
 		else:
-			return "{0:.1f}K".format(float(size) / 1024)
+			return f"{float(size) / 1024:.1f}K"
 
 	path = get_site_path("private", "backups")
 	files = [x for x in os.listdir(path) if os.path.isfile(os.path.join(path, x))]
 	backup_limit = get_scheduled_backup_limit()
 
-	if len(files) > backup_limit:
-		cleanup_old_backups(path, files, backup_limit)
-
 	files = [
-		("/backups/" + _file, get_time(os.path.join(path, _file)), get_size(os.path.join(path, _file)))
+		(
+			"/backups/" + _file,
+			get_time(os.path.join(path, _file)),
+			get_encrytion_status(os.path.join(path, _file)),
+			get_size(os.path.join(path, _file)),
+		)
 		for _file in files
 		if _file.endswith("sql.gz")
 	]
@@ -91,6 +95,7 @@ def schedule_files_backup(user_email):
 		frappe.msgprint(
 			_("Backup job is already queued. You will receive an email with the download link")
 		)
+
 
 
 def backup_files_and_notify_user(user_email=None):

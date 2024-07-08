@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2015, Frappe Technologies and contributors
-# For license information, please see license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 import frappe
 from frappe import _
@@ -16,14 +13,14 @@ class AddressTemplate(Document):
 		if not self.template:
 			self.template = get_default_address_template()
 
-		self.defaults = frappe.db.get_values(
-			"Address Template", {"is_default": 1, "name": ("!=", self.name)}
-		)
+		self.defaults = frappe.db.get_values("Address Template", {"is_default": 1, "name": ("!=", self.name)})
 		if not self.is_default:
 			if not self.defaults:
 				self.is_default = 1
 				if cint(frappe.db.get_single_value("System Settings", "setup_complete")):
-					frappe.msgprint(_("Setting this Address Template as default as there is no other default"))
+					frappe.msgprint(
+						_("Setting this Address Template as default as there is no other default")
+					)
 
 		validate_template(self.template)
 
