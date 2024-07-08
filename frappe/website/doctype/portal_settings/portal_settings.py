@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2015, Frappe Technologies and contributors
-# For license information, please see license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 import frappe
 from frappe.model.document import Document
+from frappe.website.path_resolver import validate_path
+
 
 
 class PortalSettings(Document):
@@ -37,6 +36,7 @@ class PortalSettings(Document):
 				dirty = True
 
 		if dirty:
+			self.remove_deleted_doctype_items()
 			self.save()
 
 	def on_update(self):
@@ -47,9 +47,19 @@ class PortalSettings(Document):
 		# clear web cache (for menus!)
 		frappe.clear_cache(user="Guest")
 
-		from frappe.website.render import clear_cache
+		from frappe.website.utils import clear_cache
 
 		clear_cache()
 
 		# clears role based home pages
 		frappe.clear_cache()
+
+	def remove_deleted_doctype_items(self):
+		existing_doctypes = set(frappe.get_list("DocType", pluck="name"))
+		for menu_item in list(self.get("menu")):
+			if menu_item.reference_doctype not in existing_doctypes:
+				self.remove(menu_item)
+
+	def validate(self):
+		if frappe.request and self.default_portal_home:
+			validate_path(self.default_portal_home)

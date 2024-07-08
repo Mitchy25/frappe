@@ -1,20 +1,15 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2019, Frappe Technologies and contributors
-# For license information, please see license.txt
+# License: MIT. See LICENSE
 
 
-import google.oauth2.credentials
-import requests
-from googleapiclient.discovery import build
+from urllib.parse import quote
+
 from googleapiclient.errors import HttpError
 
 import frappe
 from frappe import _
-from frappe.integrations.doctype.google_settings.google_settings import get_auth_url
+from frappe.integrations.google_oauth import GoogleOAuth
 from frappe.model.document import Document
-from frappe.utils import get_request_site_address
-
-SCOPES = "https://www.googleapis.com/auth/contacts"
 
 
 class GoogleContacts(Document):
@@ -23,120 +18,55 @@ class GoogleContacts(Document):
 			frappe.throw(_("Enable Google API in Google Settings."))
 
 	def get_access_token(self):
-		google_settings = frappe.get_doc("Google Settings")
-
-		if not google_settings.enable:
-			frappe.throw(_("Google Contacts Integration is disabled."))
-
 		if not self.refresh_token:
 			button_label = frappe.bold(_("Allow Google Contacts Access"))
 			raise frappe.ValidationError(_("Click on {0} to generate Refresh Token.").format(button_label))
 
-		data = {
-			"client_id": google_settings.client_id,
-			"client_secret": google_settings.get_password(fieldname="client_secret", raise_exception=False),
-			"refresh_token": self.get_password(fieldname="refresh_token", raise_exception=False),
-			"grant_type": "refresh_token",
-			"scope": SCOPES,
-		}
-
-		try:
-			r = requests.post(get_auth_url(), data=data).json()
-		except requests.exceptions.HTTPError:
-			button_label = frappe.bold(_("Allow Google Contacts Access"))
-			frappe.throw(
-				_(
-					"Something went wrong during the token generation. Click on {0} to generate a new one."
-				).format(button_label)
-			)
+		oauth_obj = GoogleOAuth("contacts")
+		r = oauth_obj.refresh_access_token(
+			self.get_password(fieldname="refresh_token", raise_exception=False)
+		)
 
 		return r.get("access_token")
 
 
-@frappe.whitelist()
-def authorize_access(g_contact, reauthorize=None):
+@frappe.whitelist(methods=["POST"])
+def authorize_access(g_contact, reauthorize=False, code=None):
 	"""
 	If no Authorization code get it from Google and then request for Refresh Token.
 	Google Contact Name is set to flags to set_value after Authorization Code is obtained.
 	"""
 
-	google_settings = frappe.get_doc("Google Settings")
-	google_contact = frappe.get_doc("Google Contacts", g_contact)
+	oauth_code = frappe.db.get_value("Google Contacts", g_contact, "authorization_code") if not code else code
+	oauth_obj = GoogleOAuth("contacts")
 
-	redirect_uri = (
-		get_request_site_address(True)
-		+ "?cmd=frappe.integrations.doctype.google_contacts.google_contacts.google_callback"
+	if not oauth_code or reauthorize:
+		return oauth_obj.get_authentication_url(
+			{
+				"g_contact": g_contact,
+				"redirect": f"/app/Form/{quote('Google Contacts')}/{quote(g_contact)}",
+			},
+		)
+
+	r = oauth_obj.authorize(oauth_code)
+	frappe.db.set_value(
+		"Google Contacts",
+		g_contact,
+		{"authorization_code": oauth_code, "refresh_token": r.get("refresh_token")},
 	)
 
-	if not google_contact.authorization_code or reauthorize:
-		frappe.cache().hset("google_contacts", "google_contact", google_contact.name)
-		return get_authentication_url(client_id=google_settings.client_id, redirect_uri=redirect_uri)
-	else:
-		try:
-			data = {
-				"code": google_contact.authorization_code,
-				"client_id": google_settings.client_id,
-				"client_secret": google_settings.get_password(
-					fieldname="client_secret", raise_exception=False
-				),
-				"redirect_uri": redirect_uri,
-				"grant_type": "authorization_code",
-			}
-			r = requests.post(get_auth_url(), data=data).json()
-
-			if "refresh_token" in r:
-				frappe.db.set_value(
-					"Google Contacts", google_contact.name, "refresh_token", r.get("refresh_token")
-				)
-				frappe.db.commit()
-
-			frappe.local.response["type"] = "redirect"
-			frappe.local.response["location"] = "/app/Form/Google%20Contacts/{}".format(google_contact.name)
-
-			frappe.msgprint(_("Google Contacts has been configured."))
-		except Exception as e:
-			frappe.throw(e)
-
-
-def get_authentication_url(client_id=None, redirect_uri=None):
-	return {
-		"url": "https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&response_type=code&prompt=consent&client_id={}&include_granted_scopes=true&scope={}&redirect_uri={}".format(
-			client_id, SCOPES, redirect_uri
-		)
-	}
-
-
-@frappe.whitelist()
-def google_callback(code=None):
-	"""
-	Authorization code is sent to callback as per the API configuration
-	"""
-	google_contact = frappe.cache().hget("google_contacts", "google_contact")
-	frappe.db.set_value("Google Contacts", google_contact, "authorization_code", code)
-	frappe.db.commit()
-
-	authorize_access(google_contact)
 
 
 def get_google_contacts_object(g_contact):
 	"""
 	Returns an object of Google Calendar along with Google Calendar doc.
 	"""
-	google_settings = frappe.get_doc("Google Settings")
 	account = frappe.get_doc("Google Contacts", g_contact)
+	oauth_obj = GoogleOAuth("contacts")
 
-	credentials_dict = {
-		"token": account.get_access_token(),
-		"refresh_token": account.get_password(fieldname="refresh_token", raise_exception=False),
-		"token_uri": get_auth_url(),
-		"client_id": google_settings.client_id,
-		"client_secret": google_settings.get_password(fieldname="client_secret", raise_exception=False),
-		"scopes": "https://www.googleapis.com/auth/contacts",
-	}
-
-	credentials = google.oauth2.credentials.Credentials(**credentials_dict)
-	google_contacts = build(
-		serviceName="people", version="v1", credentials=credentials, static_discovery=False
+	google_contacts = oauth_obj.get_google_service_object(
+		account.get_access_token(),
+		account.get_password(fieldname="indexing_refresh_token", raise_exception=False),
 	)
 
 	return google_contacts, account
@@ -211,6 +141,10 @@ def sync_contacts_from_google_contacts(g_contact):
 		frappe.publish_realtime(
 			"import_google_contacts", dict(progress=idx + 1, total=len(results)), user=frappe.session.user
 		)
+		# Work-around to fix
+		# https://github.com/frappe/frappe/issues/22648
+		if not connection.get("names"):
+			continue
 
 		for name in connection.get("names"):
 			if name.get("metadata").get("primary"):
@@ -230,12 +164,14 @@ def sync_contacts_from_google_contacts(g_contact):
 
 				for email in connection.get("emailAddresses", []):
 					contact.add_email(
-						email_id=email.get("value"), is_primary=1 if email.get("metadata").get("primary") else 0
+						email_id=email.get("value"),
+						is_primary=1 if email.get("metadata").get("primary") else 0,
 					)
 
 				for phone in connection.get("phoneNumbers", []):
 					contact.add_phone(
-						phone=phone.get("value"), is_primary_phone=1 if phone.get("metadata").get("primary") else 0
+						phone=phone.get("value"),
+						is_primary_phone=1 if phone.get("metadata").get("primary") else 0,
 					)
 
 				contact.insert(ignore_permissions=True)

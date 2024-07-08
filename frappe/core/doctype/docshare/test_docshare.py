@@ -1,19 +1,15 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# See license.txt
-
-from __future__ import unicode_literals
-
-import unittest
+# License: MIT. See LICENSE
 
 import frappe
 import frappe.share
 from frappe.automation.doctype.auto_repeat.test_auto_repeat import create_submittable_doctype
-from frappe.tests.utils import change_settings
+from frappe.tests.utils import FrappeTestCase, change_settings
 
 test_dependencies = ["User"]
 
 
-class TestDocShare(unittest.TestCase):
+class TestDocShare(FrappeTestCase):
 	def setUp(self):
 		self.user = "test@example.com"
 		self.event = frappe.get_doc(
@@ -37,13 +33,28 @@ class TestDocShare(unittest.TestCase):
 
 	def test_doc_permission(self):
 		frappe.set_user(self.user)
+
 		self.assertFalse(self.event.has_permission())
 
 		frappe.set_user("Administrator")
 		frappe.share.add("Event", self.event.name, self.user)
 
 		frappe.set_user(self.user)
-		self.assertTrue(self.event.has_permission())
+		# PERF: All share permission check should happen with maximum 1 query.
+		with self.assertRowsRead(1):
+			self.assertTrue(self.event.has_permission())
+
+		second_event = frappe.get_doc(
+			{
+				"doctype": "Event",
+				"subject": "test share event 2",
+				"starts_on": "2015-01-01 10:00:00",
+				"event_type": "Private",
+			}
+		).insert()
+		frappe.share.add("Event", second_event.name, self.user)
+		with self.assertRowsRead(1):
+			self.assertTrue(self.event.has_permission())
 
 	def test_share_permission(self):
 		frappe.share.add("Event", self.event.name, self.user, write=1, share=1)
@@ -130,6 +141,20 @@ class TestDocShare(unittest.TestCase):
 
 		frappe.share.remove(doctype, submittable_doc.name, self.user)
 
+	def test_share_int_pk(self):
+		test_doc = frappe.new_doc("Console Log")
+
+		test_doc.insert()
+		frappe.share.add("Console Log", test_doc.name, self.user)
+
+		frappe.set_user(self.user)
+		self.assertIn(
+			str(test_doc.name), [str(name) for name in frappe.get_list("Console Log", pluck="name")]
+		)
+
+		test_doc.reload()
+		self.assertTrue(test_doc.has_permission("read"))
+
 	@change_settings("System Settings", {"disable_document_sharing": 1})
 	def test_share_disabled_add(self):
 		"Test if user loses share access on disabling share globally."
@@ -151,7 +176,7 @@ class TestDocShare(unittest.TestCase):
 		self.assertFalse(self.event.has_permission("share"))
 
 		# Test if behaviour is consistent for developer overrides
-		frappe.share.add(
+		frappe.share.add_docshare(
 			"Event", self.event.name, "test1@example.com", flags={"ignore_share_permission": True}
 		)
 

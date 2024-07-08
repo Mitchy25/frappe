@@ -1,23 +1,20 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# MIT License. See license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 """build query for doclistview and return results"""
 
 import json
 
-from six import StringIO, string_types
-from six.moves import range
-
 import frappe
 import frappe.permissions
 from frappe import _
 from frappe.core.doctype.access_log.access_log import make_access_log
-from frappe.model import default_fields, get_permitted_fields, optional_fields
+from frappe.model import child_table_fields, default_fields, get_permitted_fields, optional_fields
 from frappe.model.base_document import get_controller
 from frappe.model.db_query import DatabaseQuery
-from frappe.utils import cstr, format_duration
+from frappe.model.utils import is_virtual_doctype
+from frappe.utils import add_user_info, cint, cstr, format_duration
+from frappe.utils.data import sbool
 
 
 @frappe.whitelist()
@@ -27,7 +24,7 @@ def get():
 	# If virtual doctype get data from controller het_list method
 	if is_virtual_doctype(args.doctype):
 		controller = get_controller(args.doctype)
-		data = compress(controller(args.doctype).get_list(args))
+		data = compress(controller.get_list(args))
 	else:
 		data = compress(execute(**args), args=args)
 	return data
@@ -40,7 +37,7 @@ def get_list():
 
 	if is_virtual_doctype(args.doctype):
 		controller = get_controller(args.doctype)
-		data = controller(args.doctype).get_list(args)
+		data = controller.get_list(args)
 	else:
 		# uncompressed (refactored from frappe.model.db_query.get_list)
 		data = execute(**args)
@@ -55,13 +52,23 @@ def get_count():
 
 	if is_virtual_doctype(args.doctype):
 		controller = get_controller(args.doctype)
-		data = controller(args.doctype).get_count(args)
+		count = controller.get_count(args)
 	else:
-		distinct = "distinct " if args.distinct == "true" else ""
-		args.fields = [f"count({distinct}`tab{args.doctype}`.name) as total_count"]
-		data = execute(**args)[0].get("total_count")
+		args.distinct = sbool(args.distinct)
+		distinct = "distinct " if args.distinct else ""
+		args.limit = cint(args.limit)
+		fieldname = f"{distinct}`tab{args.doctype}`.name"
+		args.order_by = None
 
-	return data
+		if args.limit:
+			args.fields = [fieldname]
+			partial_query = execute(**args, run=0)
+			count = frappe.db.sql(f"""select count(*) from ( {partial_query} ) p""")[0][0]
+		else:
+			args.fields = [f"count({fieldname}) as total_count"]
+			count = execute(**args)[0].get("total_count")
+
+	return count
 
 
 def execute(doctype, *args, **kwargs):
@@ -155,12 +162,8 @@ def setup_group_by(data):
 
 		if frappe.db.has_column(data.aggregate_on_doctype, data.aggregate_on_field):
 			data.fields.append(
-				"{aggregate_function}(`tab{aggregate_on_doctype}`.`{aggregate_on_field}`) AS _aggregate_column".format(
-					**data
-				)
+				f"{data.aggregate_function}(`tab{data.aggregate_on_doctype}`.`{data.aggregate_on_field}`) AS _aggregate_column"
 			)
-			if data.aggregate_on_field:
-				data.fields.append(f"`tab{data.aggregate_on_doctype}`.`{data.aggregate_on_field}`")
 		else:
 			raise_invalid_field(data.aggregate_on_field)
 
@@ -170,13 +173,14 @@ def setup_group_by(data):
 
 
 def raise_invalid_field(fieldname):
-	frappe.throw(_("Field not permitted in query") + ": {0}".format(fieldname), frappe.DataError)
+	frappe.throw(_("Field not permitted in query") + f": {fieldname}", frappe.DataError)
 
 
 def is_standard(fieldname):
 	if "." in fieldname:
-		parenttype, fieldname = get_parenttype_and_fieldname(fieldname, None)
-	return fieldname in default_fields or fieldname in optional_fields
+		fieldname = fieldname.split(".")[1].strip("`")
+	return fieldname in default_fields or fieldname in optional_fields or fieldname in child_table_fields
+
 
 
 def extract_fieldname(field):
@@ -187,7 +191,7 @@ def extract_fieldname(field):
 	fieldname = field
 	for sep in (" as ", " AS "):
 		if sep in fieldname:
-			fieldname = fieldname.split(sep)[0]
+			fieldname = fieldname.split(sep, 1)[0]
 
 	# certain functions allowed, extract the fieldname from the function
 	if fieldname.startswith("count(") or fieldname.startswith("sum(") or fieldname.startswith("avg("):
@@ -206,11 +210,12 @@ def get_meta_and_docfield(fieldname, data):
 
 
 def update_wildcard_field_param(data):
-	if (isinstance(data.fields, string_types) and data.fields == "*") or (
-		isinstance(data.fields, (list, tuple)) and len(data.fields) == 1 and data.fields[0] == "*"
+	if (isinstance(data.fields, str) and data.fields == "*") or (
+		isinstance(data.fields, list | tuple) and len(data.fields) == 1 and data.fields[0] == "*"
 	):
 		if frappe.get_system_settings("apply_perm_level_on_api_calls"):
-			data.fields = get_permitted_fields(data.doctype, parenttype=data.parenttype)
+			parent_type = data.parenttype or data.parent_doctype
+			data.fields = get_permitted_fields(data.doctype, parenttype=parent_type, ignore_virtual=True)
 		else:
 			data.fields = frappe.db.get_table_columns(data.doctype)
 		return True
@@ -224,15 +229,15 @@ def clean_params(data):
 
 
 def parse_json(data):
-	if isinstance(data.get("filters"), string_types):
-		data["filters"] = json.loads(data["filters"])
-	if isinstance(data.get("or_filters"), string_types):
-		data["or_filters"] = json.loads(data["or_filters"])
-	if isinstance(data.get("fields"), string_types):
-		data["fields"] = ["*"] if data["fields"] == "*" else json.loads(data["fields"])
-	if isinstance(data.get("docstatus"), string_types):
+	if (filters := data.get("filters")) and isinstance(filters, str):
+		data["filters"] = json.loads(filters)
+	if (or_filters := data.get("or_filters")) and isinstance(or_filters, str):
+		data["or_filters"] = json.loads(or_filters)
+	if (fields := data.get("fields")) and isinstance(fields, str):
+		data["fields"] = ["*"] if fields == "*" else json.loads(fields)
+	if isinstance(data.get("docstatus"), str):
 		data["docstatus"] = json.loads(data["docstatus"])
-	if isinstance(data.get("save_user_settings"), string_types):
+	if isinstance(data.get("save_user_settings"), str):
 		data["save_user_settings"] = json.loads(data["save_user_settings"])
 	else:
 		data["save_user_settings"] = True
@@ -240,7 +245,16 @@ def parse_json(data):
 
 def get_parenttype_and_fieldname(field, data):
 	if "." in field:
-		parenttype, fieldname = field.split(".")[0][4:-1], field.split(".")[1].strip("`")
+		parts = field.split(".")
+		parenttype = parts[0]
+		fieldname = parts[1]
+		if parenttype.startswith("`tab"):
+			# `tabChild DocType`.`fieldname`
+			parenttype = parenttype[4:-1]
+			fieldname = fieldname.strip("`")
+		else:
+			# tablefield.fieldname
+			parenttype = frappe.get_meta(data.doctype).get_field(parenttype).options
 	else:
 		parenttype = data.doctype
 		fieldname = field.strip("`")
@@ -251,6 +265,8 @@ def get_parenttype_and_fieldname(field, data):
 def compress(data, args=None):
 	"""separate keys and values"""
 	from frappe.desk.query_report import add_total_row
+
+	user_info = {}
 
 	if not data:
 		return data
@@ -264,11 +280,16 @@ def compress(data, args=None):
 			new_row.append(row.get(key))
 		values.append(new_row)
 
+		# add user info for assignments (avatar)
+		if row.get("_assign", ""):
+			for user in json.loads(row._assign):
+				add_user_info(user, user_info)
+
 	if args.get("add_total_row"):
 		meta = frappe.get_meta(args.doctype)
 		values = add_total_row(values, keys, meta)
 
-	return {"keys": keys, "values": values}
+	return {"keys": keys, "values": values, "user_info": user_info}
 
 
 @frappe.whitelist()
@@ -327,30 +348,21 @@ def delete_report(name):
 @frappe.read_only()
 def export_query():
 	"""export from report builder"""
-	title = frappe.form_dict.title
-	frappe.form_dict.pop("title", None)
+	from frappe.desk.utils import get_csv_bytes, pop_csv_params, provide_binary_file
 
 	form_params = get_form_params()
 	form_params["limit_page_length"] = None
 	form_params["as_list"] = True
-	doctype = form_params.doctype
-	add_totals_row = None
-	file_format_type = form_params["file_format_type"]
-	title = title or doctype
-
-	del form_params["doctype"]
-	del form_params["file_format_type"]
-
-	if "add_totals_row" in form_params and form_params["add_totals_row"] == "1":
-		add_totals_row = 1
-		del form_params["add_totals_row"]
+	doctype = form_params.pop("doctype")
+	file_format_type = form_params.pop("file_format_type")
+	title = form_params.pop("title", doctype)
+	csv_params = pop_csv_params(form_params)
+	add_totals_row = 1 if form_params.pop("add_totals_row", None) == "1" else None
 
 	frappe.permissions.can_export(doctype, raise_exception=True)
 
-	if "selected_items" in form_params:
-		si = json.loads(frappe.form_dict.get("selected_items"))
-		form_params["filters"] = {"name": ("in", si)}
-		del form_params["selected_items"]
+	if selection := form_params.pop("selected_items", None):
+		form_params["filters"] = {"name": ("in", json.loads(selection))}
 
 	make_access_log(
 		doctype=doctype,
@@ -365,41 +377,25 @@ def export_query():
 	if add_totals_row:
 		ret = append_totals_row(ret)
 
-	data = [["Sr"] + get_labels(db_query.fields, doctype)]
-	for i, row in enumerate(ret):
-		data.append([i + 1] + list(row))
-
+	data = [[_("Sr"), *get_labels(db_query.fields, doctype)]]
+	data.extend([i + 1, *list(row)] for i, row in enumerate(ret))
 	data = handle_duration_fieldtype_values(doctype, data, db_query.fields)
 
 	if file_format_type == "CSV":
-
-		# convert to csv
-		import csv
-
 		from frappe.utils.xlsxutils import handle_html
 
-		f = StringIO()
-		writer = csv.writer(f)
-		for r in data:
-			# encode only unicode type strings and not int, floats etc.
-			writer.writerow(
-				[handle_html(frappe.as_unicode(v)) if isinstance(v, string_types) else v for v in r]
-			)
-
-		f.seek(0)
-		frappe.response["result"] = cstr(f.read())
-		frappe.response["type"] = "csv"
-		frappe.response["doctype"] = title
-
+		file_extension = "csv"
+		content = get_csv_bytes(
+			[[handle_html(frappe.as_unicode(v)) if isinstance(v, str) else v for v in r] for r in data],
+			csv_params,
+		)
 	elif file_format_type == "Excel":
-
 		from frappe.utils.xlsxutils import make_xlsx
 
-		xlsx_file = make_xlsx(data, doctype)
+		file_extension = "xlsx"
+		content = make_xlsx(data, doctype).getvalue()
 
-		frappe.response["filename"] = title + ".xlsx"
-		frappe.response["filecontent"] = xlsx_file.getvalue()
-		frappe.response["type"] = "binary"
+	provide_binary_file(title, file_extension, content)
 
 
 def append_totals_row(data):
@@ -411,10 +407,10 @@ def append_totals_row(data):
 
 	for row in data:
 		for i in range(len(row)):
-			if isinstance(row[i], (float, int)):
+			if isinstance(row[i], float | int):
 				totals[i] = (totals[i] or 0) + row[i]
 
-	if not isinstance(totals[0], (int, float)):
+	if not isinstance(totals[0], int | float):
 		totals[0] = "Total"
 
 	data.append(totals)
@@ -426,21 +422,23 @@ def get_labels(fields, doctype):
 	"""get column labels based on column names"""
 	labels = []
 	for key in fields:
-		key = key.split(" as ")[0]
-
-		if key.startswith(("count(", "sum(", "avg(")):
+		try:
+			parenttype, fieldname = parse_field(key)
+		except ValueError:
 			continue
 
-		if "." in key:
-			parenttype, fieldname = key.split(".")[0][4:-1], key.split(".")[1].strip("`")
-		else:
-			parenttype = doctype
-			fieldname = fieldname.strip("`")
+		parenttype = parenttype or doctype
 
-		df = frappe.get_meta(parenttype).get_field(fieldname)
-		label = df.label if df else fieldname.title()
-		if label in labels:
-			label = doctype + ": " + label
+		if parenttype == doctype and fieldname == "name":
+			label = _("ID", context="Label of name column in report")
+		else:
+			df = frappe.get_meta(parenttype).get_field(fieldname)
+			label = _(df.label if df else fieldname.title())
+			if parenttype != doctype:
+				# If the column is from a child table, append the child doctype.
+				# For example, "Item Code (Sales Invoice Item)".
+				label += f" ({ _(parenttype) })"
+
 		labels.append(label)
 
 	return labels
@@ -448,17 +446,12 @@ def get_labels(fields, doctype):
 
 def handle_duration_fieldtype_values(doctype, data, fields):
 	for field in fields:
-		key = field.split(" as ")[0]
-
-		if key.startswith(("count(", "sum(", "avg(")):
+		try:
+			parenttype, fieldname = parse_field(field)
+		except ValueError:
 			continue
 
-		if "." in key:
-			parenttype, fieldname = key.split(".")[0][4:-1], key.split(".")[1].strip("`")
-		else:
-			parenttype = doctype
-			fieldname = field.strip("`")
-
+		parenttype = parenttype or doctype
 		df = frappe.get_meta(parenttype).get_field(fieldname)
 
 		if df and df.fieldtype == "Duration":
@@ -469,6 +462,19 @@ def handle_duration_fieldtype_values(doctype, data, fields):
 					duration_val = format_duration(val_in_seconds, df.hide_days)
 					data[i][index] = duration_val
 	return data
+
+
+def parse_field(field: str) -> tuple[str | None, str]:
+	"""Parse a field into parenttype and fieldname."""
+	key = field.split(" as ")[0]
+
+	if key.startswith(("count(", "sum(", "avg(")):
+		raise ValueError
+
+	if "." in key:
+		return key.split(".")[0][4:-1], key.split(".")[1].strip("`")
+
+	return None, key.strip("`")
 
 
 @frappe.whitelist()
@@ -492,7 +498,9 @@ def delete_bulk(doctype, items):
 			if len(items) >= 5:
 				frappe.publish_realtime(
 					"progress",
-					dict(progress=[i + 1, len(items)], title=_("Deleting {0}").format(doctype), description=d),
+					dict(
+						progress=[i + 1, len(items)], title=_("Deleting {0}").format(doctype), description=d
+					),
 					user=frappe.session.user,
 				)
 			# Commit after successful deletion
@@ -512,7 +520,7 @@ def get_sidebar_stats(stats, doctype, filters=None):
 	if is_virtual_doctype(doctype):
 		controller = get_controller(doctype)
 		args = {"stats": stats, "filters": filters}
-		data = controller(doctype).get_stats(args)
+		data = controller.get_stats(args)
 	else:
 		data = get_stats(stats, doctype, filters)
 
@@ -527,47 +535,47 @@ def get_stats(stats, doctype, filters=None):
 
 	if filters is None:
 		filters = []
-	tags = json.loads(stats)
+	columns = json.loads(stats)
 	if filters:
 		filters = json.loads(filters)
-	stats = {}
+	results = {}
 
 	try:
-		columns = frappe.db.get_table_columns(doctype)
+		db_columns = frappe.db.get_table_columns(doctype)
 	except (frappe.db.InternalError, frappe.db.ProgrammingError):
 		# raised when _user_tags column is added on the fly
 		# raised if its a virtual doctype
-		columns = []
+		db_columns = []
 
-	for tag in tags:
-		if not tag in columns:
+	for column in columns:
+		if column not in db_columns:
 			continue
 		try:
 			tag_count = frappe.get_list(
 				doctype,
-				fields=[tag, "count(*)"],
-				filters=filters + [[tag, "!=", ""]],
-				group_by=tag,
+				fields=[column, "count(*)"],
+				filters=[*filters, [column, "!=", ""]],
+				group_by=column,
 				as_list=True,
 				distinct=1,
 			)
 
-			if tag == "_user_tags":
-				stats[tag] = scrub_user_tags(tag_count)
+			if column == "_user_tags":
+				results[column] = scrub_user_tags(tag_count)
 				no_tag_count = frappe.get_list(
 					doctype,
-					fields=[tag, "count(*)"],
-					filters=filters + [[tag, "in", ("", ",")]],
+					fields=[column, "count(*)"],
+					filters=[*filters, [column, "in", ("", ",")]],
 					as_list=True,
-					group_by=tag,
-					order_by=tag,
+					group_by=column,
+					order_by=column,
 				)
 
 				no_tag_count = no_tag_count[0][1] if no_tag_count else 0
 
-				stats[tag].append([_("No Tags"), no_tag_count])
+				results[column].append([_("No Tags"), no_tag_count])
 			else:
-				stats[tag] = tag_count
+				results[column] = tag_count
 
 		except frappe.db.SQLError:
 			pass
@@ -575,7 +583,8 @@ def get_stats(stats, doctype, filters=None):
 			# raised when _user_tags column is added on the fly
 			pass
 
-	return stats
+	return results
+
 
 
 @frappe.whitelist()
@@ -589,14 +598,14 @@ def get_filter_dashboard_data(stats, doctype, filters=None):
 
 	columns = frappe.db.get_table_columns(doctype)
 	for tag in tags:
-		if not tag["name"] in columns:
+		if tag["name"] not in columns:
 			continue
 		tagcount = []
 		if tag["type"] not in ["Date", "Datetime"]:
 			tagcount = frappe.get_list(
 				doctype,
 				fields=[tag["name"], "count(*)"],
-				filters=filters + ["ifnull(`%s`,'')!=''" % tag["name"]],
+				filters=[*filters, "ifnull(`%s`,'')!=''" % tag["name"]],
 				group_by=tag["name"],
 				as_list=True,
 			)
@@ -618,12 +627,11 @@ def get_filter_dashboard_data(stats, doctype, filters=None):
 					frappe.get_list(
 						doctype,
 						fields=[tag["name"], "count(*)"],
-						filters=filters + ["({0} = '' or {0} is null)".format(tag["name"])],
+						filters=[*filters, "({0} = '' or {0} is null)".format(tag["name"])],
 						as_list=True,
 					)[0][1],
 				]
 				if data and data[1] != 0:
-
 					stats[tag["name"]].append(data)
 		else:
 			stats[tag["name"]] = tagcount
@@ -641,7 +649,7 @@ def scrub_user_tags(tagcount):
 		alltags = t.split(",")
 		for tag in alltags:
 			if tag:
-				if not tag in rdict:
+				if tag not in rdict:
 					rdict[tag] = 0
 
 				rdict[tag] += tagdict[t]
@@ -663,19 +671,14 @@ def get_match_cond(doctype, as_condition=True):
 
 
 def build_match_conditions(doctype, user=None, as_condition=True):
-	match_conditions = DatabaseQuery(doctype, user=user).build_match_conditions(
-		as_condition=as_condition
-	)
+	match_conditions = DatabaseQuery(doctype, user=user).build_match_conditions(as_condition=as_condition)
 	if as_condition:
 		return match_conditions.replace("%", "%%")
-	else:
-		return match_conditions
+	return match_conditions
 
 
-def get_filters_cond(
-	doctype, filters, conditions, ignore_permissions=None, with_match_conditions=False
-):
-	if isinstance(filters, string_types):
+def get_filters_cond(doctype, filters, conditions, ignore_permissions=None, with_match_conditions=False):
+	if isinstance(filters, str):
 		filters = json.loads(filters)
 
 	if filters:
@@ -684,9 +687,9 @@ def get_filters_cond(
 			filters = filters.items()
 			flt = []
 			for f in filters:
-				if isinstance(f[1], string_types) and f[1][0] == "!":
+				if isinstance(f[1], str) and f[1][0] == "!":
 					flt.append([doctype, f[0], "!=", f[1][1:]])
-				elif isinstance(f[1], (list, tuple)) and f[1][0].lower() in (
+				elif isinstance(f[1], list | tuple) and f[1][0].lower() in (
 					"=",
 					">",
 					"<",
@@ -700,7 +703,6 @@ def get_filters_cond(
 					"between",
 					"is",
 				):
-
 					flt.append([doctype, f[0], f[1][0], f[1][1]])
 				else:
 					flt.append([doctype, f[0], "=", f[1]])

@@ -86,10 +86,11 @@
   }
  ],
  "links": [],
- "modified": "2023-04-20 17:56:27.891296",
+ "modified": "2023-01-01 21:01:24.405729",
  "modified_by": "Administrator",
  "module": "Integrations",
  "name": "Token Cache",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {
@@ -105,5 +106,6 @@
   }
  ],
  "sort_field": "modified",
- "sort_order": "DESC"
+ "sort_order": "DESC",
+ "states": []
 }

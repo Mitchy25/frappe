@@ -6,12 +6,17 @@
 		<ul class="nav navbar-nav d-none d-sm-flex" id="navbar-breadcrumbs"></ul>
 		<div class="collapse navbar-collapse justify-content-end">
 			<form class="form-inline fill-width justify-content-end" role="search" onsubmit="return false;">
+				{% if (frappe.boot.read_only) { %}
+					<span class="indicator-pill yellow no-indicator-dot" title="{%= __("Your site is getting upgraded.") %}">
+						{%= __("Read Only Mode") %}
+					</span>
+				{% } %}
 				<div class="input-group search-bar text-muted hidden">
 					<input
 						id="navbar-search"
 						type="text"
 						class="form-control"
-						placeholder="{%= __("Search or type a command (Ctrl + G)") %}"
+						placeholder="{%= __('Search or type a command ({0})', [frappe.utils.is_mac() ? '⌘ + G' : 'Ctrl + G']) %}"
 						aria-haspopup="true"
 					>
 					<span class="search-icon">
@@ -43,6 +48,7 @@
 						<div class="notification-list-body">
 							<div class="panel-notifications"></div>
 							<div class="panel-events"></div>
+							<div class="panel-changelog-feed"></div>
 						</div>
 					</div>
 				</li>

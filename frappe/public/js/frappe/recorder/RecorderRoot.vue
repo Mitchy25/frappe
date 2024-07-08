@@ -1,6 +1,6 @@
 <template>
 	<keep-alive include="RecorderDetail">
-		<router-view/>
+		<router-view />
 	</keep-alive>
 </template>
 
@@ -8,10 +8,10 @@
 export default {
 	name: "RecorderRoot",
 	watch: {
-		$route() {
-			frappe.router.current_route = frappe.router.parse();
+		async $route() {
+			frappe.router.current_route = await frappe.router.parse();
 			frappe.breadcrumbs.update();
-		}
-	}
+		},
+	},
 };
 </script>

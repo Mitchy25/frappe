@@ -1,7 +1,7 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# MIT License. See license.txt
+# License: MIT. See LICENSE
 
-from __future__ import unicode_literals
+import json
 
 import json
 
@@ -32,7 +32,6 @@ def get_event_conditions(doctype, filters=None):
 
 @frappe.whitelist()
 def get_events(doctype, start, end, field_map, filters=None, fields=None):
-
 	field_map = frappe._dict(json.loads(field_map))
 	fields = frappe.parse_json(fields)
 
@@ -41,8 +40,7 @@ def get_events(doctype, start, end, field_map, filters=None, fields=None):
 		if d.fieldtype == "Color":
 			field_map.update({"color": d.fieldname})
 
-	if filters:
-		filters = json.loads(filters or "")
+	filters = json.loads(filters) if filters else []
 
 	if not fields:
 		fields = [field_map.start, field_map.end, field_map.title, "name"]
@@ -57,5 +55,5 @@ def get_events(doctype, start, end, field_map, filters=None, fields=None):
 		[doctype, start_date, "<=", end],
 		[doctype, end_date, ">=", start],
 	]
-
+	fields = list({field for field in fields if field})
 	return frappe.get_list(doctype, fields=fields, filters=filters)

@@ -1,16 +1,12 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2020, Frappe Technologies and contributors
-# For license information, please see license.txt
-
-from __future__ import unicode_literals
-
-import unittest
+# License: MIT. See LICENSE
 
 import frappe
 from frappe.geo.utils import get_coords
+from frappe.tests.utils import FrappeTestCase
 
 
-class TestGeoUtils(unittest.TestCase):
+class TestGeoUtils(FrappeTestCase):
 	def setUp(self):
 		self.todo = frappe.get_doc(
 			dict(doctype="ToDo", description="Test description", assigned_by="Administrator")
@@ -45,14 +41,10 @@ class TestGeoUtils(unittest.TestCase):
 		self.assertEqual(coords, {"type": "FeatureCollection", "features": []})
 
 	def test_get_coords_from_not_existable_location(self):
-		self.assertRaises(
-			frappe.ValidationError, get_coords, "ToDo", self.test_filter_todo, "location_field"
-		)
+		self.assertRaises(frappe.ValidationError, get_coords, "ToDo", self.test_filter_todo, "location_field")
 
 	def test_get_coords_from_not_existable_coords(self):
-		self.assertRaises(
-			frappe.ValidationError, get_coords, "ToDo", self.test_filter_todo, "coordinates"
-		)
+		self.assertRaises(frappe.ValidationError, get_coords, "ToDo", self.test_filter_todo, "coordinates")
 
 	def tearDown(self):
 		self.todo.delete()

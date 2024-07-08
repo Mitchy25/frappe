@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2022, Frappe Technologies and contributors
 # License: MIT. See LICENSE
 
@@ -40,7 +39,6 @@ class LDAPSettings(Document):
 				and self.ldap_search_string
 				and "{0}" in self.ldap_search_string
 			):
-
 				conn = self.connect_to_ldap(
 					base_dn=self.base_dn, password=self.get_password(raise_exception=False)
 				)
@@ -54,7 +52,9 @@ class LDAPSettings(Document):
 						)
 
 						conn.search(
-							search_base=self.ldap_search_path_group, search_filter="(objectClass=*)", attributes=["cn"]
+							search_base=self.ldap_search_path_group,
+							search_filter="(objectClass=*)",
+							attributes=["cn"],
 						)
 
 				except LDAPAttributeError as ex:
@@ -130,7 +130,7 @@ class LDAPSettings(Document):
 	def get_ldap_client_settings() -> dict:
 		# return the settings to be used on the client side.
 		result = {"enabled": False}
-		ldap = frappe.get_doc("LDAP Settings")
+		ldap = frappe.get_cached_doc("LDAP Settings")
 		if ldap.enabled:
 			result["enabled"] = True
 			result["method"] = "frappe.integrations.doctype.ldap_settings.ldap_settings.login"
@@ -144,14 +144,12 @@ class LDAPSettings(Document):
 			setattr(user, key, value)
 		user.save(ignore_permissions=True)
 
-	def sync_roles(self, user: "User", additional_groups: list = None):
+	def sync_roles(self, user: "User", additional_groups: list | None = None):
 		current_roles = {d.role for d in user.get("roles")}
-
 		if self.default_user_type == "System User":
 			needed_roles = {self.default_role}
 		else:
 			needed_roles = set()
-
 		lower_groups = [g.lower() for g in additional_groups or []]
 
 		all_mapped_roles = {r.erpnext_role for r in self.ldap_groups}
@@ -168,7 +166,7 @@ class LDAPSettings(Document):
 
 		user.remove_roles(*roles_to_remove)
 
-	def create_or_update_user(self, user_data: dict, groups: list = None):
+	def create_or_update_user(self, user_data: dict, groups: list | None = None):
 		user: "User" = None
 		role: str = None
 
@@ -176,15 +174,12 @@ class LDAPSettings(Document):
 			user = frappe.get_doc("User", user_data["email"])
 			LDAPSettings.update_user_fields(user=user, user_data=user_data)
 		elif not self.do_not_create_new_user:
-			doc = user_data
-			doc.update(
-				{
-					"doctype": "User",
-					"send_welcome_email": 0,
-					"language": "",
-					"user_type": self.default_user_type,
-				}
-			)
+			doc = user_data | {
+				"doctype": "User",
+				"send_welcome_email": 0,
+				"language": "",
+				"user_type": self.default_user_type,
+			}
 			user = frappe.get_doc(doc)
 			user.insert(ignore_permissions=True)
 		else:
@@ -285,7 +280,7 @@ class LDAPSettings(Document):
 		try:
 			conn.search(
 				search_base=self.ldap_search_path_user,
-				search_filter="{0}".format(user_filter),
+				search_filter=f"{user_filter}",
 				attributes=ldap_attributes,
 			)
 
@@ -308,9 +303,7 @@ class LDAPSettings(Document):
 	def reset_password(self, user, password, logout_sessions=False):
 		search_filter = f"({self.ldap_email_field}={user})"
 
-		conn = self.connect_to_ldap(
-			self.base_dn, self.get_password(raise_exception=False), read_only=False
-		)
+		conn = self.connect_to_ldap(self.base_dn, self.get_password(raise_exception=False), read_only=False)
 
 		if conn.search(
 			search_base=self.ldap_search_path_user,

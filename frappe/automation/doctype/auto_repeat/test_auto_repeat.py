@@ -1,10 +1,5 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2018, Frappe Technologies and Contributors
-# See license.txt
-from __future__ import unicode_literals
-
-import unittest
-
+# License: MIT. See LICENSE
 import frappe
 from frappe.automation.doctype.auto_repeat.auto_repeat import (
 	create_repeated_entries,
@@ -12,6 +7,7 @@ from frappe.automation.doctype.auto_repeat.auto_repeat import (
 	week_map,
 )
 from frappe.custom.doctype.custom_field.custom_field import create_custom_field
+from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_days, add_months, getdate, today
 
 
@@ -29,7 +25,7 @@ def add_custom_fields():
 	create_custom_field("ToDo", df)
 
 
-class TestAutoRepeat(unittest.TestCase):
+class TestAutoRepeat(FrappeTestCase):
 	def setUp(self):
 		if not frappe.db.sql(
 			"SELECT `fieldname` FROM `tabCustom Field` WHERE `fieldname`='auto_repeat' and `dt`=%s", "Todo"
@@ -50,9 +46,7 @@ class TestAutoRepeat(unittest.TestCase):
 		todo = frappe.get_doc(doc.reference_doctype, doc.reference_document)
 		self.assertEqual(todo.auto_repeat, doc.name)
 
-		new_todo = frappe.db.get_value(
-			"ToDo", {"auto_repeat": doc.name, "name": ("!=", todo.name)}, "name"
-		)
+		new_todo = frappe.db.get_value("ToDo", {"auto_repeat": doc.name, "name": ("!=", todo.name)}, "name")
 
 		new_todo = frappe.get_doc("ToDo", new_todo)
 
@@ -78,9 +72,7 @@ class TestAutoRepeat(unittest.TestCase):
 		todo = frappe.get_doc(doc.reference_doctype, doc.reference_document)
 		self.assertEqual(todo.auto_repeat, doc.name)
 
-		new_todo = frappe.db.get_value(
-			"ToDo", {"auto_repeat": doc.name, "name": ("!=", todo.name)}, "name"
-		)
+		new_todo = frappe.db.get_value("ToDo", {"auto_repeat": doc.name, "name": ("!=", todo.name)}, "name")
 
 		new_todo = frappe.get_doc("ToDo", new_todo)
 
@@ -125,7 +117,9 @@ class TestAutoRepeat(unittest.TestCase):
 		# test without end_date
 		todo = frappe.get_doc(
 			dict(
-				doctype="ToDo", description="test recurring todo without end_date", assigned_by="Administrator"
+				doctype="ToDo",
+				description="test recurring todo without end_date",
+				assigned_by="Administrator",
 			)
 		).insert()
 		self.monthly_auto_repeat("ToDo", todo.name, start_date)
@@ -160,7 +154,7 @@ class TestAutoRepeat(unittest.TestCase):
 		docnames = frappe.get_all(doc.reference_doctype, {"auto_repeat": doc.name})
 		self.assertEqual(len(docnames), months)
 
-	def test_notification_is_attached(self):
+	def test_email_notification(self):
 		todo = frappe.get_doc(
 			dict(
 				doctype="ToDo",
@@ -180,14 +174,10 @@ class TestAutoRepeat(unittest.TestCase):
 		create_repeated_entries(data)
 		frappe.db.commit()
 
-		new_todo = frappe.db.get_value(
-			"ToDo", {"auto_repeat": doc.name, "name": ("!=", todo.name)}, "name"
-		)
+		new_todo = frappe.db.get_value("ToDo", {"auto_repeat": doc.name, "name": ("!=", todo.name)}, "name")
 
-		linked_comm = frappe.db.exists(
-			"Communication", dict(reference_doctype="ToDo", reference_name=new_todo)
-		)
-		self.assertTrue(linked_comm)
+		email_queue = frappe.db.exists("Email Queue", dict(reference_doctype="ToDo", reference_name=new_todo))
+		self.assertTrue(email_queue)
 
 	def test_next_schedule_date(self):
 		current_date = getdate(today())
@@ -202,12 +192,10 @@ class TestAutoRepeat(unittest.TestCase):
 
 		# next_schedule_date is set as on or after current date
 		# it should not be a previous month's date
-		self.assertTrue((doc.next_schedule_date >= current_date))
+		self.assertTrue(doc.next_schedule_date >= current_date)
 
 		todo = frappe.get_doc(
-			dict(
-				doctype="ToDo", description="test next schedule date for daily", assigned_by="Administrator"
-			)
+			dict(doctype="ToDo", description="test next schedule date for daily", assigned_by="Administrator")
 		).insert()
 		doc = make_auto_repeat(
 			frequency="Daily", reference_document=todo.name, start_date=add_days(today(), -2)
@@ -231,10 +219,10 @@ class TestAutoRepeat(unittest.TestCase):
 
 		data = get_auto_repeat_entries(current_date)
 		create_repeated_entries(data)
-		docnames = frappe.db.get_all(
+		docnames = frappe.get_all(
 			doc.reference_doctype, filters={"auto_repeat": doc.name}, fields=["docstatus"], limit=1
 		)
-		self.assertEquals(docnames[0].docstatus, 1)
+		self.assertEqual(docnames[0].docstatus, 1)
 
 
 def make_auto_repeat(**args):

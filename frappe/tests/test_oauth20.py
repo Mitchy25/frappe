@@ -1,13 +1,10 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# MIT License. See license.txt
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 import unittest
-from urllib.parse import quote, urlencode
+from urllib.parse import parse_qs, urljoin, urlparse
 
-import jwt
 import requests
-from six.moves.urllib.parse import parse_qs, urljoin, urlparse
 
 import frappe
 from frappe.integrations.oauth2 import encode_params
@@ -278,7 +275,7 @@ class TestOAuth20(unittest.TestCase):
 		self.assertTrue(check_valid_openid_response(response_dict.get("access_token")[0]))
 
 	def test_openid_code_id_token(self):
-		client = update_client_for_auth_code_grant(self.client_id)
+		update_client_for_auth_code_grant(self.client_id)
 
 		session = requests.Session()
 		login(session)
@@ -332,11 +329,14 @@ class TestOAuth20(unittest.TestCase):
 		self.assertTrue(payload.get("nonce") == nonce)
 
 	def decode_id_token(self, id_token):
+		import jwt
+
 		return jwt.decode(
 			id_token,
 			audience=self.client_id,
 			key=self.client_secret,
 			algorithms=["HS256"],
+			options={"verify_signature": True, "require": ["exp", "iat", "aud"]},
 		)
 
 
@@ -356,9 +356,7 @@ def check_valid_openid_response(access_token=None):
 
 
 def login(session):
-	session.post(
-		get_full_url("/api/method/login"), data={"usr": "test@example.com", "pwd": "Eastern_43A1W"}
-	)
+	session.post(get_full_url("/api/method/login"), data={"usr": "test@example.com", "pwd": "Eastern_43A1W"})
 
 
 def get_full_url(endpoint):

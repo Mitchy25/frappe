@@ -249,7 +249,7 @@
  "image_field": "image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-04-30 11:53:46.696354",
+ "modified": "2023-10-06 11:52:34.088559",
  "modified_by": "Administrator",
  "module": "Contacts",
  "name": "Contact",
@@ -378,11 +378,19 @@
    "if_owner": 1,
    "read": 1,
    "report": 1,
+   "role": "All"
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
    "role": "All",
    "write": 1
   }
  ],
  "search_fields": "first_name, last_name, email_id, phone, mobile_no",
  "sort_field": "modified",
- "sort_order": "ASC"
+ "sort_order": "ASC",
+ "states": []
 }

@@ -14,6 +14,7 @@ def execute():
 		)
 
 
+
 def get_read_time(blog):
 	content = blog.content or blog.content_html
 	if blog.content_type == "Markdown":

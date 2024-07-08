@@ -1,4 +1,5 @@
-from typing import List, Tuple, Union
+import re
+from contextlib import contextmanager
 
 import pymysql
 from pymysql.constants import ER, FIELD_TYPE
@@ -9,15 +10,146 @@ from frappe.database.database import Database
 from frappe.database.mariadb.schema import MariaDBTable
 from frappe.utils import UnicodeWithAttrs, cstr, get_datetime, get_table_name
 
+_PARAM_COMP = re.compile(r"%\([\w]*\)s")
 
-class MariaDBDatabase(Database):
-	ProgrammingError = pymysql.err.ProgrammingError
-	TableMissingError = pymysql.err.ProgrammingError
-	OperationalError = pymysql.err.OperationalError
-	InternalError = pymysql.err.InternalError
-	SQLError = pymysql.err.ProgrammingError
-	DataError = pymysql.err.DataError
+
+class MariaDBExceptionUtil:
+	ProgrammingError = pymysql.ProgrammingError
+	TableMissingError = pymysql.ProgrammingError
+	OperationalError = pymysql.OperationalError
+	InternalError = pymysql.InternalError
+	SQLError = pymysql.ProgrammingError
+	DataError = pymysql.DataError
+
+	# match ER_SEQUENCE_RUN_OUT - https://mariadb.com/kb/en/mariadb-error-codes/
+	SequenceGeneratorLimitExceeded = pymysql.OperationalError
+	SequenceGeneratorLimitExceeded.errno = 4084
+
+	@staticmethod
+	def is_deadlocked(e: pymysql.Error) -> bool:
+		return e.args[0] == ER.LOCK_DEADLOCK
+
+	@staticmethod
+	def is_timedout(e: pymysql.Error) -> bool:
+		return e.args[0] == ER.LOCK_WAIT_TIMEOUT
+
+	@staticmethod
+	def is_read_only_mode_error(e: pymysql.Error) -> bool:
+		return e.args[0] == 1792
+
+	@staticmethod
+	def is_table_missing(e: pymysql.Error) -> bool:
+		return e.args[0] == ER.NO_SUCH_TABLE
+
+	@staticmethod
+	def is_missing_table(e: pymysql.Error) -> bool:
+		return MariaDBDatabase.is_table_missing(e)
+
+	@staticmethod
+	def is_missing_column(e: pymysql.Error) -> bool:
+		return e.args[0] == ER.BAD_FIELD_ERROR
+
+	@staticmethod
+	def is_duplicate_fieldname(e: pymysql.Error) -> bool:
+		return e.args[0] == ER.DUP_FIELDNAME
+
+	@staticmethod
+	def is_duplicate_entry(e: pymysql.Error) -> bool:
+		return e.args[0] == ER.DUP_ENTRY
+
+	@staticmethod
+	def is_access_denied(e: pymysql.Error) -> bool:
+		return e.args[0] == ER.ACCESS_DENIED_ERROR
+
+	@staticmethod
+	def cant_drop_field_or_key(e: pymysql.Error) -> bool:
+		return e.args[0] == ER.CANT_DROP_FIELD_OR_KEY
+
+	@staticmethod
+	def is_syntax_error(e: pymysql.Error) -> bool:
+		return e.args[0] == ER.PARSE_ERROR
+
+	@staticmethod
+	def is_statement_timeout(e: pymysql.Error) -> bool:
+		return e.args[0] == 1969
+
+	@staticmethod
+	def is_data_too_long(e: pymysql.Error) -> bool:
+		return e.args[0] == ER.DATA_TOO_LONG
+
+	@staticmethod
+	def is_primary_key_violation(e: pymysql.Error) -> bool:
+		return (
+			MariaDBDatabase.is_duplicate_entry(e)
+			and "PRIMARY" in cstr(e.args[1])
+			and isinstance(e, pymysql.IntegrityError)
+		)
+
+	@staticmethod
+	def is_unique_key_violation(e: pymysql.Error) -> bool:
+		return (
+			MariaDBDatabase.is_duplicate_entry(e)
+			and "Duplicate" in cstr(e.args[1])
+			and isinstance(e, pymysql.IntegrityError)
+		)
+
+	@staticmethod
+	def is_interface_error(e: pymysql.Error):
+		return isinstance(e, pymysql.InterfaceError)
+
+
+class MariaDBConnectionUtil:
+	def get_connection(self):
+		conn = self._get_connection()
+		conn.auto_reconnect = True
+		return conn
+
+	def _get_connection(self):
+		"""Return MariaDB connection object."""
+		return self.create_connection()
+
+	def create_connection(self):
+		return pymysql.connect(**self.get_connection_settings())
+
+	def set_execution_timeout(self, seconds: int):
+		self.sql("set session max_statement_time = %s", int(seconds))
+
+	def get_connection_settings(self) -> dict:
+		conn_settings = {
+			"host": self.host,
+			"user": self.user,
+			"password": self.password,
+			"conv": self.CONVERSION_MAP,
+			"charset": "utf8mb4",
+			"use_unicode": True,
+		}
+
+		if self.user not in (frappe.flags.root_login, "root"):
+			conn_settings["database"] = self.user
+
+		if self.port:
+			conn_settings["port"] = int(self.port)
+
+		if frappe.conf.local_infile:
+			conn_settings["local_infile"] = frappe.conf.local_infile
+
+		if frappe.conf.db_ssl_ca and frappe.conf.db_ssl_cert and frappe.conf.db_ssl_key:
+			conn_settings["ssl"] = {
+				"ca": frappe.conf.db_ssl_ca,
+				"cert": frappe.conf.db_ssl_cert,
+				"key": frappe.conf.db_ssl_key,
+			}
+		return conn_settings
+
+
+class MariaDBDatabase(MariaDBConnectionUtil, MariaDBExceptionUtil, Database):
 	REGEX_CHARACTER = "regexp"
+	CONVERSION_MAP = conversions | {
+		FIELD_TYPE.NEWDECIMAL: float,
+		FIELD_TYPE.DATETIME: get_datetime,
+		UnicodeWithAttrs: escape_string,
+	}
+	default_port = "3306"
 
 	def setup_type_map(self):
 		self.db_type = "mariadb"
@@ -43,7 +175,7 @@ class MariaDBDatabase(Database):
 			"Dynamic Link": ("varchar", self.VARCHAR_LEN),
 			"Password": ("text", ""),
 			"Select": ("varchar", self.VARCHAR_LEN),
-			"Rating": ("int", "1"),
+			"Rating": ("decimal", "3,2"),
 			"Read Only": ("varchar", self.VARCHAR_LEN),
 			"Attach": ("text", ""),
 			"Attach Image": ("text", ""),
@@ -53,48 +185,10 @@ class MariaDBDatabase(Database):
 			"Geolocation": ("longtext", ""),
 			"Duration": ("decimal", "21,9"),
 			"Icon": ("varchar", self.VARCHAR_LEN),
+			"Phone": ("varchar", self.VARCHAR_LEN),
+			"Autocomplete": ("varchar", self.VARCHAR_LEN),
+			"JSON": ("json", ""),
 		}
-
-	def get_connection(self):
-		usessl = 0
-		if frappe.conf.db_ssl_ca and frappe.conf.db_ssl_cert and frappe.conf.db_ssl_key:
-			usessl = 1
-			ssl_params = {
-				"ca": frappe.conf.db_ssl_ca,
-				"cert": frappe.conf.db_ssl_cert,
-				"key": frappe.conf.db_ssl_key,
-			}
-
-		conversions.update(
-			{
-				FIELD_TYPE.NEWDECIMAL: float,
-				FIELD_TYPE.DATETIME: get_datetime,
-				UnicodeWithAttrs: conversions[str],
-			}
-		)
-
-		conn = pymysql.connect(
-			user=self.user or "",
-			password=self.password or "",
-			host=self.host,
-			port=self.port,
-			charset="utf8mb4",
-			use_unicode=True,
-			ssl=ssl_params if usessl else None,
-			conv=conversions,
-			local_infile=frappe.conf.local_infile,
-		)
-
-		# MYSQL_OPTION_MULTI_STATEMENTS_OFF = 1
-		# # self._conn.set_server_option(MYSQL_OPTION_MULTI_STATEMENTS_OFF)
-
-		if self.user != "root":
-			conn.select_db(self.user)
-
-		return conn
-
-	def set_execution_timeout(self, seconds: int):
-		self.sql("set session max_statement_time = %s", int(seconds))
 
 	def get_database_size(self):
 		"""'Returns database size in MB"""
@@ -110,9 +204,25 @@ class MariaDBDatabase(Database):
 
 		return db_size[0].get("database_size")
 
+	def log_query(self, query, values, debug, explain):
+		self.last_query = self._cursor._executed
+		self._log_query(self.last_query, debug, explain, query)
+		return self.last_query
+
+	def _clean_up(self):
+		# PERF: Erase internal references of pymysql to trigger GC as soon as
+		# results are consumed.
+		self._cursor._result = None
+		self._cursor._rows = None
+		self._cursor.connection._result = None
+
 	@staticmethod
 	def escape(s, percent=True):
 		"""Excape quotes and percent in given string."""
+		# Update: We've scrapped PyMySQL in favour of MariaDB's official Python client
+		# Also, given we're promoting use of the PyPika builder via frappe.qb, the use
+		# of this method should be limited.
+
 		# pymysql expects unicode argument to escape_string with Python 3
 		s = frappe.as_unicode(escape_string(frappe.as_unicode(s)), "utf-8").replace("`", "\\`")
 
@@ -133,75 +243,37 @@ class MariaDBDatabase(Database):
 
 	@staticmethod
 	def is_type_datetime(code):
-		return code in (pymysql.DATE, pymysql.DATETIME)
+		return code == pymysql.DATETIME
 
-	def rename_table(self, old_name: str, new_name: str) -> Union[List, Tuple]:
+	def rename_table(self, old_name: str, new_name: str) -> list | tuple:
 		old_name = get_table_name(old_name)
 		new_name = get_table_name(new_name)
 		return self.sql(f"RENAME TABLE `{old_name}` TO `{new_name}`")
 
-	def describe(self, doctype: str) -> Union[List, Tuple]:
+	def describe(self, doctype: str) -> list | tuple:
 		table_name = get_table_name(doctype)
 		return self.sql(f"DESC `{table_name}`")
 
-	def change_column_type(self, table: str, column: str, type: str) -> Union[List, Tuple]:
-		table_name = get_table_name(table)
-		return self.sql(f"ALTER TABLE `{table_name}` MODIFY `{column}` {type} NOT NULL")
+	def change_column_type(
+		self, doctype: str, column: str, type: str, nullable: bool = False
+	) -> list | tuple:
+		table_name = get_table_name(doctype)
+		null_constraint = "NOT NULL" if not nullable else ""
+		return self.sql_ddl(f"ALTER TABLE `{table_name}` MODIFY `{column}` {type} {null_constraint}")
 
-	# exception types
-	@staticmethod
-	def is_deadlocked(e):
-		return e.args[0] == ER.LOCK_DEADLOCK
+	def rename_column(self, doctype: str, old_column_name, new_column_name):
+		current_data_type = self.get_column_type(doctype, old_column_name)
 
-	@staticmethod
-	def is_timedout(e):
-		return e.args[0] == ER.LOCK_WAIT_TIMEOUT
+		table_name = get_table_name(doctype)
 
-	@staticmethod
-	def is_statement_timeout(e):
-		return e.args[0] == 1969
-
-	@staticmethod
-	def is_table_missing(e):
-		return e.args[0] == ER.NO_SUCH_TABLE
-
-	@staticmethod
-	def is_missing_table(e):
-		return MariaDBDatabase.is_table_missing(e)
-
-	@staticmethod
-	def is_missing_column(e):
-		return e.args[0] == ER.BAD_FIELD_ERROR
-
-	@staticmethod
-	def is_duplicate_fieldname(e):
-		return e.args[0] == ER.DUP_FIELDNAME
-
-	@staticmethod
-	def is_duplicate_entry(e):
-		return e.args[0] == ER.DUP_ENTRY
-
-	@staticmethod
-	def is_access_denied(e):
-		return e.args[0] == ER.ACCESS_DENIED_ERROR
-
-	@staticmethod
-	def cant_drop_field_or_key(e):
-		return e.args[0] == ER.CANT_DROP_FIELD_OR_KEY
-
-	@staticmethod
-	def is_syntax_error(e):
-		return e.args[0] == ER.PARSE_ERROR
-
-	@staticmethod
-	def is_data_too_long(e):
-		return e.args[0] == ER.DATA_TOO_LONG
-
-	def is_primary_key_violation(self, e):
-		return self.is_duplicate_entry(e) and "PRIMARY" in cstr(e.args[1])
-
-	def is_unique_key_violation(self, e):
-		return self.is_duplicate_entry(e) and "Duplicate" in cstr(e.args[1])
+		frappe.db.sql_ddl(
+			f"""ALTER TABLE `{table_name}`
+				CHANGE COLUMN `{old_column_name}`
+				`{new_column_name}`
+				{current_data_type}"""
+			# ^ Mariadb requires passing current data type again even if there's no change
+			# This requirement is gone from v10.5
+		)
 
 	def create_auth_table(self):
 		self.sql_ddl(
@@ -212,26 +284,24 @@ class MariaDBDatabase(Database):
 				`password` TEXT NOT NULL,
 				`encrypted` INT(1) NOT NULL DEFAULT 0,
 				PRIMARY KEY (`doctype`, `name`, `fieldname`)
-			) ENGINE=InnoDB ROW_FORMAT=COMPRESSED CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci"""
+			) ENGINE=InnoDB ROW_FORMAT=DYNAMIC CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci"""
 		)
 
 	def create_global_search_table(self):
-		if not "__global_search" in self.get_tables():
+		if "__global_search" not in self.get_tables():
 			self.sql(
-				"""create table __global_search(
+				f"""create table __global_search(
 				doctype varchar(100),
-				name varchar({0}),
-				title varchar({0}),
+				name varchar({self.VARCHAR_LEN}),
+				title varchar({self.VARCHAR_LEN}),
 				content text,
 				fulltext(content),
-				route varchar({0}),
+				route varchar({self.VARCHAR_LEN}),
 				published int(1) not null default 0,
 				unique `doctype_name` (doctype, name))
 				COLLATE=utf8mb4_unicode_ci
 				ENGINE=MyISAM
-				CHARACTER SET=utf8mb4""".format(
-					self.VARCHAR_LEN
-				)
+				CHARACTER SET=utf8mb4"""
 			)
 
 	def create_user_settings_table(self):
@@ -244,22 +314,6 @@ class MariaDBDatabase(Database):
 			) ENGINE=InnoDB DEFAULT CHARSET=utf8"""
 		)
 
-	def create_help_table(self):
-		self.sql(
-			"""create table help(
-				path varchar(255),
-				content text,
-				title text,
-				intro text,
-				full_path text,
-				fulltext(title),
-				fulltext(content),
-				index (path))
-				COLLATE=utf8mb4_unicode_ci
-				ENGINE=MyISAM
-				CHARACTER SET=utf8mb4"""
-		)
-
 	@staticmethod
 	def get_on_duplicate_update(key=None):
 		return "ON DUPLICATE key UPDATE "
@@ -267,7 +321,7 @@ class MariaDBDatabase(Database):
 	def get_table_columns_description(self, table_name):
 		"""Returns list of column and its description"""
 		return self.sql(
-			"""select
+			f"""select
 			column_name as 'name',
 			column_type as 'type',
 			column_default as 'default',
@@ -282,21 +336,17 @@ class MariaDBDatabase(Database):
 			), 0) as 'index',
 			column_key = 'UNI' as 'unique'
 			from information_schema.columns as columns
-			where table_name = '{table_name}' """.format(
-				table_name=table_name
-			),
+			where table_name = '{table_name}' """,
 			as_dict=1,
 		)
 
 	def has_index(self, table_name, index_name):
 		return self.sql(
-			"""SHOW INDEX FROM `{table_name}`
-			WHERE Key_name='{index_name}'""".format(
-				table_name=table_name, index_name=index_name
-			)
+			f"""SHOW INDEX FROM `{table_name}`
+			WHERE Key_name='{index_name}'"""
 		)
 
-	def get_column_index(self, table_name: str, fieldname: str, unique: bool = False):
+	def get_column_index(self, table_name: str, fieldname: str, unique: bool = False) -> frappe._dict | None:
 		"""Check if column exists for a specific fields in specified order.
 
 		This differs from db.has_index because it doesn't rely on index name but columns inside an
@@ -308,6 +358,7 @@ class MariaDBDatabase(Database):
 				WHERE Column_name = "{fieldname}"
 					AND Seq_in_index = 1
 					AND Non_unique={int(not unique)}
+					AND Index_type != 'FULLTEXT'
 				""",
 			as_dict=True,
 		)
@@ -325,17 +376,16 @@ class MariaDBDatabase(Database):
 			if not clustered_index:
 				return index
 
-	def add_index(self, doctype, fields, index_name=None):
+	def add_index(self, doctype: str, fields: list, index_name: str | None = None):
 		"""Creates an index with given fields if not already created.
 		Index name will be `fieldname1_fieldname2_index`"""
 		index_name = index_name or self.get_index_name(fields)
-		table_name = "tab" + doctype
+		table_name = get_table_name(doctype)
 		if not self.has_index(table_name, index_name):
 			self.commit()
 			self.sql(
-				"""ALTER TABLE `%s`
-				ADD INDEX `%s`(%s)"""
-				% (table_name, index_name, ", ".join(fields))
+				"""ALTER TABLE `{}`
+				ADD INDEX `{}`({})""".format(table_name, index_name, ", ".join(fields))
 			)
 
 	def add_unique(self, doctype, fields, constraint_name=None):
@@ -351,9 +401,8 @@ class MariaDBDatabase(Database):
 		):
 			self.commit()
 			self.sql(
-				"""alter table `tab%s`
-					add unique `%s`(%s)"""
-				% (doctype, constraint_name, ", ".join(fields))
+				"""alter table `tab{}`
+					add unique `{}`({})""".format(doctype, constraint_name, ", ".join(fields))
 			)
 
 	def updatedb(self, doctype, meta=None):
@@ -365,15 +414,50 @@ class MariaDBDatabase(Database):
 		"""
 		res = self.sql("select issingle from `tabDocType` where name=%s", (doctype,))
 		if not res:
-			raise Exception("Wrong doctype {0} in updatedb".format(doctype))
+			raise Exception(f"Wrong doctype {doctype} in updatedb")
 
 		if not res[0][0]:
 			db_table = MariaDBTable(doctype, meta)
 			db_table.validate()
 
-			self.commit()
 			db_table.sync()
-			self.begin()
+			self.commit()
 
-	def get_database_list(self, target):
-		return [d[0] for d in self.sql("SHOW DATABASES;")]
+	def get_database_list(self):
+		return self.sql("SHOW DATABASES", pluck=True)
+
+	def get_tables(self, cached=True):
+		"""Returns list of tables"""
+		to_query = not cached
+
+		if cached:
+			tables = frappe.cache().get_value("db_tables")
+			to_query = not tables
+
+		if to_query:
+			information_schema = frappe.qb.Schema("information_schema")
+
+			tables = (
+				frappe.qb.from_(information_schema.tables)
+				.select(information_schema.tables.table_name)
+				.where(information_schema.tables.table_schema != "information_schema")
+				.run(pluck=True)
+			)
+			frappe.cache().set_value("db_tables", tables)
+
+		return tables
+
+	@contextmanager
+	def unbuffered_cursor(self):
+		from pymysql.cursors import SSCursor
+
+		try:
+			if not self._conn:
+				self.connect()
+
+			original_cursor = self._cursor
+			new_cursor = self._cursor = self._conn.cursor(SSCursor)
+			yield
+		finally:
+			self._cursor = original_cursor
+			new_cursor.close()
