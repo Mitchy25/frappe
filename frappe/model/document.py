@@ -335,9 +335,6 @@ class Document(BaseDocument):
 		self._set_defaults()
 		self.check_permission("write", "save")
 
-		if self.docstatus == 2:
-			self._rename_doc_on_cancel()
-
 		self.set_user_and_timestamp()
 		self.set_docstatus()
 		self.check_if_latest()
