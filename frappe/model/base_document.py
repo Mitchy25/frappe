@@ -247,21 +247,6 @@ class BaseDocument:
 
 		value = self._init_child(value, key)
 		table.append(value)
-
-		# metaclasses may have arbitrary lists
-		# which we can ignore
-		if getattr(self, "_metaclass", None) or self.__class__.__name__ in (
-			"Meta",
-			"FormMeta",
-			"DocField",
-		):
-			return value
-
-		raise ValueError(
-			'Document for field "{0}" attached to child table of "{1}" must be a dict or BaseDocument, not {2} ({3})'.format(
-				key, self.name, str(type(value))[1:-1], value
-			)
-		)
 	
 	def append_item_with_batch(self, key, value, shortdated_first = True, single_type_only = False, throw = False, partial_fulfillment = True, specific_batch = None):
 		"""

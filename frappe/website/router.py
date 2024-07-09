@@ -4,16 +4,12 @@
 import io
 import os
 import re
-from importlib.machinery import all_suffixes
-
-from werkzeug.routing import Map, NotFound, Rule
 
 from werkzeug.exceptions import NotFound
 from werkzeug.routing import Map, Rule
 
 import frappe
 from frappe.website.utils import extract_title, get_frontmatter
-
 
 
 def get_page_info_from_web_page_with_dynamic_routes(path):
@@ -187,7 +183,6 @@ def get_page_info(path, app, start, basepath=None, app_path=None, fname=None):
 	return page_info
 
 
-
 def setup_source(page_info):
 	"""Get the HTML source of the template"""
 	jenv = frappe.get_jenv()
@@ -278,7 +273,6 @@ def setup_index(page_info):
 		if os.path.exists(index_txt_path):
 			with open(index_txt_path) as f:
 				page_info.index = f.read().splitlines()
-
 
 
 def load_properties_from_controller(page_info):

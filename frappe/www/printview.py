@@ -14,14 +14,6 @@ from frappe.core.doctype.document_share_key.document_share_key import is_expired
 from frappe.utils import cint, escape_html, strip_html
 from frappe.utils.jinja_globals import is_rtl
 
-import frappe
-from frappe import _
-from frappe.core.doctype.access_log.access_log import make_access_log
-from frappe.core.doctype.document_share_key.document_share_key import is_expired
-from frappe.modules import get_doc_path
-from frappe.utils import cint, escape_html, strip_html
-from frappe.utils.jinja import is_rtl
-
 no_cache = 1
 
 standard_format = "templates/print_formats/standard.html"
@@ -365,7 +357,6 @@ def get_rendered_raw_commands(doc, name=None, print_format=None, meta=None, lang
 		)
 
 	return {"raw_commands": get_rendered_template(doc, name=name, print_format=print_format, meta=meta)}
-
 
 
 def validate_print_permission(doc):

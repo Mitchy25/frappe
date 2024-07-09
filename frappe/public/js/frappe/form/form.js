@@ -57,7 +57,7 @@ frappe.ui.form.Form = class FrappeForm {
 		if (this.meta.istable) {
 			this.meta.in_dialog = 1;
 		}
-		this.__changed_fields = {}
+
 		this.perm = frappe.perm.get_perm(this.doctype); // for create
 		this.action_perm_type_map = {
 			Create: "create",
@@ -215,56 +215,6 @@ frappe.ui.form.Form = class FrappeForm {
 				condition: () => !this.is_new(),
 			});
 		});
-
-		let grid_shortcut_keys = [
-			{
-				'shortcut': 'Up Arrow',
-				'description': __('Move cursor to above row')
-			},
-			{
-				'shortcut': 'Down Arrow',
-				'description': __('Move cursor to below row')
-			},
-			{
-				'shortcut': 'tab',
-				'description': __('Move cursor to next column')
-			},
-			{
-				'shortcut': 'shift+tab',
-				'description': __('Move cursor to previous column')
-			},
-			{
-				'shortcut': 'Ctrl+up',
-				'description': __('Add a row above the current row')
-			},
-			{
-				'shortcut': 'Ctrl+down',
-				'description': __('Add a row below the current row')
-			},
-			{
-				'shortcut': 'Ctrl+shift+up',
-				'description': __('Add a row at the top')
-			},
-			{
-				'shortcut': 'Ctrl+shift+down',
-				'description': __('Add a row at the bottom')
-			},
-			{
-				'shortcut': 'shift+alt+down',
-				'description': __('Duplicate current row')
-			}
-		];
-
-		grid_shortcut_keys.forEach(row => {
-			frappe.ui.keys.add_shortcut({
-				shortcut: row.shortcut,
-				page: this.page,
-				description: __(row.description),
-				ignore_inputs: true,
-				condition: () => !this.is_new()
-			});
-		});
-
 	}
 
 	setup_std_layout() {
@@ -642,14 +592,13 @@ frappe.ui.form.Form = class FrappeForm {
 				});
 				this.sidebar.make();
 			}
+
 			// clear layout message
 			this.layout.show_message();
-			
+
 			frappe.run_serially([
 				// header must be refreshed before client methods
 				// because add_custom_button
-				//TODO: This is 
-				() => this.dashboard.remove_accounting_section(),
 				() => this.refresh_header(switched),
 				// trigger global trigger
 				// to use this
@@ -697,25 +646,9 @@ frappe.ui.form.Form = class FrappeForm {
 		if (frappe.route_hooks.after_load) {
 			let route_callback = frappe.route_hooks.after_load;
 			delete frappe.route_hooks.after_load;
+
 			route_callback(this);
 		}
-	}
-	set_fields_from_route(){
-		var me = this;
-		for (var key in frappe.route_field_inputs) {
-			if(key in me.fields_dict){
-				let value = frappe.route_field_inputs[key]
-				if (Array.isArray(value)) { 
-					value.forEach(child => {
-						me.add_child(key, value)
-					});
-				} else {
-					me.set_value(key, value);
-				}
-				
-			}
-		}
-		delete frappe.route_field_inputs;
 	}
 
 	refresh_fields() {
@@ -778,7 +711,6 @@ frappe.ui.form.Form = class FrappeForm {
 		}
 
 		this.dashboard.refresh();
-
 		frappe.breadcrumbs.update();
 
 		this.show_submit_message();
@@ -838,9 +770,7 @@ frappe.ui.form.Form = class FrappeForm {
 				if (me.comment_box) {
 					me.comment_box.submit();
 				}
-				if (!r.inserted) {
-					me.refresh();
-				}
+				me.refresh();
 			} else {
 				if (on_error) {
 					on_error();
@@ -988,7 +918,6 @@ frappe.ui.form.Form = class FrappeForm {
 		]);
 
 		let can_cancel = links.every((link) => frappe.model.can_cancel(link.doctype));
-		
 		if (can_cancel) {
 			confirm_message += __("Do you want to cancel all linked documents?");
 		} else {
@@ -1175,6 +1104,7 @@ frappe.ui.form.Form = class FrappeForm {
 					field.set_value(this.doc[fieldname], true);
 				}
 			});
+
 			delete this.doc.__run_link_triggers;
 		}
 	}
@@ -1349,15 +1279,6 @@ frappe.ui.form.Form = class FrappeForm {
 	}
 
 	email_doc(message) {
-		let attach_doc = true;
-
-		if (this.doc.hasOwnProperty("exclude_invoice") && this.doc.exclude_invoice && this.doc.company != "FxMed") {
-			attach_doc = false;
-		}
-		let printFormat;
-		if (this.doc.doctype == "Sales Invoice") {
-			printFormat = "Sales Invoice Only"
-		}
 		new frappe.views.CommunicationComposer({
 			doc: this.doc,
 			frm: this,

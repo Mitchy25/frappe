@@ -66,6 +66,7 @@ def get_subscribed_documents():
 
 	try:
 		if frappe.db.exists("Notification Settings", frappe.session.user):
+			# pass
 			doc = frappe.get_doc("Notification Settings", frappe.session.user)
 			return [item.document for item in doc.subscribed_documents]
 	# Notification Settings is fetched even before sync doctype is called

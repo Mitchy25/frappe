@@ -85,9 +85,6 @@ frappe.ui.keys.show_keyboard_shortcut_dialog = () => {
 		(shortcut) => shortcut.page && shortcut.page === window.cur_page.page.frm
 	);
 
-	let grid_shortcuts = standard_shortcuts.filter(
-		shortcut => shortcut.page && shortcut.page === window.cur_page.page.frm);
-
 	function generate_shortcuts_html(shortcuts, heading) {
 		if (!shortcuts.length) {
 			return "";

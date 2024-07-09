@@ -217,14 +217,6 @@ frappe.breadcrumbs = {
 		$(`<li><a href="${dashboard_route}">${__(docname)}</a></li>`).appendTo(this.$breadcrumbs);
 	},
 
-	set_dashboard_breadcrumb(breadcrumbs) {
-		const doctype = breadcrumbs.doctype;
-		const docname = frappe.get_route()[1];
-		let dashboard_route = `/app/${frappe.router.slug(doctype)}/${docname}`;
-		$(`<li><a href="${dashboard_route}">${__(docname)}</a></li>`)
-			.appendTo(this.$breadcrumbs);
-	},
-
 	setup_modules() {
 		if (!frappe.visible_modules) {
 			frappe.visible_modules = $.map(frappe.boot.allowed_workspaces, (m) => {
