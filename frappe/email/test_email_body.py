@@ -16,16 +16,6 @@ from frappe.email.email_body import (
 from frappe.email.receive import Email
 from frappe.tests.utils import FrappeTestCase
 
-from frappe import safe_decode
-from frappe.email.email_body import (
-	get_email,
-	get_header,
-	inline_style_in_html,
-	replace_filename_with_cid,
-)
-from frappe.email.queue import get_email_queue, prepare_message
-from frappe.email.receive import Email
-
 
 class TestEmailBody(FrappeTestCase):
 	def setUp(self):

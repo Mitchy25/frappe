@@ -338,14 +338,6 @@ export default class Grid {
 		this.refresh();
 	}
 
-	reset_grid() {
-		this.visible_columns = [];
-		this.grid_rows = [];
-
-		$(this.parent).find(".grid-body .grid-row").remove();
-		this.refresh();
-	}
-
 	make_head() {
 		if (this.prevent_build) return;
 
@@ -390,14 +382,6 @@ export default class Grid {
 				$input.val(this.filter[field].value);
 			}
 		}
-		this.header_row = new GridRow({
-			parent: $(this.parent).find(".grid-heading-row"),
-			parent_df: this.df,
-			docfields: this.docfields,
-			frm: this.frm,
-			grid: this,
-			configure_columns: true
-		});
 	}
 
 	refresh() {

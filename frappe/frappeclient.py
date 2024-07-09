@@ -245,9 +245,7 @@ class FrappeClient:
 		}
 		return self.post_request(params)
 
-	def migrate_doctype(
-		self, doctype, filters=None, update=None, verbose=1, exclude=None, preprocess=None
-	):
+	def migrate_doctype(self, doctype, filters=None, update=None, verbose=1, exclude=None, preprocess=None):
 		"""Migrate records from another doctype"""
 		meta = frappe.get_meta(doctype)
 		tables = {}

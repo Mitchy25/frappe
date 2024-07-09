@@ -4,8 +4,6 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import validate_url
 
-import frappe
-
 # test_records = frappe.get_test_records('Email Group')
 
 

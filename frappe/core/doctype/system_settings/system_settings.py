@@ -84,15 +84,6 @@ class SystemSettings(Document):
 			set_default_language(self.language)
 
 
-	def set_defaults(self):
-		for df in self.meta.get("fields"):
-			if df.fieldtype not in no_value_fields and self.has_value_changed(df.fieldname):
-				frappe.db.set_default(df.fieldname, self.get(df.fieldname))
-
-		if self.language:
-			set_default_language(self.language)
-
-
 def update_last_reset_password_date():
 	frappe.db.sql(
 		""" UPDATE `tabUser`

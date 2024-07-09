@@ -3,8 +3,6 @@
 
 from contextlib import suppress
 
-from contextlib import suppress
-
 import frappe
 from frappe import _
 from frappe.rate_limiter import rate_limit
@@ -39,8 +37,6 @@ def send_message(sender, message, subject="Website Query"):
 		reply = _(
 			"""Thank you for reaching out to us. We will get back to you at the earliest.
 
-	# for clearing outgoing email error message
-	frappe.clear_last_message()
 
 Your query:
 

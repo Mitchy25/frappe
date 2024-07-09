@@ -20,8 +20,6 @@ frappe.ui.form.ControlDate = class ControlDate extends frappe.ui.form.ControlDat
 		if (!value) {
 			this.datepicker.clear();
 			return;
-		} else if (value === "Today") {
-			value = this.get_now_date();
 		}
 
 		let should_refresh = this.last_value && this.last_value !== value;

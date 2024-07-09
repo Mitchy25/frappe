@@ -145,7 +145,7 @@
    "hide_seconds": 1,
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "Domain (optional)",
+   "label": "Domain",
    "options": "Email Domain"
   },
   {
@@ -154,7 +154,7 @@
    "fieldtype": "Select",
    "hide_days": 1,
    "hide_seconds": 1,
-   "label": "Service (optional)",
+   "label": "Service",
    "options": "\nGMail\nSendgrid\nSparkPost\nYahoo Mail\nOutlook.com\nYandex.Mail"
   },
   {

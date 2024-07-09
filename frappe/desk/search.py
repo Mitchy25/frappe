@@ -190,7 +190,6 @@ def search_widget(
 			if meta.show_title_field_in_link and meta.title_field:
 				formatted_fields.insert(1, f"`tab{meta.name}`.{meta.title_field} as `label`")
 
-			
 			# In order_by, `idx` gets second priority, because it stores link count
 			from frappe.model.db_query import get_order_by
 

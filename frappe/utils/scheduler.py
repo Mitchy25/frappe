@@ -22,7 +22,6 @@ from frappe.utils.background_jobs import get_jobs, set_niceness
 
 DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
-DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 def cprint(*args, **kwargs):
 	"""Prints only if called from STDOUT"""
@@ -138,10 +137,8 @@ def is_scheduler_disabled(verbose=True) -> bool:
 	return scheduler_disabled
 
 
-
 def toggle_scheduler(enable):
 	frappe.db.set_single_value("System Settings", "enable_scheduler", int(enable))
-
 
 
 def enable_scheduler():

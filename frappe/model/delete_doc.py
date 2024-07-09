@@ -4,8 +4,6 @@
 import os
 import shutil
 
-from six import integer_types, string_types
-
 import frappe
 import frappe.defaults
 import frappe.model.meta

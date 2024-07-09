@@ -14,9 +14,7 @@ frappe.ui.form.on("Bulk Update", {
 
 		frm.page.set_primary_action(__("Update"), function () {
 			if (!frm.doc.update_value) {
-				frappe.throw(
-					__('Field "value" is mandatory. Please specify value to be updated')
-				);
+				frappe.throw(__('Field "value" is mandatory. Please specify value to be updated'));
 			} else {
 				frm.call("bulk_update").then((r) => {
 					let failed = r.message;

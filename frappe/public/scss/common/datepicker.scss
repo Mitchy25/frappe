@@ -66,10 +66,6 @@
 			background-color: var(--fg-hover-color);
 		}
 
-		&.-focus- {
-			background-color: var(--fg-hover-color);
-		}
-
 		&.-selected-.-focus- {
 			background: fade(#0089ff, 90%);
 		}

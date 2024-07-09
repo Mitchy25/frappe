@@ -12,6 +12,10 @@ def execute():
 		if not doc.get("custom_scss") and doc.theme_scss:
 			# move old theme to new theme
 			doc.custom_scss = doc.theme_scss
+
+			if doc.background_color:
+				setup_color_record(doc.background_color)
+
 			doc.save()
 
 

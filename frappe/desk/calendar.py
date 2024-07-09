@@ -3,8 +3,6 @@
 
 import json
 
-import json
-
 import frappe
 from frappe import _
 

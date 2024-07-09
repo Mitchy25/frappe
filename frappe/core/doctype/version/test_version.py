@@ -2,9 +2,6 @@
 # License: MIT. See LICENSE
 import copy
 
-import copy
-import unittest
-
 import frappe
 from frappe.core.doctype.version.version import get_diff
 from frappe.test_runner import make_test_objects

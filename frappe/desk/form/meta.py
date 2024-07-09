@@ -33,37 +33,6 @@ ASSET_KEYS = (
 )
 
 
-import frappe
-from frappe import _
-from frappe.build import scrub_html_template
-from frappe.model.meta import Meta
-from frappe.model.utils import render_include
-from frappe.modules import get_module_path, load_doctype_module, scrub
-from frappe.translate import extract_messages_from_code, make_dict_from_messages
-from frappe.utils import get_html_format
-from frappe.utils.data import get_link_to_form
-
-ASSET_KEYS = (
-	"__js",
-	"__css",
-	"__list_js",
-	"__calendar_js",
-	"__map_js",
-	"__linked_with",
-	"__messages",
-	"__print_formats",
-	"__workflow_docs",
-	"__form_grid_templates",
-	"__listview_template",
-	"__tree_js",
-	"__dashboard",
-	"__kanban_column_fields",
-	"__templates",
-	"__custom_js",
-	"__custom_list_js",
-)
-
-
 def get_meta(doctype, cached=True):
 	# don't cache for developer mode as js files, templates may be edited
 	if cached and not frappe.conf.developer_mode:
@@ -84,12 +53,6 @@ class FormMeta(Meta):
 	def __init__(self, doctype):
 		super().__init__(doctype)
 		self.load_assets()
-
-	def set(self, key, value, *args, **kwargs):
-		if key in ASSET_KEYS:
-			self.__dict__[key] = value
-		else:
-			super(FormMeta, self).set(key, value, *args, **kwargs)
 
 	def load_assets(self):
 		if self.get("__assets_loaded", False):

@@ -2,8 +2,6 @@
 # License: MIT. See LICENSE
 """Use blog post test to test user permissions logic"""
 
-import unittest
-
 import frappe
 import frappe.defaults
 import frappe.model.meta

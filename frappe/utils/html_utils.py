@@ -17,9 +17,6 @@ EMOJI_PATTERN = re.compile(
 )
 
 
-import frappe
-
-
 def clean_html(html):
 	import bleach
 
@@ -214,7 +211,6 @@ def get_icon_html(icon, small=False):
 		)
 	else:
 		return f"<i class={escape_html(icon)!r}></i>"
-
 
 
 def unescape_html(value):

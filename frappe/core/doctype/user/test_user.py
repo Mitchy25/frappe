@@ -120,9 +120,7 @@ class TestUser(FrappeTestCase):
 
 		frappe.db.set_single_value("Website Settings", "_test", "_test_val")
 		self.assertEqual(frappe.db.get_value("Website Settings", None, "_test"), "_test_val")
-		self.assertEqual(
-			frappe.db.get_value("Website Settings", "Website Settings", "_test"), "_test_val"
-		)
+		self.assertEqual(frappe.db.get_value("Website Settings", "Website Settings", "_test"), "_test_val")
 
 	def test_high_permlevel_validations(self):
 		user = frappe.get_meta("User")
@@ -425,6 +423,7 @@ class TestUser(FrappeTestCase):
 				json.loads(frappe.message_log[0]).get("message"),
 				"Password reset instructions have been sent to your email",
 			)
+
 		sendmail.assert_called_once()
 		self.assertEqual(sendmail.call_args[1]["recipients"], "test2@example.com")
 

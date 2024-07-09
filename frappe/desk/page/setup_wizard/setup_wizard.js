@@ -588,10 +588,6 @@ frappe.setup.utils = {
 		return frappe.setup.data.lang.codes_to_names[language_code] || "English";
 	},
 
-	get_language_name_from_code: function (language_code) {
-		return frappe.setup.data.lang.codes_to_names[language_code] || "English";
-	},
-
 	bind_region_events: function (slide) {
 		/*
 			Bind a slide's country, timezone and currency fields

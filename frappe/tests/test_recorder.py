@@ -2,6 +2,7 @@
 # License: MIT. See LICENSE
 
 
+import sqlparse
 
 import frappe
 import frappe.recorder

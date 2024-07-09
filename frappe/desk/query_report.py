@@ -109,9 +109,7 @@ def generate_report_result(
 			columns.insert(custom_column["insert_after_index"] + 1, custom_column)
 
 	# all columns which are not in original report
-	report_custom_columns = [
-		column for column in columns if column["fieldname"] not in report_column_names
-	]
+	report_custom_columns = [column for column in columns if column["fieldname"] not in report_column_names]
 
 	if report_custom_columns:
 		result = add_custom_column_data(report_custom_columns, result)
@@ -221,9 +219,6 @@ def run(
 			_("Must have report permission to access this report."),
 			raise_exception=True,
 		)
-
-	if sbool(are_default_filters) and report.custom_filters:
-		filters = report.custom_filters
 
 	if sbool(are_default_filters) and report.custom_filters:
 		filters = report.custom_filters

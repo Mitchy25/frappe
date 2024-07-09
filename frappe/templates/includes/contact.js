@@ -32,10 +32,11 @@ frappe.ready(function() {
 					frappe.msgprint('{{ _("Thank you for your message") }}', '{{ _("Message Sent") }}');
 				}
 				$(':input').val('');
-			},
+			}
 		}, this);
 		return false;
 	});
+
 });
 
 var msgprint = function(txt) {

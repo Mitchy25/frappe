@@ -1,27 +1,6 @@
 # Copyright (c) 2017, Frappe Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
 import time
-import unittest
-
-import pyotp
-
-import frappe
-from frappe.auth import HTTPRequest, get_login_attempt_tracker, validate_ip_address
-from frappe.twofactor import (
-	ExpiredLoginException,
-	authenticate_for_2factor,
-	confirm_otp_token,
-	get_cached_user_pass,
-	get_default,
-	get_otpsecret_for_,
-	get_verification_obj,
-	should_run_2fa,
-	two_factor_is_enabled_for_,
-)
-from frappe.utils import cint, set_request
-
-from . import get_system_setting, update_system_settings
-
 
 import pyotp
 

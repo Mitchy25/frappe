@@ -66,7 +66,6 @@ def authorize_access(reauthorize=False, code=None):
 	)
 
 
-
 def get_google_drive_object():
 	"""
 	Returns an object of Google Drive.
@@ -112,9 +111,7 @@ def check_for_folder_in_google_drive():
 			google_drive.files().list(q="mimeType='application/vnd.google-apps.folder'").execute()
 		)
 	except HttpError as e:
-		frappe.throw(
-			_("Google Drive - Could not find folder in Google Drive - Error Code {0}").format(e)
-		)
+		frappe.throw(_("Google Drive - Could not find folder in Google Drive - Error Code {0}").format(e))
 
 	for f in google_drive_folders.get("files"):
 		if f.get("name") == account.backup_folder_name:
@@ -150,6 +147,7 @@ def upload_system_backup_to_google_drive():
 	account.load_from_db()
 
 	validate_file_size()
+
 	if frappe.flags.create_new_backup:
 		set_progress(1, _("Backing up Data."))
 		backup = new_backup()
@@ -203,7 +201,6 @@ def weekly_backup():
 def get_absolute_path(filename):
 	file_path = os.path.join(get_backups_path()[2:], os.path.basename(filename))
 	return f"{get_bench_path()}/sites/{file_path}"
-
 
 
 def set_progress(progress, message):

@@ -262,9 +262,7 @@ class TestEnergyPointLog(FrappeTestCase):
 
 		first_user_points_after_closing_todo = get_points("test@example.com")
 
-		self.assertEqual(
-			first_user_points_after_closing_todo, first_user_points + todo_point_rule.points
-		)
+		self.assertEqual(first_user_points_after_closing_todo, first_user_points + todo_point_rule.points)
 
 		frappe.set_user("test2@example.com")
 		second_user_points = get_points("test2@example.com")

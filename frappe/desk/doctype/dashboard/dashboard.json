@@ -67,7 +67,7 @@
   }
  ],
  "links": [],
- "modified": "2023-02-03 15:10:54.855674",
+ "modified": "2020-07-23 11:05:41.890459",
  "modified_by": "Administrator",
  "module": "Desk",
  "name": "Dashboard",
@@ -98,8 +98,6 @@
    "write": 1
   },
   {
-   "create": 1,
-   "delete": 1,
    "email": 1,
    "export": 1,
    "print": 1,

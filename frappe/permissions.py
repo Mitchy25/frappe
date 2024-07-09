@@ -121,9 +121,6 @@ def has_permission(
 	if frappe.is_table(doctype):
 		return has_child_permission(doctype, ptype, doc, user, raise_exception, parent_doctype)
 
-	if ptype == "share" and frappe.get_system_settings("disable_document_sharing"):
-		return False
-
 	meta = frappe.get_meta(doctype)
 
 	if doc:

@@ -839,7 +839,6 @@ class DatabaseQuery:
 				# coalesce is extra cost that prevents index usage
 				can_be_null = False
 
-				escape = False
 				value = get_between_date_filter(f.value, df)
 				fallback = f"'{FallBackDateTimeStr}'"
 

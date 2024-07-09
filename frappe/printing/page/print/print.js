@@ -82,10 +82,6 @@ frappe.ui.form.PrintView = class {
 			"",
 			__("Form")
 		);
-
-		this.page.add_action_icon("file", () => {
-			this.go_to_form_view();
-		}, '', __("Form"));
 	}
 
 	setup_sidebar() {
@@ -177,12 +173,6 @@ frappe.ui.form.PrintView = class {
 
 		if (cint(this.print_settings.enable_print_server)) {
 			this.page.add_menu_item(__("Select Network Printer"), () =>
-				this.network_printer_setting_dialog()
-			);
-		}
-
-		if (cint(this.print_settings.enable_print_server)) {
-			this.page.add_menu_item(__('Select Network Printer'), () =>
 				this.network_printer_setting_dialog()
 			);
 		}

@@ -45,7 +45,6 @@ def user_to_str(date, date_format=None):
 		raise ValueError(f"Date {date} must be in format {date_format}")
 
 
-
 def parse_date(date):
 	"""tries to parse given date to system's format i.e. yyyy-mm-dd. returns a string"""
 	parsed_date = None
@@ -113,9 +112,7 @@ def get_dates_from_timegrain(from_date, to_date, timegrain="Daily"):
 		if "Weekly" == timegrain:
 			date = get_last_day_of_week(add_to_date(dates[-1], years=years, months=months, days=days))
 		else:
-			date = get_period_ending(
-				add_to_date(dates[-1], years=years, months=months, days=days), timegrain
-			)
+			date = get_period_ending(add_to_date(dates[-1], years=years, months=months, days=days), timegrain)
 		dates.append(date)
 	return dates
 

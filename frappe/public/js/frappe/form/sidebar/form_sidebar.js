@@ -109,14 +109,7 @@ frappe.ui.form.Sidebar = class {
 						"For example, 'Jon Doe created this 5 minutes ago'."
 					)
 				);
-			this.sidebar
-				.find(".modified-by")
-				.html(
-					__("{0} edited {1}", [
-						frappe.user.full_name(this.frm.doc.modified_by).split(' ')[0].bold(),
-						comment_when(this.frm.doc.modified),
-					], "For example, 'Jon Doe edited this 5 minutes ago'.")
-				);
+				
 			const Access = new Promise((resolve, reject) => {
 				let data = ""
 				let date

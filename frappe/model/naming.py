@@ -388,19 +388,6 @@ def determine_consecutive_week_number(datetime):
 	return w
 
 
-def determine_consecutive_week_number(datetime):
-	"""Determines the consecutive calendar week"""
-	m = datetime.month
-	# ISO 8601 calandar week
-	w = datetime.strftime("%V")
-	# Ensure consecutiveness for the first and last days of a year
-	if m == 1 and int(w) >= 52:
-		w = "00"
-	elif m == 12 and int(w) <= 1:
-		w = "53"
-	return w
-
-
 def getseries(key, digits):
 	# series created ?
 	# Using frappe.qb as frappe.get_values does not allow order_by=None

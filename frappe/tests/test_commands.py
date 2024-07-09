@@ -2,7 +2,6 @@
 # License: MIT. See LICENSE
 
 # imports - standard imports
-import glob
 import gzip
 import importlib
 import json

@@ -2,8 +2,6 @@
 # MIT License. See LICENSE
 
 
-from typing import Dict, List
-
 import frappe
 import frappe.utils
 from frappe import _

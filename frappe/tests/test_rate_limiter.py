@@ -2,9 +2,6 @@
 # License: MIT. See LICENSE
 
 import time
-import unittest
-
-from werkzeug.wrappers import Response
 
 from werkzeug.wrappers import Response
 

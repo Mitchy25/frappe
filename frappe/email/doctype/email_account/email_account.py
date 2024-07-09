@@ -675,16 +675,8 @@ class EmailAccount(Document):
 			return connected_app.get_active_token(self.connected_user)
 
 
-	def get_oauth_token(self):
-		if self.auth_method == "OAuth":
-			connected_app = frappe.get_doc("Connected App", self.connected_app)
-			return connected_app.get_active_token(self.connected_user)
-
-
 @frappe.whitelist()
-def get_append_to(
-	doctype=None, txt=None, searchfield=None, start=None, page_len=None, filters=None
-):
+def get_append_to(doctype=None, txt=None, searchfield=None, start=None, page_len=None, filters=None):
 	txt = txt if txt else ""
 	email_append_to_list = []
 

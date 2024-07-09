@@ -153,28 +153,7 @@ export default class BulkOperations {
 		return letterhead_options;
 	}
 
-	get_letterhead_options () {
-		const letterhead_options = [__("No Letterhead")];
-		frappe.call({
-			method: "frappe.client.get_list",
-			args: {
-				doctype: 'Letter Head',
-				fields: ['name', 'is_default'],
-				limit_page_length: 0
-			},
-			async: false,
-			callback (r) {
-				if (r.message) {
-					r.message.forEach(letterhead => {
-						letterhead_options.push(letterhead.name);
-					});
-				}
-			}
-		});
-		return letterhead_options;
-	}
-
-	delete (docnames, done = null) {
+	delete(docnames, done = null) {
 		frappe
 			.call({
 				method: "frappe.desk.reportview.delete_items",
@@ -204,7 +183,7 @@ export default class BulkOperations {
 			});
 	}
 
-	assign (docnames, done) {
+	assign(docnames, done) {
 		if (docnames.length > 0) {
 			const assign_to = new frappe.ui.form.AssignToDialog({
 				obj: this,
@@ -222,7 +201,7 @@ export default class BulkOperations {
 		}
 	}
 
-	apply_assignment_rule (docnames, done) {
+	apply_assignment_rule(docnames, done) {
 		if (docnames.length > 0) {
 			frappe
 				.call("frappe.automation.doctype.assignment_rule.assignment_rule.bulk_apply", {

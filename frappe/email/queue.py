@@ -11,10 +11,6 @@ from frappe.utils.verified_command import get_signed_params, verify_request
 EMAIL_QUEUE_BATCH_FAILURE_THRESHOLD_PERCENT = 0.33
 EMAIL_QUEUE_BATCH_FAILURE_THRESHOLD_COUNT = 10
 
-from html2text import html2text
-from rq.timeouts import JobTimeoutException
-from six import PY3, string_types, text_type
-from six.moves import html_parser as HTMLParser
 
 def get_emails_sent_this_month(email_account=None):
 	"""Get count of emails sent from a specific email account.

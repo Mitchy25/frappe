@@ -6,8 +6,6 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils.error import _is_ldap_exception
 
-import frappe
-
 # test_records = frappe.get_test_records('Error Log')
 
 

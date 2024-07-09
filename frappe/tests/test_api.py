@@ -115,7 +115,6 @@ class TestResourceAPI(FrappeAPITestCase):
 			doc = frappe.get_doc({"doctype": "ToDo", "description": frappe.mock("paragraph")}).insert()
 			cls.GENERATED_DOCUMENTS.append(doc.name)
 		frappe.db.commit()
-		return r
 
 	@classmethod
 	def tearDownClass(cls):

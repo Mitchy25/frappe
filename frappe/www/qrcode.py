@@ -3,8 +3,6 @@
 
 from urllib.parse import parse_qsl
 
-from six.moves.urllib.parse import parse_qsl
-
 import frappe
 from frappe import _
 from frappe.twofactor import get_qr_svg_code

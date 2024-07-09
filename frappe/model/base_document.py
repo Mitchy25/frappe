@@ -247,6 +247,11 @@ class BaseDocument:
 
 		value = self._init_child(value, key)
 		table.append(value)
+
+		# reference parent document
+		value.parent_doc = self
+
+		return value
 	
 	def append_item_with_batch(self, key, value, shortdated_first = True, single_type_only = False, throw = False, partial_fulfillment = True, specific_batch = None):
 		"""

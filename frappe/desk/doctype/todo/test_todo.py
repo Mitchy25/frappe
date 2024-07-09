@@ -140,12 +140,8 @@ class TestToDo(FrappeTestCase):
 		todo.meta.get("fields", dict(fieldname="assigned_by_full_name"))[0].fetch_if_empty = 0
 		todo.meta.save()
 
-	todo.reload()
-	todo.save()
-
-	self.assertEqual(
-		todo.assigned_by_full_name, frappe.db.get_value("User", todo.assigned_by, "full_name")
-	)
+		todo.reload()
+		todo.save()
 
 		self.assertEqual(
 			todo.assigned_by_full_name, frappe.db.get_value("User", todo.assigned_by, "full_name")

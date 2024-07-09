@@ -63,7 +63,7 @@ frappe.ui.form.Footer = class FormFooter {
 	}
 	refresh() {
 		if (this.frm.doc.__islocal) {
-			this.parent.addClass("hide");	
+			this.parent.addClass("hide");
 		} else {
 			this.parent.removeClass("hide");
 			this.frm.timeline.refresh();
