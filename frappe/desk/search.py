@@ -48,8 +48,8 @@ def search_link(
 	if doctype == "Batch":
 		frappe.response["results"] = build_batch_content(filters, txt.strip(), frappe.response["values"])
 	else:
-		frappe.response["results"] = build_for_autosuggest(frappe.response["values"]) 
-
+		frappe.response["results"] = build_for_autosuggest(frappe.response["values"], doctype=doctype)
+	del frappe.response["values"]
 
 
 # this is called by the search box
