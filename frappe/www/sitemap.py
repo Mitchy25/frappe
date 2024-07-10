@@ -8,14 +8,8 @@ from frappe.model.document import get_controller
 from frappe.utils import get_url, nowdate
 from frappe.website.router import get_pages
 
-import frappe
-from frappe.model.document import get_controller
-from frappe.utils import get_datetime, get_url, nowdate
-from frappe.website.router import get_all_page_context_from_doctypes, get_pages
-
 no_cache = 1
 base_template_path = "www/sitemap.xml"
-
 
 
 def get_context(context):

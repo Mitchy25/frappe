@@ -6,12 +6,8 @@ from urllib.parse import quote, urljoin
 import frappe
 from frappe.utils import cstr, escape_html, get_request_site_address, now
 
-import frappe
-from frappe.utils import cstr, escape_html, get_request_site_address, now
-
 no_cache = 1
 base_template_path = "www/rss.xml"
-
 
 
 def get_context(context):

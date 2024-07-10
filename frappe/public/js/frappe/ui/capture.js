@@ -336,6 +336,7 @@ frappe.ui.Capture.TEMPLATE = `
 		<video class="fc-stream embed-responsive-item">${frappe.ui.Capture.ERR_MESSAGE}</video>
 	</div>
 	<div class="fc-preview-container px-2" style="display: none;">
+
 	</div>
 </div>
 `;

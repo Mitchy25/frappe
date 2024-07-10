@@ -542,38 +542,3 @@ Cypress.Commands.add("compare_document", (expected_document) => {
 			compare_document(expected_document, frm.doc);
 		});
 });
-
-Cypress.Commands.add('click_modal_primary_button', (btn_name) => {
-	cy.get('.modal-footer > .standard-actions > .btn-primary').contains(btn_name).trigger('click', {force: true});
-});
-
-Cypress.Commands.add('click_sidebar_button', (btn_name) => {
-	cy.get('.list-group-by-fields .list-link > a').contains(btn_name).click({force: true});
-});
-
-Cypress.Commands.add('click_listview_row_item', (row_no) => {
-	cy.get('.list-row > .level-left > .list-subject > .level-item > .ellipsis').eq(row_no).click({force: true});
-});
-
-Cypress.Commands.add('click_listview_row_item_with_text', (text) => {
-	cy.get('.list-row > .level-left > .list-subject > .level-item > .ellipsis')
-		.contains(text)
-		.first()
-		.click({force: true});
-});
-
-Cypress.Commands.add("click_filter_button", () => {
-	cy.get(".filter-button").click();
-});
-
-Cypress.Commands.add('click_listview_primary_button', (btn_name) => {
-	cy.get('.primary-action').contains(btn_name).click({force: true});
-});
-
-Cypress.Commands.add('click_timeline_action_btn', (btn_name) => {
-	cy.get('.timeline-message-box .actions .action-btn').contains(btn_name).click();
-});
-
-Cypress.Commands.add('select_listview_row_checkbox', (row_no) => {
-	cy.get('.frappe-list .select-like > .list-row-checkbox').eq(row_no).click();
-});

@@ -417,13 +417,6 @@ def toggle_sending(enable):
 	frappe.db.set_default("suspend_email_queue", 0 if sbool(enable) else 1)
 
 
-
-@frappe.whitelist()
-def toggle_sending(enable):
-	frappe.only_for("System Manager")
-	frappe.db.set_default("suspend_email_queue", 0 if sbool(enable) else 1)
-
-
 def on_doctype_update():
 	"""Add index in `tabCommunication` for `(reference_doctype, reference_name)`"""
 	frappe.db.add_index("Email Queue", ("status", "send_after", "priority", "creation"), "index_bulk_flush")

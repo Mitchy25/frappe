@@ -182,7 +182,6 @@ def is_standard(fieldname):
 	return fieldname in default_fields or fieldname in optional_fields or fieldname in child_table_fields
 
 
-
 def extract_fieldname(field):
 	for text in (",", "/*", "#"):
 		if text in field:
@@ -579,12 +578,11 @@ def get_stats(stats, doctype, filters=None):
 
 		except frappe.db.SQLError:
 			pass
-		except frappe.db.InternalError as e:
+		except frappe.db.InternalError:
 			# raised when _user_tags column is added on the fly
 			pass
 
 	return results
-
 
 
 @frappe.whitelist()
@@ -720,7 +718,3 @@ def get_filters_cond(doctype, filters, conditions, ignore_permissions=None, with
 	else:
 		cond = ""
 	return cond
-
-
-def is_virtual_doctype(doctype):
-	return frappe.db.get_value("DocType", doctype, "is_virtual")

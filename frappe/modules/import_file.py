@@ -63,9 +63,7 @@ def import_files(module, dt=None, dn=None, force=False, pre_process=None, reset_
 def import_file(module, dt, dn, force=False, pre_process=None, reset_permissions=False):
 	"""Sync a file from txt if modifed, return false if not updated"""
 	path = get_file_path(module, dt, dn)
-	ret = import_file_by_path(
-		path, force, pre_process=pre_process, reset_permissions=reset_permissions
-	)
+	ret = import_file_by_path(path, force, pre_process=pre_process, reset_permissions=reset_permissions)
 	return ret
 
 

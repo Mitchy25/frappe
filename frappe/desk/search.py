@@ -48,8 +48,8 @@ def search_link(
 	if doctype == "Batch":
 		frappe.response["results"] = build_batch_content(filters, txt.strip(), frappe.response["values"])
 	else:
-		frappe.response["results"] = build_for_autosuggest(frappe.response["values"]) 
-
+		frappe.response["results"] = build_for_autosuggest(frappe.response["values"], doctype=doctype)
+	del frappe.response["values"]
 
 
 # this is called by the search box
@@ -190,7 +190,6 @@ def search_widget(
 			if meta.show_title_field_in_link and meta.title_field:
 				formatted_fields.insert(1, f"`tab{meta.name}`.{meta.title_field} as `label`")
 
-			
 			# In order_by, `idx` gets second priority, because it stores link count
 			from frappe.model.db_query import get_order_by
 

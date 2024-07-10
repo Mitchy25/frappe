@@ -96,9 +96,7 @@ class User(Document):
 		if self.language == "Loading...":
 			self.language = None
 
-		if (self.name not in ["Administrator", "Guest"]) and (
-			not self.get_social_login_userid("frappe")
-		):
+		if (self.name not in ["Administrator", "Guest"]) and (not self.get_social_login_userid("frappe")):
 			self.set_social_login_userid("frappe", frappe.generate_hash(length=39))
 
 	def populate_role_profile_roles(self):
@@ -598,9 +596,7 @@ class User(Document):
 		return username
 
 	def username_exists(self, username=None):
-		return frappe.db.get_value(
-			"User", {"username": username or self.username, "name": ("!=", self.name)}
-		)
+		return frappe.db.get_value("User", {"username": username or self.username, "name": ("!=", self.name)})
 
 	def get_blocked_modules(self):
 		"""Returns list of modules blocked for that user"""
@@ -1156,9 +1152,7 @@ def create_contact(user, ignore_links=False, ignore_mandatory=False):
 
 		if user.mobile_no:
 			contact.add_phone(user.mobile_no, is_primary_mobile_no=True)
-		contact.insert(
-			ignore_permissions=True, ignore_links=ignore_links, ignore_mandatory=ignore_mandatory
-		)
+		contact.insert(ignore_permissions=True, ignore_links=ignore_links, ignore_mandatory=ignore_mandatory)
 	else:
 		contact = frappe.get_doc("Contact", contact_name)
 		contact.first_name = user.first_name

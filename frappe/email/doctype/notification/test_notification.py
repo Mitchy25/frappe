@@ -279,9 +279,7 @@ class TestNotification(FrappeTestCase):
 			)
 		)
 
-		self.assertTrue(
-			frappe.db.get_value("Email Queue Recipient", {"recipient": "test_jinja@example.com"})
-		)
+		self.assertTrue(frappe.db.get_value("Email Queue Recipient", {"recipient": "test_jinja@example.com"}))
 
 		frappe.db.delete("User", {"email": "test_jinja@example.com"})
 		frappe.db.delete("Email Queue")

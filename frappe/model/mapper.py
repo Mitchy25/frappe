@@ -8,12 +8,6 @@ from frappe.model import child_table_fields, default_fields, table_fields
 from frappe.utils import cstr
 
 
-import frappe
-from frappe import _
-from frappe.model import default_fields, table_fields
-from frappe.utils import cstr
-
-
 @frappe.whitelist()
 def make_mapped_doc(method, source_name, selected_children=None, args=None):
 	"""Returns the mapped document calling the given mapper method.

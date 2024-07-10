@@ -213,7 +213,6 @@ export default class ChartWidget extends Widget {
 
 			this.update_chart_object();
 			this.data = data;
-			
 			this.render();
 		});
 	}
@@ -653,7 +652,7 @@ export default class ChartWidget extends Widget {
 		if (this.chart_doc.custom_options) {
 			set_options(this.chart_doc.custom_options);
 		}
-		
+
 		return chart_args;
 	}
 

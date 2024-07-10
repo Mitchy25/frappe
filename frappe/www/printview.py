@@ -13,14 +13,7 @@ from frappe.core.doctype.access_log.access_log import make_access_log
 from frappe.core.doctype.document_share_key.document_share_key import is_expired
 from frappe.utils import cint, escape_html, strip_html
 from frappe.utils.jinja_globals import is_rtl
-
-import frappe
-from frappe import _
-from frappe.core.doctype.access_log.access_log import make_access_log
-from frappe.core.doctype.document_share_key.document_share_key import is_expired
-from frappe.modules import get_doc_path
-from frappe.utils import cint, escape_html, strip_html
-from frappe.utils.jinja import is_rtl
+from erpnext import get_default_company
 
 no_cache = 1
 
@@ -53,9 +46,16 @@ def get_context(context):
 
 	print_format = get_print_format_doc(None, meta=meta)
 
-	make_access_log(
-		doctype=frappe.form_dict.doctype, document=frappe.form_dict.name, file_type="PDF", method="Print"
-	)
+	if frappe.form_dict.doctype == "Sales Invoice" and (get_default_company() == "FxMed" or get_default_company() == "NaturalMeds"):
+		# Excluding the PDF button from adding to the printed access log. CS Request.
+		if context.get('canonical') and 'printview' in context.get('canonical'):
+			make_access_log(
+				doctype=frappe.form_dict.doctype, document=frappe.form_dict.name, file_type="PDF", method="Print"
+			)
+	else:
+		make_access_log(
+			doctype=frappe.form_dict.doctype, document=frappe.form_dict.name, file_type="PDF", method="Print"
+		)
 
 	print_style = None
 	body = get_rendered_template(
@@ -365,7 +365,6 @@ def get_rendered_raw_commands(doc, name=None, print_format=None, meta=None, lang
 		)
 
 	return {"raw_commands": get_rendered_template(doc, name=name, print_format=print_format, meta=meta)}
-
 
 
 def validate_print_permission(doc):

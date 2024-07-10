@@ -79,21 +79,6 @@ def write_code_files(folder, fname, doc, doc_export):
 				del doc_export[key]
 
 
-
-def strip_default_fields(doc, newdoc):
-	# strip out default fields from children
-	if doc.doctype == "DocType" and doc.migration_hash:
-		del newdoc["migration_hash"]
-
-	for df in doc.meta.get_table_fields():
-		for d in newdoc.get(df.fieldname):
-			for fieldname in frappe.model.default_fields:
-				if fieldname in d:
-					del d[fieldname]
-
-	return newdoc
-
-
 def get_module_name(doc):
 	if doc.doctype == "Module Def":
 		module = doc.name

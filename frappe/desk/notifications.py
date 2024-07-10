@@ -18,14 +18,6 @@ from frappe.desk.doctype.notification_settings.notification_settings import (
 from frappe.utils import get_fullname
 
 
-from six import string_types
-
-import frappe
-from frappe.desk.doctype.notification_settings.notification_settings import (
-	get_subscribed_documents,
-)
-
-
 @frappe.whitelist()
 @frappe.read_only()
 def get_notifications():

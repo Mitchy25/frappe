@@ -33,7 +33,6 @@ def on_doctype_update():
 	frappe.db.add_index("Workflow Action", ["reference_name", "reference_doctype", "status"])
 
 
-
 def get_permission_query_conditions(user):
 	if not user:
 		user = frappe.session.user
@@ -83,9 +82,7 @@ def process_workflow_actions(doc, state):
 	update_completed_workflow_actions(doc, workflow=workflow, workflow_state=get_doc_workflow_state(doc))
 	clear_doctype_notifications("Workflow Action")
 
-	next_possible_transitions = get_next_possible_transitions(
-		workflow, get_doc_workflow_state(doc), doc
-	)
+	next_possible_transitions = get_next_possible_transitions(workflow, get_doc_workflow_state(doc), doc)
 
 	if not next_possible_transitions:
 		return
@@ -184,6 +181,7 @@ def return_link_expired_page(doc, doc_workflow_state):
 		),
 		indicator_color="blue",
 	)
+
 
 def update_completed_workflow_actions(doc, user=None, workflow=None, workflow_state=None):
 	allowed_roles = get_allowed_roles(user, workflow, workflow_state)
@@ -387,9 +385,7 @@ def deduplicate_actions(action_list):
 
 
 def get_workflow_action_url(action, doc, user):
-	apply_action_method = (
-		"/api/method/frappe.workflow.doctype.workflow_action.workflow_action.apply_action"
-	)
+	apply_action_method = "/api/method/frappe.workflow.doctype.workflow_action.workflow_action.apply_action"
 
 	params = {
 		"doctype": doc.get("doctype"),
@@ -445,7 +441,6 @@ def get_doc_workflow_state(doc):
 	workflow_name = get_workflow_name(doc.get("doctype"))
 	workflow_state_field = get_workflow_state_field(workflow_name)
 	return doc.get(workflow_state_field)
-
 
 
 def get_common_email_args(doc):

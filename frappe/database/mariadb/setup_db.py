@@ -83,7 +83,6 @@ def drop_user_and_database(db_name, root_login, root_password):
 	dbman.delete_user(db_name)
 
 
-
 def bootstrap_database(db_name, verbose, source_sql=None):
 	import sys
 
@@ -179,8 +178,6 @@ def get_root_connection(root_login, root_password):
 		if not root_password:
 			root_password = getpass.getpass("MySQL root password: ")
 
-		frappe.local.flags.root_connection = frappe.database.get_db(
-			user=root_login, password=root_password
-		)
+		frappe.local.flags.root_connection = frappe.database.get_db(user=root_login, password=root_password)
 
 	return frappe.local.flags.root_connection

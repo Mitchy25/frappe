@@ -448,9 +448,7 @@ def import_csv(
 @click.option("--submit-after-import", default=False, is_flag=True, help="Submit document after importing it")
 @click.option("--mute-emails", default=True, is_flag=True, help="Mute emails during import")
 @pass_context
-def data_import(
-	context, file_path, doctype, import_type=None, submit_after_import=False, mute_emails=True
-):
+def data_import(context, file_path, doctype, import_type=None, submit_after_import=False, mute_emails=True):
 	"Import documents in bulk from CSV or XLSX using data import"
 	from frappe.core.doctype.data_import.data_import import import_file
 
@@ -628,7 +626,6 @@ def store_logs(terminal: "InteractiveShellEmbed") -> None:
 @pass_context
 def console(context, autoreload=False):
 	"Start ipython console for a site"
-	import warnings
 
 	site = get_site(context)
 	frappe.init(site=site)

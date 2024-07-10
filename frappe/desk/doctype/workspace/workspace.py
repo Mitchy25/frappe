@@ -14,13 +14,6 @@ from frappe.modules.export_file import delete_folder, export_to_files
 from frappe.utils import strip_html
 
 
-import frappe
-from frappe import _
-from frappe.desk.utils import validate_route_conflict
-from frappe.model.document import Document
-from frappe.modules.export_file import export_to_files
-
-
 class Workspace(Document):
 	def validate(self):
 		self.title = strip_html(self.title)

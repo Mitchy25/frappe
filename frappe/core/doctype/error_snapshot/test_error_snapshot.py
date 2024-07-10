@@ -3,9 +3,7 @@
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils.logger import sanitized_dict
 
-import frappe
-from frappe.utils.logger import sanitized_dict
-
+# test_records = frappe.get_test_records('Error Snapshot')
 
 
 class TestErrorSnapshot(FrappeTestCase):

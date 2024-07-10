@@ -223,9 +223,7 @@ class DocType(Document):
 			)
 
 		if self.is_virtual and self.custom:
-			frappe.throw(
-				_("Not allowed to create custom Virtual DocType."), CannotCreateStandardDoctypeError
-			)
+			frappe.throw(_("Not allowed to create custom Virtual DocType."), CannotCreateStandardDoctypeError)
 
 		if frappe.conf.get("developer_mode"):
 			self.owner = "Administrator"
@@ -1539,7 +1537,6 @@ def clear_permissions_cache(doctype):
 	clear_user_cache()
 
 
-
 def validate_permissions(doctype, for_remove=False, alert=False):
 	permissions = doctype.get("permissions")
 	# Some DocTypes may not have permissions by default, don't show alert for them
@@ -1555,9 +1552,7 @@ def validate_permissions(doctype, for_remove=False, alert=False):
 		return _("For {0} at level {1} in {2} in row {3}").format(d.role, d.permlevel, d.parent, d.idx)
 
 	def check_atleast_one_set(d):
-		if (
-			not d.select and not d.read and not d.write and not d.submit and not d.cancel and not d.create
-		):
+		if not d.select and not d.read and not d.write and not d.submit and not d.cancel and not d.create:
 			frappe.throw(_("{0}: No basic permissions set").format(get_txt(d)))
 
 	def check_double(d):
@@ -1719,7 +1714,6 @@ def check_fieldname_conflicts(docfield):
 
 	if docfield.fieldname in method_list + property_list:
 		frappe.msgprint(msg, raise_exception=not docfield.is_virtual)
-
 
 
 def clear_linked_doctype_cache():

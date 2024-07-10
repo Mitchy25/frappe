@@ -152,7 +152,6 @@ def set_user_lang(user: str, user_language: str | None = None) -> None:
 	local.lang = get_user_lang(user) or user_language
 
 
-
 # local-globals
 
 db = local("db")
@@ -252,7 +251,6 @@ def init(site: str, sites_path: str = ".", new_site: bool = False, force=False) 
 	local.qb.get_query = get_query
 	local.qb.engine = _dict(get_query=get_query)  # for backward compatiblity
 	setup_module_map()
-	patch_query_execute()
 
 	if not _qb_patched.get(local.conf.db_type):
 		patch_query_execute()
@@ -879,7 +877,6 @@ def only_for(roles: list[str] | tuple[str] | str, message=False):
 		)
 
 
-
 def get_domain_data(module):
 	try:
 		domain_data = get_hooks("domains")
@@ -928,7 +925,6 @@ def clear_cache(user: str | None = None, doctype: str | None = None):
 		del local.system_settings
 	if hasattr(local, "website_settings"):
 		del local.website_settings
-
 
 
 def only_has_select_perm(doctype, user=None, ignore_permissions=False):
@@ -1058,7 +1054,6 @@ def generate_hash(txt: str | None = None, length: int = 56) -> str:
 		length = 56
 
 	return secrets.token_hex(math.ceil(length / 2))[:length]
-
 
 
 def reset_metadata_version():
@@ -1280,7 +1275,6 @@ def delete_doc_if_exists(doctype, name, force=0):
 	delete_doc(doctype, name, force=force, ignore_missing=True)
 
 
-
 def reload_doctype(doctype, force=False, reset_permissions=False):
 	"""Reload DocType from model (`[module]/[doctype]/[name]/[name].json`) files."""
 	reload_doc(
@@ -1344,7 +1338,6 @@ def rename_doc(
 	)
 
 
-
 def get_module(modulename):
 	"""Returns a module object for given Python module name using `importlib.import_module`."""
 	return importlib.import_module(modulename)
@@ -1369,7 +1362,6 @@ def get_module_path(module, *joins):
 
 	app = get_module_app(module)
 	return get_pymodule_path(app + "." + scrub(module), *joins)
-
 
 
 def get_app_path(app_name, *joins):
@@ -1524,7 +1516,6 @@ def get_hooks(
 	if hook:
 		return hooks.get(hook, ([] if default == "_KEEP_DEFAULT_LIST" else default))
 	return hooks
-
 
 
 def append_hook(target, key, value):
@@ -2112,7 +2103,6 @@ def attach_print(
 	return {"fname": file_name, "fcontent": content}
 
 
-
 def publish_progress(*args, **kwargs):
 	"""Show the user progress for a long request
 
@@ -2264,14 +2254,6 @@ def log_error(title=None, message=None, reference_doctype=None, reference_name=N
 
 def get_desk_link(doctype, name):
 	html = '<a href="/app/Form/{doctype}/{name}" style="font-weight: bold;">{doctype_local} {name}</a>'
-	return html.format(doctype=doctype, name=name, doctype_local=_(doctype))
-
-
-
-def get_desk_link(doctype, name):
-	html = (
-		'<a href="/app/Form/{doctype}/{name}" style="font-weight: bold;">{doctype_local} {name}</a>'
-	)
 	return html.format(doctype=doctype, name=name, doctype_local=_(doctype))
 
 

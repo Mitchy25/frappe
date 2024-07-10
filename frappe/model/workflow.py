@@ -92,10 +92,7 @@ def is_transition_condition_satisfied(transition, doc) -> bool:
 	if not transition.condition:
 		return True
 	else:
-		return frappe.safe_eval(
-			transition.condition, get_workflow_safe_globals(), dict(doc=doc.as_dict())
-		)
-
+		return frappe.safe_eval(transition.condition, get_workflow_safe_globals(), dict(doc=doc.as_dict()))
 
 
 @frappe.whitelist()

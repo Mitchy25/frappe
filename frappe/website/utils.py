@@ -21,8 +21,6 @@ CLEANUP_PATTERN_1 = re.compile(r'[~!@#$%^&*+()<>,."\'\?]')
 CLEANUP_PATTERN_2 = re.compile("[:/]")
 CLEANUP_PATTERN_3 = re.compile(r"(-)\1+")
 
-import frappe
-from frappe.utils import md_to_html
 
 def delete_page_cache(path):
 	cache = frappe.cache()
@@ -195,7 +193,6 @@ def cleanup_page_name(title: str) -> str:
 def get_shade(color, percent=None):
 	frappe.msgprint(_("get_shade method has been deprecated."))
 	return color
-
 
 
 def abs_url(path):

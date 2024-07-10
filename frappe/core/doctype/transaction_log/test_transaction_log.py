@@ -1,9 +1,6 @@
 # Copyright (c) 2018, Frappe Technologies and Contributors
 # License: MIT. See LICENSE
 import hashlib
-import unittest
-
-import frappe
 
 import frappe
 from frappe.tests.utils import FrappeTestCase

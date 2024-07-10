@@ -147,9 +147,7 @@ class Document(BaseDocument):
 			self._fix_numeric_types()
 
 		else:
-			d = frappe.db.get_value(
-				self.doctype, self.name, "*", as_dict=1, for_update=self.flags.for_update
-			)
+			d = frappe.db.get_value(self.doctype, self.name, "*", as_dict=1, for_update=self.flags.for_update)
 			if not d:
 				frappe.throw(
 					_("{0} {1} not found").format(_(self.doctype), self.name), frappe.DoesNotExistError
@@ -336,9 +334,6 @@ class Document(BaseDocument):
 
 		self._set_defaults()
 		self.check_permission("write", "save")
-
-		if self.docstatus == 2:
-			self._rename_doc_on_cancel()
 
 		self.set_user_and_timestamp()
 		self.set_docstatus()
@@ -1422,30 +1417,6 @@ class Document(BaseDocument):
 	def get_signature(self):
 		"""Return signature (hash) for private URL."""
 		return hashlib.sha224(f"{self.doctype}:{self.name}".encode(), usedforsecurity=False).hexdigest()
-
-	def get_document_share_key(self, expires_on=None, no_expiry=False):
-		if no_expiry:
-			expires_on = None
-
-		existing_key = frappe.db.exists(
-			"Document Share Key",
-			{
-				"reference_doctype": self.doctype,
-				"reference_docname": self.name,
-				"expires_on": expires_on,
-			},
-		)
-		if existing_key:
-			doc = frappe.get_doc("Document Share Key", existing_key)
-		else:
-			doc = frappe.new_doc("Document Share Key")
-			doc.reference_doctype = self.doctype
-			doc.reference_docname = self.name
-			doc.expires_on = expires_on
-			doc.flags.no_expiry = no_expiry
-			doc.insert(ignore_permissions=True)
-
-		return doc.key
 
 	def get_document_share_key(self, expires_on=None, no_expiry=False):
 		if no_expiry:

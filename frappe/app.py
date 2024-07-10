@@ -213,25 +213,6 @@ def log_request(request, response):
 		)
 
 
-	for before_request_task in frappe.get_hooks("before_request"):
-		frappe.call(before_request_task)
-
-
-def log_request(request, response):
-	if hasattr(frappe.local, "conf") and frappe.local.conf.enable_frappe_logger:
-		frappe.logger("frappe.web", allow_site=frappe.local.site).info(
-			{
-				"site": get_site_name(request.host),
-				"remote_addr": getattr(request, "remote_addr", "NOTFOUND"),
-				"base_url": getattr(request, "base_url", "NOTFOUND"),
-				"full_path": getattr(request, "full_path", "NOTFOUND"),
-				"method": getattr(request, "method", "NOTFOUND"),
-				"scheme": getattr(request, "scheme", "NOTFOUND"),
-				"http_status_code": getattr(response, "status_code", "NOTFOUND"),
-			}
-		)
-
-
 def process_response(response):
 	if not response:
 		return

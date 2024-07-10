@@ -2,9 +2,6 @@
 # License: MIT. See LICENSE
 import json
 
-import json
-import unittest
-
 import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import set_request

@@ -112,14 +112,6 @@ frappe.ui.form.on("Web Form", {
 				frm.scroll_to_field("web_form_fields");
 			});
 		});
-		frm.trigger('add_publish_button');
-	},
-
-	add_publish_button(frm) {
-		frm.add_custom_button(frm.doc.published ? __("Unpublish") : __("Publish"), () => {
-			frm.set_value("published", !frm.doc.published);
-			frm.save();
-		});
 	},
 
 	set_fields(frm) {

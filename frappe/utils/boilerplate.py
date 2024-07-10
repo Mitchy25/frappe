@@ -393,11 +393,11 @@ app_license = "{app_license}"
 # Permissions evaluated in scripted ways
 
 # permission_query_conditions = {{
-#	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
+# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
 # }}
 #
 # has_permission = {{
-#	"Event": "frappe.desk.doctype.event.event.has_permission",
+# 	"Event": "frappe.desk.doctype.event.event.has_permission",
 # }}
 
 # DocType Class
@@ -405,7 +405,7 @@ app_license = "{app_license}"
 # Override standard doctype classes
 
 # override_doctype_class = {{
-#	"ToDo": "custom_app.overrides.CustomToDo"
+# 	"ToDo": "custom_app.overrides.CustomToDo"
 # }}
 
 # Document Events
@@ -450,14 +450,14 @@ app_license = "{app_license}"
 # ------------------------------
 #
 # override_whitelisted_methods = {{
-#	"frappe.desk.doctype.event.event.get_events": "{app_name}.event.get_events"
+# 	"frappe.desk.doctype.event.event.get_events": "{app_name}.event.get_events"
 # }}
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
 # along with any modifications made in other Frappe apps
 # override_doctype_dashboards = {{
-#	"Task": "{app_name}.task.get_dashboard_data"
+# 	"Task": "{app_name}.task.get_dashboard_data"
 # }}
 
 # exempt linked doctypes from being automatically cancelled
@@ -507,7 +507,7 @@ app_license = "{app_license}"
 # --------------------------------
 
 # auth_hooks = [
-#	"{app_name}.auth.validate"
+# 	"{app_name}.auth.validate"
 # ]
 """
 

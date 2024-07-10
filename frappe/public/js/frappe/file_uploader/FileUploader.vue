@@ -176,12 +176,6 @@
 						</svg>
 						<div class="mt-1">{{ __("Google Drive") }}</div>
 					</button>
-					<button v-if="google_drive_settings.enabled" class="btn btn-file-upload" @click="show_google_drive_picker">
-						<svg width="30" height="30">
-							<image href="/assets/frappe/icons/social/google_drive.svg" width="30" height="30"/>
-						</svg>
-						<div class="mt-1">{{ __('Google Drive') }}</div>
-					</button>
 				</div>
 				<div class="text-muted text-medium text-center">
 					{{ upload_notes }}
@@ -274,9 +268,6 @@ export default {
 			default: null,
 		},
 		on_success: {
-			default: null,
-		},
-		make_attachments_public: {
 			default: null,
 		},
 		make_attachments_public: {
@@ -658,10 +649,6 @@ export default {
 
 				if (file.library_file_name) {
 					form_data.append("library_file_name", file.library_file_name);
-				}
-
-				if (file.file_name) {
-					form_data.append('file_name', file.file_name);
 				}
 
 				if (this.doctype && this.docname) {

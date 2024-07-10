@@ -65,8 +65,6 @@ def generate_report(prepared_report):
 
 	add_data_to_monitor(report=instance.report_name)
 
-	add_data_to_monitor(report=instance.ref_report_doctype)
-
 	try:
 		report.custom_columns = []
 
@@ -148,7 +146,6 @@ def get_completed_prepared_report(filters, user, report_name):
 			"report_name": report_name,
 		},
 	)
-
 
 
 @frappe.whitelist()

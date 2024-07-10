@@ -179,21 +179,6 @@ def log_request(
 	request_log.save(ignore_permissions=True)
 
 
-def log_request(url, headers, data, res):
-	request_log = frappe.get_doc(
-		{
-			"doctype": "Webhook Request Log",
-			"user": frappe.session.user if frappe.session.user else None,
-			"url": url,
-			"headers": frappe.as_json(headers) if headers else None,
-			"data": frappe.as_json(data) if data else None,
-			"response": frappe.as_json(res.json()) if res else None,
-		}
-	)
-
-	request_log.save(ignore_permissions=True)
-
-
 def get_webhook_headers(doc, webhook):
 	headers = {}
 

@@ -41,7 +41,6 @@ frappe.Application = class Application {
 		this.set_favicon();
 		this.setup_analytics();
 		this.set_fullwidth_if_enabled();
-		this.set_ugly_mode_if_enabled();
 		this.add_browser_class();
 		this.setup_energy_point_listeners();
 		this.setup_copy_doc_listener();
@@ -636,19 +635,6 @@ frappe.Application = class Application {
 				//
 			}
 		});
-	},
-
-	setup_moment() {
-		moment.updateLocale('en', {
-			week: {
-				dow: frappe.datetime.get_first_day_of_the_week_index(),
-			}
-		});
-		moment.locale("en");
-		moment.user_utc_offset = moment().utcOffset();
-		if (frappe.boot.timezone_info) {
-			moment.tz.add(frappe.boot.timezone_info);
-		}
 	}
 
 	setup_moment() {

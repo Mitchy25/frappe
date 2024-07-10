@@ -205,9 +205,7 @@ class TestEmail(FrappeTestCase):
 
 		set_expiry_for_email_queue()
 
-		email_queue = frappe.db.sql(
-			"""select name from `tabEmail Queue` where status='Expired'""", as_dict=1
-		)
+		email_queue = frappe.db.sql("""select name from `tabEmail Queue` where status='Expired'""", as_dict=1)
 		self.assertEqual(len(email_queue), 1)
 		queue_recipients = [
 			r.recipient

@@ -1,7 +1,6 @@
 # Copyright (c) 2019, Frappe Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
 import datetime
-import unittest
 
 import frappe
 from frappe.tests.utils import FrappeTestCase

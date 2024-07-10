@@ -4,8 +4,6 @@ from unittest.mock import MagicMock, patch
 
 from rauth import OAuth2Service
 
-import unittest
-
 import frappe
 from frappe.auth import CookieManager, LoginManager
 from frappe.integrations.doctype.social_login_key.social_login_key import BaseUrlNotSetError

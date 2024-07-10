@@ -39,8 +39,7 @@
    "description": "The browser API key obtained from the Google Cloud Console under <a href=\"https://console.cloud.google.com/apis/credentials\">\n\"APIs &amp; Services\" &gt; \"Credentials\"\n</a>",
    "fieldname": "api_key",
    "fieldtype": "Data",
-   "label": "API Key",
-   "mandatory_depends_on": "google_drive_picker_enabled"
+   "label": "API Key"
   },
   {
    "depends_on": "enable",

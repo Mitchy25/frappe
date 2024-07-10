@@ -294,10 +294,6 @@ frappe.ui.form.ControlData = class ControlData extends frappe.ui.form.ControlInp
 	toggle_container_scroll(el_class, scroll_class, add = false) {
 		let el = this.$input.parents(el_class)[0];
 		if (el) $(el).toggleClass(scroll_class, add);
-	},
-
-	in_grid() {
-		return this.grid || this.layout && this.layout.grid;
 	}
 	in_grid() {
 		return this.grid || (this.layout && this.layout.grid);

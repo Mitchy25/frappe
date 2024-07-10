@@ -9,18 +9,6 @@ from frappe.model.naming import append_number_if_name_exists
 from frappe.utils import cstr, has_gravatar
 
 
-from past.builtins import cmp
-from six import iteritems
-
-import frappe
-from frappe import _
-from frappe.contacts.address_and_contact import set_link_title
-from frappe.core.doctype.dynamic_link.dynamic_link import deduplicate_dynamic_links
-from frappe.model.document import Document
-from frappe.model.naming import append_number_if_name_exists
-from frappe.utils import cint, cstr, has_gravatar
-
-
 class Contact(Document):
 	def autoname(self):
 		return

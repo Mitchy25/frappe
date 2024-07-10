@@ -29,14 +29,6 @@ class AssetsDontExistError(Exception):
 	pass
 
 
-class AssetsNotDownloadedError(Exception):
-	pass
-
-
-class AssetsDontExistError(HTTPError):
-	pass
-
-
 def download_file(url, prefix):
 	from requests import get
 

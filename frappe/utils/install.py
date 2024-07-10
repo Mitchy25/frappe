@@ -18,7 +18,6 @@ def before_install():
 	frappe.clear_cache()
 
 
-
 def after_install():
 	create_user_type()
 	install_basic_docs()
@@ -296,7 +295,6 @@ def add_standard_navbar_items():
 			"is_standard": 1,
 			"item_label": "",
 		},
-		{"item_type": "Separator", "is_standard": 1},
 		{
 			"item_label": "Log out",
 			"item_type": "Action",

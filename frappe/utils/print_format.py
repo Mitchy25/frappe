@@ -10,12 +10,6 @@ from frappe.translate import print_language
 from frappe.utils.deprecations import deprecated
 from frappe.utils.pdf import get_pdf
 
-import frappe
-from frappe import _
-from frappe.core.doctype.access_log.access_log import make_access_log
-from frappe.utils.pdf import cleanup, get_pdf
-from frappe.www.printview import validate_print_permission
-
 no_cache = 1
 
 base_template_path = "www/printview.html"
@@ -68,9 +62,6 @@ def download_multi_pdf(doctype, name, format=None, no_letterhead=False, letterhe
 	import json
 
 	pdf_writer = PdfWriter()
-
-	if isinstance(options, str):
-		options = json.loads(options)
 
 	if isinstance(options, str):
 		options = json.loads(options)

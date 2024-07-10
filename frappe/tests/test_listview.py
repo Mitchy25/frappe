@@ -1,10 +1,6 @@
 # Copyright (c) 2019, Frappe Technologies Pvt. Ltd. and Contributors
 # License: MIT. See LICENSE
 import json
-import unittest
-
-import frappe
-from frappe.desk.listview import get_group_by_count, get_list_settings, set_list_settings
 
 import frappe
 from frappe.desk.listview import get_group_by_count, get_list_settings, set_list_settings

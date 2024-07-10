@@ -121,17 +121,6 @@ frappe.views.CommunicationComposer = class {
 					await this.set_content(sender_email);
 				},
 			},
-			{
-				fieldtype: "Button",
-				label: __("Add Signature"),
-				fieldname: 'add_signature',
-				hidden: 1,
-				click: async function() {
-					let sender_email = this.dialog.get_value('sender') || "";
-					this.content_set = false;
-					await this.set_content(sender_email);
-				}
-			},
 			{ fieldtype: "Section Break" },
 			{
 				label: __("Send me a copy"),

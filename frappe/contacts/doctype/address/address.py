@@ -11,20 +11,6 @@ from frappe.model.document import Document
 from frappe.model.naming import make_autoname
 from frappe.utils import cstr
 
-from jinja2 import TemplateSyntaxError
-from past.builtins import cmp
-from six import iteritems, string_types
-
-import frappe
-from frappe import _, throw
-from frappe.contacts.address_and_contact import set_link_title
-from frappe.core.doctype.dynamic_link.dynamic_link import deduplicate_dynamic_links
-from frappe.model.document import Document
-from frappe.model.naming import make_autoname
-from frappe.utils import cstr
-from frappe.utils.user import is_website_user
-
-
 class Address(Document):
 	def __setup__(self):
 		self.flags.linked = False

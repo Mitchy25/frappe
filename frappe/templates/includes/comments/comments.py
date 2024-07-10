@@ -30,9 +30,6 @@ def add_comment(comment, comment_email, comment_by, reference_doctype, reference
 		if frappe.db.exists("User", comment_email):
 			frappe.throw(_("Please login to post a comment."))
 
-	if frappe.session.user == "Guest" and doc.doctype not in ["Blog Post", "Web Page"]:
-		return
-
 	if not comment.strip():
 		frappe.msgprint(_("The comment cannot be empty"))
 		return False

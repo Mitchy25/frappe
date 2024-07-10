@@ -7,12 +7,6 @@ from frappe.model.document import Document
 from frappe.utils import nowdate
 
 
-import frappe
-from frappe import _, msgprint, throw
-from frappe.model.document import Document
-from frappe.utils import nowdate
-
-
 class SMSSettings(Document):
 	pass
 

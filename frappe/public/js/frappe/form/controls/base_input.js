@@ -61,16 +61,6 @@ frappe.ui.form.ControlInput = class ControlInput extends frappe.ui.form.Control 
 		);
 	}
 
-	read_only_because_of_fetch_from() {
-		return (
-			this.df.fetch_from &&
-			!this.df.fetch_if_empty &&
-			this.frm &&
-			this.frm.doc &&
-			this.frm.doc[this.df.fetch_from.split(".")[0]]
-		);
-	},
-
 	// update input value, label, description
 	// display (show/hide/read-only),
 	// mandatory style on refresh

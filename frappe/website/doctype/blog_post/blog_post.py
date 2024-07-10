@@ -3,8 +3,6 @@
 
 from math import ceil
 
-from math import ceil
-
 import frappe
 from frappe import _
 from frappe.utils import (
