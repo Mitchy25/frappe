@@ -8,7 +8,7 @@ frappe.pages['print'].on_page_load = function(wrapper) {
 		const route = frappe.get_route();
 		const doctype = route[1];
 		const docname = route.slice(2).join("/");
-		let cur_doc;
+
 		if (!frappe.route_options || !frappe.route_options.frm) {
 			frappe.model.with_doc(doctype, docname, () => {
 				let frm = { doctype: doctype, docname: docname };
