@@ -154,7 +154,7 @@ frappe.ui.keys.get_key = function (e) {
 		key = "ctrl+" + key;
 	}
 	if (e.shiftKey) {
-		// add ctrl+ the key
+		// add shift+ the key
 		key = "shift+" + key;
 	}
 	if (e.altKey) {
@@ -218,7 +218,7 @@ frappe.ui.keys.add_shortcut({
 	shortcut: "alt+s",
 	action: function (e) {
 		e.preventDefault();
-		$(".dropdown-navbar-user a").eq(0).click();
+		$(".dropdown-navbar-user button").eq(0).click();
 	},
 	description: __("Open Settings"),
 });
@@ -235,7 +235,7 @@ frappe.ui.keys.add_shortcut({
 	shortcut: "alt+h",
 	action: function (e) {
 		e.preventDefault();
-		$(".dropdown-help a").eq(0).click();
+		$(".dropdown-help button").eq(0).click();
 	},
 	description: __("Open Help"),
 });

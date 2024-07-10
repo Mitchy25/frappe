@@ -162,10 +162,9 @@ def get_info_via_oauth(provider: str, code: str, decoder: Callable | None = None
 
 def login_oauth_user(
 	data: dict | str,
+	*,
 	provider: str | None = None,
-	state: dict | str | None = None,
-	email_id: str | None = None,
-	key: str | None = None,
+	state: dict | str,
 	generate_login_token: bool = False,
 ):
 	# json.loads data and state
@@ -208,7 +207,7 @@ def login_oauth_user(
 
 	if frappe.utils.cint(generate_login_token):
 		login_token = frappe.generate_hash(length=32)
-		frappe.cache().set_value(f"login_token:{login_token}", frappe.local.session.sid, expires_in_sec=120)
+		frappe.cache.set_value(f"login_token:{login_token}", frappe.local.session.sid, expires_in_sec=120)
 
 		frappe.response["login_token"] = login_token
 
@@ -221,11 +220,13 @@ def login_oauth_user(
 		)
 
 
-def get_user_record(user: str, data: dict) -> "User":
+def get_user_record(user: str, data: dict, provider: str) -> "User":
+	from frappe.integrations.doctype.social_login_key.social_login_key import provider_allows_signup
+
 	try:
 		return frappe.get_doc("User", user)
 	except frappe.DoesNotExistError:
-		if frappe.get_website_settings("disable_signup"):
+		if not provider_allows_signup(provider):
 			raise SignupDisabledError
 
 	user: "User" = frappe.new_doc("User")
@@ -257,7 +258,7 @@ def update_oauth_user(user: str, data: dict, provider: str):
 	if isinstance(data.get("location"), dict):
 		data["location"] = data["location"].get("name")
 
-	user: "User" = get_user_record(user, data)
+	user: "User" = get_user_record(user, data, provider)
 	update_user_record = user.is_new()
 
 	if not user.enabled:

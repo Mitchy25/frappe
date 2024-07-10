@@ -12,7 +12,7 @@ def frappecloud_migrator(local_site):
 	request = requests.get(request_url)
 
 	if request.status_code / 100 != 2:
-		print(f"Request exitted with Status Code: {request.status_code}\nPayload: {html2text(request.text)}")
+		print(f"Request exited with Status Code: {request.status_code}\nPayload: {html2text(request.text)}")
 		click.secho(
 			"Some errors occurred while recovering the migration script. Please contact us @ Frappe Cloud if this issue persists",
 			fg="yellow",

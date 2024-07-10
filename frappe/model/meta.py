@@ -21,7 +21,7 @@ from datetime import datetime
 import click
 
 import frappe
-from frappe import _
+from frappe import _, _lt
 from frappe.model import (
 	child_table_fields,
 	data_fieldtypes,
@@ -41,31 +41,28 @@ from frappe.modules import load_doctype_module
 from frappe.utils import cast, cint, cstr
 
 DEFAULT_FIELD_LABELS = {
-	"name": lambda: _("ID"),
-	"creation": lambda: _("Created On"),
-	"docstatus": lambda: _("Document Status"),
-	"idx": lambda: _("Index"),
-	"modified": lambda: _("Last Updated On"),
-	"modified_by": lambda: _("Last Updated By"),
-	"owner": lambda: _("Created By"),
-	"_user_tags": lambda: _("Tags"),
-	"_liked_by": lambda: _("Liked By"),
-	"_comments": lambda: _("Comments"),
-	"_assign": lambda: _("Assigned To"),
+	"name": _lt("ID"),
+	"creation": _lt("Created On"),
+	"docstatus": _lt("Document Status"),
+	"idx": _lt("Index"),
+	"modified": _lt("Last Updated On"),
+	"modified_by": _lt("Last Updated By"),
+	"owner": _lt("Created By"),
+	"_user_tags": _lt("Tags"),
+	"_liked_by": _lt("Liked By"),
+	"_comments": _lt("Comments"),
+	"_assign": _lt("Assigned To"),
 }
 
 
 def get_meta(doctype, cached=True) -> "Meta":
-	if not cached:
-		return Meta(doctype)
-
-	if meta := frappe.cache().hget("doctype_meta", doctype):
+	cached = cached and isinstance(doctype, str)
+	if cached and (meta := frappe.cache.hget("doctype_meta", doctype)):
 		return meta
 
 	meta = Meta(doctype)
-	frappe.cache().hset("doctype_meta", doctype, meta)
+	frappe.cache.hset("doctype_meta", meta.name, meta)
 	return meta
-
 
 
 def load_meta(doctype):
@@ -98,7 +95,7 @@ class Meta(Document):
 	_metaclass = True
 	default_fields = list(default_fields)[1:]
 	special_doctypes = frozenset(
-		{
+		(
 			"DocField",
 			"DocPerm",
 			"DocType",
@@ -106,7 +103,7 @@ class Meta(Document):
 			"DocType Action",
 			"DocType Link",
 			"DocType State",
-		}
+		)
 	)
 	standard_set_once_fields = (
 		frappe._dict(fieldname="creation", fieldtype="Datetime"),
@@ -216,7 +213,7 @@ class Meta(Document):
 
 		return fields
 
-	def get_valid_columns(self):
+	def get_valid_columns(self) -> list[str]:
 		if not hasattr(self, "_valid_columns"):
 			table_exists = frappe.db.table_exists(self.name)
 			if self.name in self.special_doctypes and table_exists:
@@ -245,14 +242,13 @@ class Meta(Document):
 
 	def get_label(self, fieldname):
 		"""Get label of the given fieldname"""
-
 		if df := self.get_field(fieldname):
 			return df.get("label")
 
 		if fieldname in DEFAULT_FIELD_LABELS:
-			return DEFAULT_FIELD_LABELS[fieldname]()
+			return str(DEFAULT_FIELD_LABELS[fieldname])
 
-		return _("No Label")
+		return "No Label"
 
 	def get_options(self, fieldname):
 		return self.get_field(fieldname).options
@@ -425,11 +421,7 @@ class Meta(Document):
 			order = json.loads(self.get(f"{fieldname}_order") or "[]")
 			if order:
 				name_map = {d.name: d for d in self.get(fieldname)}
-				new_list = []
-				for name in order:
-					if name in name_map:
-						new_list.append(name_map[name])
-
+				new_list = [name_map[name] for name in order if name in name_map]
 				# add the missing items that have not be added
 				# maybe these items were added to the standard product
 				# after the customization was done
@@ -570,11 +562,7 @@ class Meta(Document):
 	def get_high_permlevel_fields(self):
 		"""Build list of fields with high perm level and all the higher perm levels defined."""
 		if not hasattr(self, "high_permlevel_fields"):
-			self.high_permlevel_fields = []
-			for df in self.fields:
-				if df.permlevel > 0:
-					self.high_permlevel_fields.append(df)
-
+			self.high_permlevel_fields = [df for df in self.fields if df.permlevel > 0]
 		return self.high_permlevel_fields
 
 	def get_permitted_fieldnames(
@@ -607,12 +595,17 @@ class Meta(Document):
 			self.get_permlevel_access(permission_type=permission_type, parenttype=parenttype, user=user)
 		)
 
-		for df in self.get_fieldnames_with_value(
-			with_field_meta=True, with_virtual_fields=with_virtual_fields
-		):
-			if df.permlevel in permlevel_access:
-				permitted_fieldnames.append(df.fieldname)
+		if 0 not in permlevel_access and permission_type in ("read", "select"):
+			if frappe.share.get_shared(self.name, user, rights=[permission_type], limit=1):
+				permlevel_access.add(0)
 
+		permitted_fieldnames.extend(
+			df.fieldname
+			for df in self.get_fieldnames_with_value(
+				with_field_meta=True, with_virtual_fields=with_virtual_fields
+			)
+			if df.permlevel in permlevel_access
+		)
 		return permitted_fieldnames
 
 	def get_permlevel_access(self, permission_type="read", parenttype=None, *, user=None):
@@ -859,7 +852,7 @@ def trim_tables(doctype=None, dry_run=False, quiet=False):
 
 
 def trim_table(doctype, dry_run=True):
-	frappe.cache().hdel("table_columns", f"tab{doctype}")
+	frappe.cache.hdel("table_columns", f"tab{doctype}")
 	ignore_fields = default_fields + optional_fields + child_table_fields
 	columns = frappe.db.get_table_columns(doctype)
 	fields = frappe.get_meta(doctype, cached=False).get_fieldnames_with_value()

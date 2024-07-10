@@ -4,6 +4,8 @@
 bootstrap client session
 """
 
+import os
+
 import frappe
 import frappe.defaults
 import frappe.desk.desk_page
@@ -24,6 +26,7 @@ from frappe.social.doctype.energy_point_settings.energy_point_settings import (
 )
 from frappe.utils import add_user_info, cstr, get_system_timezone
 from frappe.utils.change_log import get_versions
+from frappe.utils.frappecloud import on_frappecloud
 from frappe.website.doctype.web_page_view.web_page_view import is_tracking_enabled
 
 
@@ -106,7 +109,11 @@ def get_bootinfo():
 	bootinfo.link_title_doctypes = get_link_title_doctypes()
 	bootinfo.translated_doctypes = get_translated_doctypes()
 	bootinfo.subscription_conf = add_subscription_conf()
+	bootinfo.marketplace_apps = get_marketplace_apps()
 	bootinfo.changelog_feed = get_changelog_feed_items()
+
+	if sentry_dsn := get_sentry_dsn():
+		bootinfo.sentry_dsn = sentry_dsn
 
 	return bootinfo
 
@@ -154,10 +161,8 @@ def get_allowed_report_names(cache=False) -> set[str]:
 
 
 def get_user_pages_or_reports(parent, cache=False):
-	_cache = frappe.cache()
-
 	if cache:
-		has_role = _cache.get_value("has_role:" + parent, user=frappe.session.user)
+		has_role = frappe.cache.get_value("has_role:" + parent, user=frappe.session.user)
 		if has_role:
 			return has_role
 
@@ -167,7 +172,9 @@ def get_user_pages_or_reports(parent, cache=False):
 	page = DocType("Page")
 	report = DocType("Report")
 
-	if parent == "Report":
+	is_report = parent == "Report"
+
+	if is_report:
 		columns = (report.name.as_("title"), report.ref_doctype, report.report_type)
 	else:
 		columns = (page.title.as_("title"),)
@@ -209,7 +216,7 @@ def get_user_pages_or_reports(parent, cache=False):
 		.distinct()
 	)
 
-	if parent == "Report":
+	if is_report:
 		pages_with_standard_roles = pages_with_standard_roles.where(report.disabled == 0)
 
 	pages_with_standard_roles = pages_with_standard_roles.run(as_dict=True)
@@ -224,19 +231,20 @@ def get_user_pages_or_reports(parent, cache=False):
 		frappe.qb.from_(hasRole).select(Count("*")).where(hasRole.parent == parentTable.name)
 	)
 
-	# pages with no role are allowed
-	if parent == "Page":
-		pages_with_no_roles = (
-			frappe.qb.from_(parentTable)
-			.select(parentTable.name, parentTable.modified, *columns)
-			.where(no_of_roles == 0)
-		).run(as_dict=True)
+	# pages and reports with no role are allowed
+	rows_with_no_roles = (
+		frappe.qb.from_(parentTable)
+		.select(parentTable.name, parentTable.modified, *columns)
+		.where(no_of_roles == 0)
+	).run(as_dict=True)
 
-		for p in pages_with_no_roles:
-			if p.name not in has_role:
-				has_role[p.name] = {"modified": p.modified, "title": p.title}
+	for r in rows_with_no_roles:
+		if r.name not in has_role:
+			has_role[r.name] = {"modified": r.modified, "title": r.title}
+			if is_report:
+				has_role[r.name] |= {"ref_doctype": r.ref_doctype}
 
-	elif parent == "Report":
+	if is_report:
 		if not has_permission("Report", raise_exception=False):
 			return {}
 
@@ -254,7 +262,7 @@ def get_user_pages_or_reports(parent, cache=False):
 			has_role.pop(r, None)
 
 	# Expire every six hours
-	_cache.set_value("has_role:" + parent, has_role, frappe.session.user, 21600)
+	frappe.cache.set_value("has_role:" + parent, has_role, frappe.session.user, 21600)
 	return has_role
 
 
@@ -297,8 +305,7 @@ def add_home_page(bootinfo, docs):
 		docs.append(page)
 		bootinfo["home_page"] = page.name
 	except (frappe.DoesNotExistError, frappe.PermissionError):
-		if frappe.message_log:
-			frappe.message_log.pop()
+		frappe.clear_last_message()
 		bootinfo["home_page"] = "Workspaces"
 
 
@@ -445,8 +452,41 @@ def load_currency_docs(bootinfo):
 	bootinfo.docs += currency_docs
 
 
+def get_marketplace_apps():
+	import requests
+
+	apps = []
+	cache_key = "frappe_marketplace_apps"
+
+	if frappe.conf.developer_mode or not on_frappecloud():
+		return apps
+
+	def get_apps_from_fc():
+		remote_site = frappe.conf.frappecloud_url or "frappecloud.com"
+		request_url = f"https://{remote_site}/api/method/press.api.marketplace.get_marketplace_apps"
+		request = requests.get(request_url, timeout=2.0)
+		return request.json()["message"]
+
+	try:
+		apps = frappe.cache().get_value(cache_key, get_apps_from_fc, shared=True)
+		installed_apps = set(frappe.get_installed_apps())
+		apps = [app for app in apps if app["name"] not in installed_apps]
+	except Exception:
+		# Don't retry for a day
+		frappe.cache().set_value(cache_key, apps, shared=True, expires_in_sec=24 * 60 * 60)
+
+	return apps
+
+
 def add_subscription_conf():
 	try:
 		return frappe.conf.subscription
 	except Exception:
 		return ""
+
+
+def get_sentry_dsn():
+	if not frappe.get_system_settings("enable_telemetry"):
+		return
+
+	return os.getenv("FRAPPE_SENTRY_DSN")

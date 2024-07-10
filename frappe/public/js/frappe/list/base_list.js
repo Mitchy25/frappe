@@ -182,7 +182,7 @@ frappe.views.BaseList = class BaseList {
 	}
 
 	set_title() {
-		this.page.set_title(this.page_title);
+		this.page.set_title(this.page_title, null, true, "", this.meta?.description);
 	}
 
 	setup_view_menu() {
@@ -232,9 +232,14 @@ frappe.views.BaseList = class BaseList {
 				$secondary_action.addClass("visible-xs");
 			}
 		} else {
-			this.refresh_button = this.page.add_action_icon("refresh", () => {
-				this.refresh();
-			});
+			this.refresh_button = this.page.add_action_icon(
+				"es-line-reload",
+				() => {
+					this.refresh();
+				},
+				"",
+				__("Reload List")
+			);
 		}
 	}
 
@@ -310,7 +315,9 @@ frappe.views.BaseList = class BaseList {
 		this.filter_area = new FilterArea(this);
 
 		if (this.filters && this.filters.length > 0) {
-			return this.filter_area.set(this.filters);
+			return this.filter_area.set(this.filters).catch(() => {
+				this.filter_area.clear(false);
+			});
 		}
 	}
 
@@ -683,8 +690,7 @@ class FilterArea {
 
 		const fields_dict = this.list_view.page.fields_dict;
 
-		let out = filters.reduce((out, filter) => {
-			// eslint-disable-next-line
+		return filters.reduce((out, filter) => {
 			const [dt, fieldname, condition, value] = filter;
 			out.promise = out.promise || Promise.resolve();
 			out.non_standard_filters = out.non_standard_filters || [];
@@ -694,7 +700,9 @@ class FilterArea {
 			if (
 				fields_dict[fieldname] &&
 				(condition === "=" ||
-					(condition === "like" && fields_dict[fieldname]?.df?.fieldtype != "Link"))
+					(condition === "like" && fields_dict[fieldname]?.df?.fieldtype != "Link") ||
+					(condition === "descendants of (inclusive)" &&
+						fields_dict[fieldname]?.df?.fieldtype == "Link"))
 			) {
 				// standard filter
 				out.promise = out.promise.then(() => fields_dict[fieldname].set_value(value));
@@ -704,8 +712,6 @@ class FilterArea {
 			}
 			return out;
 		}, {});
-
-		return out;
 	}
 
 	remove_filters(filters) {
@@ -810,10 +816,17 @@ class FilterArea {
 							options = options.join("\n");
 						}
 					}
+					if (
+						df.fieldtype == "Link" &&
+						df.options &&
+						frappe.boot.treeviews.includes(df.options)
+					) {
+						condition = "descendants of (inclusive)";
+					}
 
 					return {
 						fieldtype: fieldtype,
-						label: __(df.label),
+						label: __(df.label, null, df.parent),
 						options: options,
 						fieldname: df.fieldname,
 						condition: condition,
@@ -856,7 +869,7 @@ class FilterArea {
 			<div class="btn-group">
 				<button class="btn btn-default btn-sm filter-button">
 					<span class="filter-icon">
-						${frappe.utils.icon("filter")}
+						${frappe.utils.icon("es-line-filter")}
 					</span>
 					<span class="button-label hidden-xs">
 					${__("Filter")}
@@ -864,7 +877,7 @@ class FilterArea {
 				</button>
 				<button class="btn btn-default btn-sm filter-x-button" title="${__("Clear all filters")}">
 					<span class="filter-icon">
-						${frappe.utils.icon("filter-x")}
+						${frappe.utils.icon("es-small-close")}
 					</span>
 				</button>
 			</div>

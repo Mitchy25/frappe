@@ -52,6 +52,28 @@ def handle_error(event):
 
 
 class EmailDomain(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.types import DF
+
+		append_emails_to_sent_folder: DF.Check
+		attachment_limit: DF.Int
+		domain_name: DF.Data
+		email_server: DF.Data
+		incoming_port: DF.Data | None
+		smtp_port: DF.Data | None
+		smtp_server: DF.Data
+		use_imap: DF.Check
+		use_ssl: DF.Check
+		use_ssl_for_outgoing: DF.Check
+		use_starttls: DF.Check
+		use_tls: DF.Check
+
+	# end: auto-generated types
 	def validate(self):
 		"""Validate POP3/IMAP and SMTP connections."""
 
@@ -80,9 +102,9 @@ class EmailDomain(Document):
 		self.incoming_port = get_port(self)
 
 		if self.use_imap:
-			conn_method = Timed_IMAP4_SSL if self.use_ssl else Timed_IMAP4
+			conn_method = imaplib.IMAP4_SSL if self.use_ssl else imaplib.IMAP4
 		else:
-			conn_method = Timed_POP3_SSL if self.use_ssl else Timed_POP3
+			conn_method = poplib.POP3_SSL if self.use_ssl else poplib.POP3
 
 		self.use_starttls = cint(self.use_imap and self.use_starttls and not self.use_ssl)
 		incoming_conn = conn_method(self.email_server, port=self.incoming_port, timeout=30)

@@ -17,7 +17,8 @@
   "next_action_email_template",
   "allow_edit",
   "section_break_9",
-  "message"
+  "message",
+  "workflow_builder_id"
  ],
  "fields": [
   {
@@ -31,6 +32,7 @@
    "width": "160px"
   },
   {
+   "default": "0",
    "description": "0 - Draft; 1 - Submitted; 2 - Cancelled",
    "fieldname": "doc_status",
    "fieldtype": "Select",
@@ -90,6 +92,12 @@
   {
    "fieldname": "section_break_9",
    "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "workflow_builder_id",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Workflow Builder ID"
   },
   {
    "default": "0",

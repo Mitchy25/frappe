@@ -246,6 +246,7 @@
    "default": "14",
    "fieldname": "font_size",
    "fieldtype": "Int",
+   "hidden": 1,
    "label": "Font Size"
   },
   {
@@ -258,7 +259,6 @@
  ],
  "icon": "fa fa-print",
  "idx": 1,
- "index_web_pages_for_search": 1,
  "links": [],
  "modified": "2023-12-12 19:59:37.133301",
  "modified_by": "Administrator",
@@ -277,9 +277,14 @@
    "role": "System Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "role": "Desk User",
+   "select": 1
   }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "track_changes": 1
 }

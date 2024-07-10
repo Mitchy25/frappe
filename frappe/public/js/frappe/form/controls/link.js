@@ -87,10 +87,10 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 		return this.is_translatable() ? __(value) : value;
 	}
 	is_translatable() {
-		return in_list(frappe.boot?.translated_doctypes || [], this.get_options());
+		return (frappe.boot?.translated_doctypes || []).includes(this.get_options());
 	}
 	is_title_link() {
-		return in_list(frappe.boot?.link_title_doctypes || [], this.get_options());
+		return (frappe.boot?.link_title_doctypes || []).includes(this.get_options());
 	}
 	async set_link_title(value) {
 		const doctype = this.get_options();
@@ -184,6 +184,7 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 		this.$input.cache = {};
 
 		this.awesomplete = new Awesomplete(me.input, {
+			tabSelect: true,
 			minChars: 0,
 			maxItems: 99,
 			autoFirst: true,
@@ -218,10 +219,13 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 				) {
 					html += '<br><span class="small">' + __(d.description) + "</span>";
 				}
-				return $("<li></li>")
+				return $(`<div role="option">`)
+					.on("click", (event) => {
+						me.awesomplete.select(event.currentTarget, event.currentTarget);
+					})
 					.data("item.autocomplete", d)
 					.prop("aria-selected", "false")
-					.html(`<a><p title="${frappe.utils.escape_html(_label)}">${html}</p></a>`)
+					.html(`<p title="${frappe.utils.escape_html(_label)}">${html}</p>`)
 					.get(0);
 			},
 			sort: function () {
@@ -251,6 +255,7 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 					doctype: doctype,
 					ignore_user_permissions: me.df.ignore_user_permissions,
 					reference_doctype: me.get_reference_doctype() || "",
+					page_length: cint(frappe.boot.sysdefaults.link_field_results_limit) || 10,
 				};
 
 				me.set_custom_query(args);
@@ -264,26 +269,28 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 						if (!window.Cypress && !me.$input.is(":focus")) {
 							return;
 						}
-						r.results = me.merge_duplicates(r.results);
+						r.message = me.merge_duplicates(r.message);
 
 						// show filter description in awesomplete
-						if (args.filters) {
-							let filter_string = me.get_filter_description(args.filters);
-							if (filter_string) {
-								r.results.push({
-									html: `<span class="text-muted" style="line-height: 1.5">${filter_string}</span>`,
-									value: "",
-									action: () => {},
-								});
-							}
+						let filter_string = me.df.filter_description
+							? me.df.filter_description
+							: args.filters
+							? me.get_filter_description(args.filters)
+							: null;
+						if (filter_string) {
+							r.message.push({
+								html: `<span class="text-muted" style="line-height: 1.5">${filter_string}</span>`,
+								value: "",
+								action: () => {},
+							});
 						}
 
 						if (!me.df.only_select) {
 							if (frappe.model.can_create(doctype)) {
 								// new item
-								r.results.push({
+								r.message.push({
 									html:
-										"<span class='text-primary link-option'>" +
+										"<span class='link-option'>" +
 										"<i class='fa fa-plus' style='margin-right: 5px;'></i> " +
 										__("Create a new {0}", [__(me.get_options())]) +
 										"</span>",
@@ -299,15 +306,15 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 								frappe.ui.form.ControlLink.link_options(me);
 
 							if (custom__link_options) {
-								r.results = r.results.concat(custom__link_options);
+								r.message = r.message.concat(custom__link_options);
 							}
 
 							// advanced search
 							if (locals && locals["DocType"]) {
 								// not applicable in web forms
-								r.results.push({
+								r.message.push({
 									html:
-										"<span class='text-primary link-option'>" +
+										"<span class='link-option'>" +
 										"<i class='fa fa-search' style='margin-right: 5px;'></i> " +
 										__("Advanced Search") +
 										"</span>",
@@ -317,7 +324,7 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 								});
 							}
 						}
-						me.$input.cache[doctype][term] = r.results;
+						me.$input.cache[doctype][term] = r.message;
 						me.awesomplete.list = me.$input.cache[doctype][term];
 						me.toggle_href(doctype);
 					},
@@ -505,6 +512,12 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 			});
 			return obj;
 		};
+
+		// apply link field filters
+		if (this.df.link_filters && !!this.df.link_filters.length) {
+			this.apply_link_field_filters();
+		}
+
 		if (this.get_query || this.df.get_query) {
 			var get_query = this.get_query || this.df.get_query;
 			if ($.isPlainObject(get_query)) {
@@ -567,6 +580,36 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 			$.extend(args.filters, this.df.filters);
 		}
 	}
+
+	apply_link_field_filters() {
+		let link_filters = JSON.parse(this.df.link_filters);
+		let filters = this.parse_filters(link_filters);
+		// take filters from the link field and add to the query
+		this.get_query = function () {
+			return {
+				filters,
+			};
+		};
+	}
+
+	parse_filters(link_filters) {
+		let filters = {};
+		link_filters.forEach((filter) => {
+			let [_, fieldname, operator, value] = filter;
+			if (value?.startsWith?.("eval:")) {
+				value = value.split("eval:")[1];
+				let context = {
+					doc: this.doc,
+					parent: this.doc.parenttype ? this.frm.doc : null,
+					frappe,
+				};
+				value = frappe.utils.eval(value, context);
+			}
+			filters[fieldname] = [operator, value];
+		});
+		return filters;
+	}
+
 	validate(value) {
 		// validate the value just entered
 		if (this._validated || this.df.options == "[Select]" || this.df.ignore_link_validation) {

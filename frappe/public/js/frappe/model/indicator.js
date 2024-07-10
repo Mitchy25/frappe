@@ -50,10 +50,10 @@ frappe.get_indicator = function (doc, doctype, show_workflow_state) {
 	) {
 		var value = doc[workflow_fieldname];
 		if (value) {
-			var colour = "";
+			let colour = "";
 
 			if (locals["Workflow State"][value] && locals["Workflow State"][value].style) {
-				var colour = {
+				colour = {
 					Success: "green",
 					Warning: "orange",
 					Danger: "red",

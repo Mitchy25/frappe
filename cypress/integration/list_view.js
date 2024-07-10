@@ -10,6 +10,14 @@ context("List View", () => {
 			});
 	});
 
+	it("Keep checkbox checked after Refresh", { scrollBehavior: false }, () => {
+		cy.go_to_list("ToDo");
+		cy.clear_filters();
+		cy.get(".list-header-subject > .list-subject > .list-check-all").click();
+		cy.get("button[data-original-title='Reload List']").click();
+		cy.get(".list-row-container .list-row-checkbox:checked").should("be.visible");
+	});
+
 	it('enables "Actions" button', { scrollBehavior: false }, () => {
 		const actions = [
 			"Approve",
@@ -22,11 +30,8 @@ context("List View", () => {
 		];
 		cy.go_to_list("ToDo");
 		cy.clear_filters();
-		cy.get('.list-row-container:contains("Pending") .list-row-checkbox').click({
-			multiple: true,
-			force: true,
-		});
-		cy.get(".actions-btn-group button").contains("Actions").should("be.visible").click();
+		cy.get(".list-header-subject > .list-subject > .list-check-all").click();
+		cy.findByRole("button", { name: "Actions" }).click();
 		cy.get(".dropdown-menu li:visible .dropdown-item")
 			.should("have.length", 7)
 			.each((el, index) => {
@@ -39,8 +44,7 @@ context("List View", () => {
 				}).as("bulk-approval");
 				cy.wrap(elements).contains("Approve").click();
 				cy.wait("@bulk-approval");
-				cy.wait(300);
-				cy.get_open_dialog().find(".btn-modal-close").click();
+				cy.hide_dialog();
 				cy.reload();
 				cy.clear_filters();
 				cy.get(".list-row-container:visible").should("contain", "Approved");

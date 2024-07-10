@@ -23,6 +23,7 @@
   "options",
   "sort_options",
   "show_dashboard",
+  "link_filters",
   "defaults_section",
   "default",
   "column_break_6",
@@ -551,8 +552,9 @@
   {
    "depends_on": "eval:!in_list([\"Tab Break\", \"Section Break\", \"Column Break\", \"Button\", \"HTML\"], doc.fieldtype)",
    "fieldname": "documentation_url",
-   "fieldtype": "Small Text",
-   "label": "Documentation URL"
+   "fieldtype": "Data",
+   "label": "Documentation URL",
+   "options": "URL"
   },
   {
    "default": "0",
@@ -560,13 +562,18 @@
    "fieldname": "sort_options",
    "fieldtype": "Check",
    "label": "Sort Options"
+  },
+  {
+   "fieldname": "link_filters",
+   "fieldtype": "JSON",
+   "label": "Link Filters"
   }
  ],
  "idx": 1,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-05-28 15:55:44.007917",
+ "modified": "2024-02-01 15:55:44.007917",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "DocField",

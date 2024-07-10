@@ -82,6 +82,7 @@
    "in_list_view": 1,
    "label": "File Size",
    "length": 20,
+   "options": "File Size",
    "read_only": 1
   },
   {
@@ -217,7 +218,7 @@
   }
  ],
  "sort_field": "modified",
- "sort_order": "ASC",
+ "sort_order": "DESC",
  "states": [],
  "title_field": "file_name",
  "track_changes": 1

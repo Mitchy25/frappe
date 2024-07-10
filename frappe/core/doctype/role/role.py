@@ -15,17 +15,43 @@ desk_properties = (
 	"timeline",
 	"dashboard",
 )
+from frappe.website.router import clear_routing_cache
 
 STANDARD_ROLES = ("Administrator", "System Manager", "Script Manager", "All", "Guest")
 
 
 class Role(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.types import DF
+
+		bulk_actions: DF.Check
+		dashboard: DF.Check
+		desk_access: DF.Check
+		disabled: DF.Check
+		form_sidebar: DF.Check
+		home_page: DF.Data | None
+		is_custom: DF.Check
+		list_sidebar: DF.Check
+		notifications: DF.Check
+		restrict_to_domain: DF.Link | None
+		role_name: DF.Data
+		search_bar: DF.Check
+		timeline: DF.Check
+		two_factor_auth: DF.Check
+		view_switcher: DF.Check
+
+	# end: auto-generated types
 	def before_rename(self, old, new, merge=False):
 		if old in STANDARD_ROLES:
 			frappe.throw(frappe._("Standard roles cannot be renamed"))
 
 	def after_insert(self):
-		frappe.cache().hdel("roles", "Administrator")
+		frappe.cache.hdel("roles", "Administrator")
 
 	def validate(self):
 		if self.disabled:
@@ -43,6 +69,9 @@ class Role(Document):
 	def validate_homepage(self):
 		if frappe.request and self.home_page:
 			validate_path(self.home_page)
+
+		if self.has_value_changed("home_page"):
+			clear_routing_cache()
 
 	def set_desk_properties(self):
 		# set if desk_access is not allowed, unset all desk properties

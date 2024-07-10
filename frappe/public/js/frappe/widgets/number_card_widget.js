@@ -151,8 +151,7 @@ export default class NumberCardWidget extends Widget {
 	}
 
 	get_filters() {
-		const filters = frappe.dashboard_utils.get_all_filters(this.card_doc);
-		return filters;
+		return frappe.dashboard_utils.get_all_filters(this.card_doc);
 	}
 
 	async render_card() {
@@ -214,19 +213,36 @@ export default class NumberCardWidget extends Widget {
 		}, []);
 		const col = res.columns.find((col) => col.fieldname == field);
 		this.number = frappe.report_utils.get_result_of_fn(this.card_doc.report_function, vals);
-		this.set_formatted_number(col);
+		this.set_formatted_number(col, this._generate_common_doc(res.result));
 	}
 
-	set_formatted_number(df) {
+	set_formatted_number(df, doc) {
 		const default_country = frappe.sys_defaults.country;
 		const shortened_number = frappe.utils.shorten_number(this.number, default_country, 5);
 		let number_parts = shortened_number.split(" ");
 
 		const symbol = number_parts[1] || "";
 		number_parts[0] = window.convert_old_to_new_number_format(number_parts[0]);
-		const formatted_number = $(frappe.format(number_parts[0], df)).text();
+		const formatted_number = frappe.format(number_parts[0], df, null, doc);
+		this.formatted_number =
+			($(formatted_number).text() || formatted_number) + " " + __(symbol);
+	}
 
-		this.formatted_number = formatted_number + " " + __(symbol);
+	_generate_common_doc(rows) {
+		if (!rows || !rows.length) return {};
+		// init with first doc, for each other doc if values are common then keep else discard
+		// Whatever is left should be same in all objects
+		const common_doc = Object.assign({}, rows[0]);
+		rows.forEach((row) => {
+			if (Array.isArray(row)) return; // totals row
+
+			for (const [key, value] of Object.entries(common_doc)) {
+				if (value !== row[key]) {
+					delete common_doc[key];
+				}
+			}
+		});
+		return common_doc;
 	}
 
 	render_number() {
@@ -250,12 +266,12 @@ export default class NumberCardWidget extends Widget {
 				color_class = "grey-stat";
 			} else if (this.percentage_stat > 0) {
 				caret_html = `<span class="indicator-pill-round green">
-						${frappe.utils.icon("arrow-up-right", "xs")}
+						${frappe.utils.icon("es-line-arrow-up-right", "xs")}
 					</span>`;
 				color_class = "green-stat";
 			} else {
 				caret_html = `<span class="indicator-pill-round red">
-						${frappe.utils.icon("arrow-down-left", "xs")}
+						${frappe.utils.icon("arrow-down-right", "xs")}
 					</span>`;
 				color_class = "red-stat";
 			}
@@ -280,13 +296,7 @@ export default class NumberCardWidget extends Widget {
 
 			$(this.body).find(".widget-content").append(`<div class="card-stats ${color_class}">
 				<span class="percentage-stat-area">
-					${caret_html}
-					<span class="percentage-stat">
-						${stat} %
-					</span>
-				</span>
-				<span class="stat-period text-muted">
-					${stats_qualifier}
+					${caret_html} ${stat} % ${stats_qualifier}
 				</span>
 			</div>`);
 		});
@@ -331,7 +341,6 @@ export default class NumberCardWidget extends Widget {
 	}
 
 	set_card_actions(actions) {
-		/* eslint-disable indent */
 		this.card_actions = $(`<div class="card-actions dropdown pull-right">
 				<a data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 				...
@@ -347,7 +356,6 @@ export default class NumberCardWidget extends Widget {
 						.join("")}
 				</ul>
 			</div>`);
-		/* eslint-disable indent */
 
 		this.card_actions.find("a[data-action]").each((i, o) => {
 			const action = o.dataset.action;

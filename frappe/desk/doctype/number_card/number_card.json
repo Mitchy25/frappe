@@ -194,8 +194,8 @@
    "options": "Sum\nAverage\nMinimum\nMaximum"
   },
   {
-   "description": "The document type selected is a child table, so the parent document type is required.",
    "depends_on": "eval: doc.type === 'Document Type'",
+   "description": "The document type selected is a child table, so the parent document type is required.",
    "fieldname": "parent_document_type",
    "fieldtype": "Link",
    "label": "Parent Document Type",
@@ -239,7 +239,7 @@
    "print": 1,
    "read": 1,
    "report": 1,
-   "role": "All",
+   "role": "Desk User",
    "share": 1
   }
  ],

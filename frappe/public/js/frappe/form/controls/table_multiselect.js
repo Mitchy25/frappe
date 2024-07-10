@@ -148,7 +148,7 @@ frappe.ui.form.ControlTableMultiSelect = class ControlTableMultiSelect extends (
 	get_link_field() {
 		if (!this._link_field) {
 			const meta = frappe.get_meta(this.df.options);
-			this._link_field = meta.fields.find((df) => df.fieldtype === "Link");
+			this._link_field = meta.fields?.find((df) => df.fieldtype === "Link");
 			if (!this._link_field) {
 				throw new Error("Table MultiSelect requires a Table with atleast one Link field");
 			}
@@ -159,7 +159,7 @@ frappe.ui.form.ControlTableMultiSelect = class ControlTableMultiSelect extends (
 		let me = this;
 
 		awesomplete.filter = function (item) {
-			if (in_list(me._rows_list, item.value)) {
+			if (me._rows_list.includes(item.value)) {
 				return false;
 			}
 

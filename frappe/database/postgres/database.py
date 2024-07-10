@@ -114,6 +114,10 @@ class PostgresExceptionUtil:
 		return getattr(e, "pgcode", None) == STRING_DATA_RIGHT_TRUNCATION
 
 	@staticmethod
+	def is_db_table_size_limit(e) -> bool:
+		return False
+
+	@staticmethod
 	def is_interface_error(e):
 		return isinstance(e, InterfaceError)
 
@@ -398,6 +402,21 @@ class PostgresDatabase(PostgresExceptionUtil, Database):
 			GROUP BY a.column_name, a.data_type, a.column_default, a.character_maximum_length;
 		""",
 			as_dict=1,
+		)
+
+	def get_column_type(self, doctype, column):
+		"""Returns column type from database."""
+		information_schema = frappe.qb.Schema("information_schema")
+		table = get_table_name(doctype)
+
+		return (
+			frappe.qb.from_(information_schema.columns)
+			.select(information_schema.columns.data_type)
+			.where(
+				(information_schema.columns.table_name == table)
+				& (information_schema.columns.column_name == column)
+			)
+			.run(pluck=True)[0]
 		)
 
 	def get_database_list(self):

@@ -36,15 +36,34 @@ repos:
         types_or: [javascript, vue, scss]
         # Ignore any files that might contain jinja / bundles
         exclude: |
-          (?x)^(
-              frappe/public/dist/.*|
-              .*node_modules.*|
-              .*boilerplate.*|
-              frappe/www/website_script.js|
-              frappe/templates/includes/.*|
-              frappe/public/js/lib/.*|
-              frappe/website/doctype/website_theme/website_theme_template.scss
-          )$
+            (?x)^(
+                frappe/public/dist/.*|
+                .*node_modules.*|
+                .*boilerplate.*|
+                frappe/www/website_script.js|
+                frappe/templates/includes/.*|
+                frappe/public/js/lib/.*|
+                frappe/website/doctype/website_theme/website_theme_template.scss
+            )$
+
+
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v8.44.0
+    hooks:
+      - id: eslint
+        types_or: [javascript]
+        args: ['--quiet']
+        # Ignore any files that might contain jinja / bundles
+        exclude: |
+            (?x)^(
+                frappe/public/dist/.*|
+                cypress/.*|
+                .*node_modules.*|
+                .*boilerplate.*|
+                frappe/www/website_script.js|
+                frappe/templates/includes/.*|
+                frappe/public/js/lib/.*
+            )$
 
 ci:
   autoupdate_schedule: weekly
