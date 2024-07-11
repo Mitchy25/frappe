@@ -423,7 +423,6 @@ class PostgresDatabase(PostgresExceptionUtil, Database):
 		return self.sql("SELECT datname FROM pg_database", pluck=True)
 
 
-
 def modify_query(query):
 	""" "Modifies query according to the requirements of postgres"""
 	# replace ` with " for definitions
@@ -468,7 +467,6 @@ def modify_values(values):
 		values = modify_value(values)
 
 	return values
-
 
 
 def replace_locate_with_strpos(query):

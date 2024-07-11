@@ -128,17 +128,6 @@ class Database:
 		If any statement takes more time it will be killed along with entire transaction."""
 		raise NotImplementedError
 
-		try:
-			if execution_timeout := get_query_execution_timeout():
-				self.set_execution_timeout(execution_timeout)
-		except Exception as e:
-			self.logger.warning(f"Couldn't set execution timeout {e}")
-
-	def set_execution_timeout(self, seconds: int):
-		"""Set session speicifc timeout on exeuction of statements.
-		If any statement takes more time it will be killed along with entire transaction."""
-		raise NotImplementedError
-
 	def use(self, db_name):
 		"""`USE` db_name."""
 		self._conn.select_db(db_name)
@@ -1370,25 +1359,6 @@ class Database:
 
 	def get_row_size(self, doctype: str) -> int:
 		"""Get estimated max row size of any table in bytes."""
-		raise NotImplementedError
-
-	def rename_column(self, doctype: str, old_column_name: str, new_column_name: str):
-		raise NotImplementedError
-
-	@contextmanager
-	def unbuffered_cursor(self):
-		"""Context manager to temporarily use unbuffered cursor.
-
-		Using this with `as_iterator=True` provides O(1) memory usage while reading large result sets.
-
-		NOTE: You MUST do entire result set processing in the context, otherwise underlying cursor
-		will be switched and you'll not get complete results.
-
-		Usage:
-		        with frappe.db.unbuffered_cursor():
-		                for row in frappe.db.sql("query with huge result", as_iterator=True):
-		                        continue # Do some processing.
-		"""
 		raise NotImplementedError
 
 	def rename_column(self, doctype: str, old_column_name: str, new_column_name: str):

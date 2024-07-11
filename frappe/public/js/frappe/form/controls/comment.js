@@ -18,19 +18,6 @@ frappe.ui.form.ControlComment = class ControlComment extends frappe.ui.form.Cont
 				<button class="btn hidden btn-comment btn-xs" style="margin-left:48px;">
 					${__("Comment")}
 				</button>
-				${cur_frm && cur_frm.doc.doctype == "Sales Invoice" ? `
-				<div class="checkbox">
-                	<label style="margin-top: 1%;">
-                        <span class="input-area">
-							<input type="checkbox" autocomplete="off" class="input-with-feedback" id="notifyOnLoadCheckbox">
-						</span>
-						<span class="disp-area" style="display: none;">
-							<input type="checkbox" disabled="" class="disabled-selected">
-						</span>
-                        <span class="label-area">Notify On Load</span>
-                    </label>
-                    <p class="help-box small text-muted"></p>
-                </div>`  : ''}
 			</div>
 		`)
 			: $('<div class="frappe-control"></div>');

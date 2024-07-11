@@ -400,22 +400,9 @@ frappe.ui.form.Dashboard = class FormDashboard {
 			let dynamic_fieldname = this.data.dynamic_links[fieldname][1];
 			filter[dynamic_fieldname] = this.data.dynamic_links[fieldname][0];
 		}
-		if (Array.isArray(fieldname)) {
-			fieldname.forEach(element => {
-				filter[element] = this.frm.doc.name;
-			});
-		} else { 
-			filter[fieldname] = this.frm.doc.name;
-		}
-		
-		return filter;
-	}
 
-	remove_accounting_section() {
-		var parent = $('div.form-heatmap').closest('div').parent();
-		if ($('[data-doctype="dashboard-accounting"]').length > 0) {
-			parent.find('[data-doctype="dashboard-accounting"]').remove();
-		}
+		filter[fieldname] = this.frm.doc.name;
+		return filter;
 	}
 
 	set_open_count() {

@@ -578,6 +578,7 @@ frappe.request.report_error = function (xhr, request_opts) {
 			"<h5>Response JSON</h5>",
 			"<pre>" + JSON.stringify(data, null, "\t") + "</pre>",
 		].join("\n");
+
 		var communication_composer = new frappe.views.CommunicationComposer({
 			subject: "Error Report [" + frappe.datetime.nowdate() + "]",
 			recipients: error_report_email,

@@ -213,7 +213,6 @@ def bulk_apply(doctype, docnames):
 			apply(doctype=doctype, name=name)
 
 
-
 def reopen_closed_assignment(doc):
 	todo_list = frappe.get_all(
 		"ToDo",

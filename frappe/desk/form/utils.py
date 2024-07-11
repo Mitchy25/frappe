@@ -49,7 +49,6 @@ def add_comment(
 	return comment
 
 
-
 @frappe.whitelist()
 def update_comment(name, content):
 	"""allow only owner to update comment"""

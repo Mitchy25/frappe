@@ -61,12 +61,9 @@ def new_site(
 	set_default=False,
 ):
 	"Create a new site"
-	from frappe.installer import _new_site, extract_sql_from_archive
+	from frappe.installer import _new_site
 
 	frappe.init(site=site, new_site=True)
-
-	if source_sql:
-		source_sql = extract_sql_from_archive(source_sql)
 
 	_new_site(
 		db_name,
@@ -457,9 +454,6 @@ def install_app(context, apps, force=False):
 
 			if not exit_code:
 				frappe.db.commit()
-
-		if not exit_code:
-			frappe.db.commit()
 
 		frappe.destroy()
 

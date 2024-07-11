@@ -218,7 +218,6 @@ body[data-route^="Module"] .main-menu {
 	.form-sidebar {
 		.modified-by,
 		.created-by,
-		.printed-by,
 		.pageview-count {
 			@include get_textstyle("sm", "regular");
 		}

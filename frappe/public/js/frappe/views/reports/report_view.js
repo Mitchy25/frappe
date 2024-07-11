@@ -123,6 +123,7 @@ frappe.views.ReportView = class ReportView extends frappe.views.ListView {
 		const args = super.get_args();
 		delete args.group_by;
 		this.group_by_control.set_args(args);
+
 		return args;
 	}
 

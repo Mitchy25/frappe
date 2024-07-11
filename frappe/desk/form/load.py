@@ -173,7 +173,6 @@ def add_comments(doc, docinfo):
 	return comments
 
 
-
 def get_milestones(doctype, name):
 	return frappe.get_all(
 		"Milestone",

@@ -344,7 +344,6 @@ def clear_assignments():
 	frappe.db.delete("ToDo", {"reference_type": TEST_DOCTYPE})
 
 
-
 def get_assignment_rule(days, assign=None):
 	frappe.delete_doc_if_exists("Assignment Rule", f"For {TEST_DOCTYPE} 1")
 

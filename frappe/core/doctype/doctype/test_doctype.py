@@ -3,6 +3,7 @@
 import os
 import random
 import string
+import unittest
 from unittest.mock import patch
 
 import frappe
@@ -699,18 +700,6 @@ class TestDocType(FrappeTestCase):
 	@unittest.skipUnless(
 		os.access(frappe.get_app_path("frappe"), os.W_OK), "Only run if frappe app paths is writable"
 	)
-	@patch.dict(frappe.conf, {"developer_mode": 1})
-	def test_custom_field_deletion(self):
-		"""Custom child tables whose doctype doesn't exist should be auto deleted."""
-		doctype = new_doctype(custom=0).insert().name
-		child = new_doctype(custom=0, istable=1).insert().name
-
-		field = "abc"
-		create_custom_fields({doctype: [{"fieldname": field, "fieldtype": "Table", "options": child}]})
-
-		frappe.delete_doc("DocType", child)
-		self.assertFalse(frappe.get_meta(doctype).get_field(field))
-
 	@patch.dict(frappe.conf, {"developer_mode": 1})
 	def test_delete_doctype_with_customization(self):
 		from frappe.custom.doctype.property_setter.property_setter import make_property_setter

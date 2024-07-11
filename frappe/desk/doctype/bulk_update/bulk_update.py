@@ -46,10 +46,6 @@ class BulkUpdate(Document):
 			self.document_type, docnames, "update", {self.field: self.update_value}
 		)
 
-		condition = ""
-		if self.condition:
-			if ";" in self.condition:
-				frappe.throw(_("; not allowed in condition"))
 
 @frappe.whitelist()
 def submit_cancel_or_update_docs(doctype, docnames, action="submit", data=None, task_id=None):

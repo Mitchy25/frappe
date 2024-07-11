@@ -5,7 +5,6 @@ import json
 import os
 import re
 import timeit
-import typing
 from datetime import date, datetime, time
 
 import frappe

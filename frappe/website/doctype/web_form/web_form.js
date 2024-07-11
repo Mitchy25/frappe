@@ -34,18 +34,6 @@ frappe.ui.form.on("Web Form", {
 				frappe.utils.copy_to_clipboard(code, __("Embed code copied"));
 			});
 
-		frappe.meta.docfield_map["Web Form Field"].fieldname.formatter = (value) => {
-			if (!value) return;
-			return frappe.unscrub(value);
-		};
-
-		frappe.meta.docfield_map["Web Form List Column"].fieldname.formatter = (value) => {
-			if (!value) return;
-			return frappe.unscrub(value);
-		};
-	},
-
-	refresh: function (frm) {
 		if (frm.doc.is_standard && !frappe.boot.developer_mode) {
 			frm.disable_form();
 			frappe.show_alert(

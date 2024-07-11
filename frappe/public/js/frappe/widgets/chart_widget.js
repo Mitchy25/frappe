@@ -382,6 +382,7 @@ export default class ChartWidget extends Widget {
 								},
 							];
 						}
+
 						this.setup_filter_dialog(fields);
 					});
 			});
@@ -400,14 +401,11 @@ export default class ChartWidget extends Widget {
 					me.filters = values;
 					me.save_chart_config_for_user({ filters: me.filters });
 					me.fetch_and_update_chart();
-					
-				}
-				if (me.chart_doc.chart_type == "Custom") {
-					me.refresh();
 				}
 			},
 			primary_action_label: "Set",
 		});
+
 		dialog.show();
 
 		if (this.chart_doc.chart_type == "Report") {
@@ -490,7 +488,7 @@ export default class ChartWidget extends Widget {
 		this.chart_actions.appendTo(this.action_area);
 	}
 
-	fetch(filters, refresh = true, args) {
+	fetch(filters, refresh = false, args) {
 		let method = this.settings.method;
 
 		if (this.chart_doc.chart_type == "Report") {
@@ -511,7 +509,6 @@ export default class ChartWidget extends Widget {
 				heatmap_year: args && args.heatmap_year ? args.heatmap_year : null,
 			};
 		}
-
 		return frappe.xcall(method, args);
 	}
 
@@ -593,17 +590,6 @@ export default class ChartWidget extends Widget {
 			fieldtype = field?.fieldtype;
 			options = field?.options;
 		}
-		
-		if (this.chart_doc.chart_type == "Report" && this.report_result && this.report_result.chart && this.report_result.chart.fieldtype) {
-			fieldtype = this.report_result.chart.fieldtype;
-			options = this.report_result.chart.options;
-		}
-
-		//TODO: Fix: Figure out how to send JS functions through toolTipsOptions in python
-		if (chart_args.tooltipOptions)
-		chart_args.tooltipOptions = {
-			formatTooltipY: value => frappe.format(value, { fieldtype, options }, { always_show_decimals: true, inline: true })
-		};
 
 		if (this.chart_doc.chart_type == "Report" && this.report_result?.chart?.fieldtype) {
 			fieldtype = this.report_result.chart.fieldtype;

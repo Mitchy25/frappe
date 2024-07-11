@@ -282,6 +282,5 @@ def notify_assignment(assigned_by, allocated_to, doc_type, doc_name, action="CLO
 	enqueue_create_notification(allocated_to, notification_doc)
 
 
-
 def format_message_for_assign_to(users):
 	return "<br><br>" + "<br>".join(users)

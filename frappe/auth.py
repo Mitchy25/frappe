@@ -6,8 +6,6 @@ from urllib.parse import quote, urlencode, urlparse
 
 from werkzeug.wrappers import Response
 
-from werkzeug.wrappers import Response
-
 import frappe
 import frappe.database
 import frappe.utils

@@ -219,6 +219,7 @@ frappe.ui.Dialog = class Dialog extends frappe.ui.FieldGroup {
 	set_title(t) {
 		this.$wrapper.find(".modal-title").html(t);
 	}
+
 	set_indicator() {
 		if (this.indicator) {
 			this.header
@@ -227,6 +228,7 @@ frappe.ui.Dialog = class Dialog extends frappe.ui.FieldGroup {
 				.addClass("indicator " + this.indicator);
 		}
 	}
+
 	show() {
 		// show it
 		if (this.animate) {

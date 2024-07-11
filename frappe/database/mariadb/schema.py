@@ -5,7 +5,6 @@ from frappe import _
 from frappe.database.schema import DBTable
 
 
-
 class MariaDBTable(DBTable):
 	def create(self):
 		additional_definitions = []

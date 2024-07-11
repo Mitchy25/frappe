@@ -701,20 +701,6 @@ def _guess_mariadb_version() -> tuple[int] | None:
 		return tuple(int(v) for v in version.split("."))
 
 
-def _guess_mariadb_version() -> tuple[int] | None:
-	# Using command-line because we *might* not have a connection yet and this command is required
-	# in non-interactive mode.
-	# Use db.sql("select version()") instead if connection is available.
-	with suppress(Exception):
-		mysql = which("mysql")
-		version_output = subprocess.getoutput(f"{mysql} --version")
-		version_regex = r"(?P<version>\d+\.\d+\.\d+)-MariaDB"
-
-		version = re.search(version_regex, version_output).group("version")
-
-		return tuple(int(v) for v in version.split("."))
-
-
 def extract_files(site_name, file_path):
 	import shutil
 	import subprocess

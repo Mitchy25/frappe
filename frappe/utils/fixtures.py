@@ -7,7 +7,6 @@ import click
 
 import frappe
 from frappe.core.doctype.data_import.data_import import export_json, import_doc
-from frappe.utils.deprecations import deprecation_warning
 
 
 def sync_fixtures(app=None):

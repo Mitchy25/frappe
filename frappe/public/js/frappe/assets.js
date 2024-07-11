@@ -131,14 +131,6 @@ class AssetManager {
 			return path;
 		}
 		return path;
-	},
-
-	include_style(file, base_url, is_rtl=null) {
-		let path = `${base_url}/assets/css/${file}`;
-		if (is_rtl) {
-			path = `${base_url}/assets/css-rtl/${file}`;
-		}
-		return `<link href="${path}" rel="stylesheet">`;
 	}
 }
 

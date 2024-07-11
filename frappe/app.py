@@ -215,27 +215,6 @@ def setup_read_only_mode():
 	else:
 		frappe.db.begin(read_only=True)
 
-	for before_request_task in frappe.get_hooks("before_request"):
-		frappe.call(before_request_task)
-
-
-def setup_read_only_mode():
-	"""During maintenance_mode reads to DB can still be performed to reduce downtime. This
-	function sets up read only mode
-
-	- Setting global flag so other pages, desk and database can know that we are in read only mode.
-	- Setup read only database access either by:
-	    - Connecting to read replica if one exists
-	    - Or setting up read only SQL transactions.
-	"""
-	frappe.flags.read_only = True
-
-	# If replica is available then just connect replica, else setup read only transaction.
-	if frappe.conf.read_from_replica:
-		frappe.connect_replica()
-	else:
-		frappe.db.begin(read_only=True)
-
 
 def log_request(request, response):
 	if hasattr(frappe.local, "conf") and frappe.local.conf.enable_frappe_logger:

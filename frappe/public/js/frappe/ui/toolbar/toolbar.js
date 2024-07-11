@@ -45,9 +45,6 @@ frappe.ui.toolbar.Toolbar = class {
 		$(".navbar-toggle-full-width").click(() => {
 			frappe.ui.toolbar.toggle_full_width();
 		});
-		$('.navbar-toggle-ugly-mode').click(() => {
-			frappe.ui.toolbar.toggle_ugly_mode();
-		});
 	}
 
 	setup_announcement_widget() {

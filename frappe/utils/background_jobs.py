@@ -36,15 +36,6 @@ RQ_RESULTS_TTL = 10 * 60
 _redis_queue_conn = None
 
 
-# TTL to keep RQ job logs in redis for.
-RQ_JOB_FAILURE_TTL = 7 * 24 * 60 * 60  # 7 days instead of 1 year (default)
-RQ_FAILED_JOBS_LIMIT = 1000  # Only keep these many recent failed jobs around
-RQ_RESULTS_TTL = 10 * 60
-
-
-_redis_queue_conn = None
-
-
 @lru_cache
 def get_queues_timeout():
 	common_site_config = frappe.get_conf()
