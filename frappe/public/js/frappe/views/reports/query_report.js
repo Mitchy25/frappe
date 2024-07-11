@@ -658,16 +658,6 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		// the filter value is the default value or there's no default value for the filter and the current value is empty.
 		// are_default_filters is false otherwise.
 
-		let are_default_filters = this.filters
-			.map((filter) => {
-				return (
-					!have_filters_changed &&
-					(filter.default === filter.value || (!filter.default && !filter.value))
-				);
-			})
-			.every((res) => res === true);
-
-		this.show_loading_screen();
 		// only one refresh at a time
 		if (this.last_ajax) {
 			this.last_ajax.abort();
