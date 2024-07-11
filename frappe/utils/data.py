@@ -22,7 +22,6 @@ from dateutil.relativedelta import relativedelta
 
 import frappe
 from frappe.desk.utils import slug
-from frappe.utils.deprecations import deprecation_warning
 
 DateTimeLikeObject = str | datetime.date | datetime.datetime
 NumericType = int | float
@@ -336,13 +335,6 @@ def get_datetime_in_timezone(time_zone):
 def convert_utc_to_system_timezone(utc_timestamp):
 	time_zone = get_system_timezone()
 	return convert_utc_to_timezone(utc_timestamp, time_zone)
-
-
-def convert_utc_to_user_timezone(utc_timestamp):
-	deprecation_warning(
-		"`convert_utc_to_user_timezone` is deprecated and will be removed in version 15. Use `convert_utc_to_system_timezone` instead."
-	)
-	return convert_utc_to_system_timezone(utc_timestamp)
 
 
 def now() -> str:
@@ -2001,7 +1993,6 @@ def md_to_html(markdown_text: str) -> Optional["UnicodeWithAttrs"]:
 		return UnicodeWithAttrs(_markdown(markdown_text or "", extras=extras))
 	except MarkdownError:
 		pass
-
 
 
 def markdown(markdown_text):

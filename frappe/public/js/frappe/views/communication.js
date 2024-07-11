@@ -548,14 +548,7 @@ frappe.views.CommunicationComposer = class {
 			$(fields.select_print_format.input)
 				.empty()
 				.add_options(print_formats)
-			
-			//Check if passed through else pick first
-			if (this.select_print_format) {
-				$(fields.select_print_format.input).val(this.select_print_format);
-			} else {
-				$(fields.select_print_format.input).val(print_formats[0]);
-			}
-				
+				.val(print_formats[0]);
 		} else {
 			$(fields.attach_document_print.wrapper).toggle(false);
 		}

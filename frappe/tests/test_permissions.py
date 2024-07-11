@@ -23,7 +23,6 @@ from frappe.permissions import (
 	update_permission_property,
 )
 from frappe.test_runner import make_test_records_for_doctype
-from frappe.tests.test_db_query import enable_permlevel_restrictions
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils.data import now_datetime
 

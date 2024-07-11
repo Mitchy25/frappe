@@ -404,6 +404,7 @@ frappe.views.Calendar = class Calendar {
 			me.prepare_colors(d);
 
 			d.title = frappe.utils.html2text(d.title);
+
 			return d;
 		});
 	}

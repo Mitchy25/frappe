@@ -135,6 +135,5 @@ def clear_website_cache(path=None):
 def add_feedback(article: str, helpful: str):
 	field = "not_helpful" if helpful == "No" else "helpful"
 
-	field = "not_helpful" if helpful == "No" else "helpful"
 	value = cint(frappe.db.get_value("Help Article", article, field))
 	frappe.db.set_value("Help Article", article, field, value + 1, update_modified=False)

@@ -18,10 +18,6 @@ class TestMonitor(FrappeTestCase):
 		frappe.conf.monitor = 0
 		frappe.cache.delete_value(MONITOR_REDIS_KEY)
 
-	def tearDown(self):
-		frappe.conf.monitor = 0
-		frappe.cache().delete_value(MONITOR_REDIS_KEY)
-
 	def test_enable_monitor(self):
 		set_request(method="GET", path="/api/method/frappe.ping")
 		response = build_response("json")

@@ -18,29 +18,6 @@ EXCLUDE_EXCEPTIONS = (
 
 LDAP_BASE_EXCEPTION = "LDAPException"
 
-EXCLUDE_EXCEPTIONS = (
-	frappe.AuthenticationError,
-	frappe.CSRFTokenError,  # CSRF covers OAuth too
-	frappe.SecurityException,
-	frappe.InReadOnlyMode,
-)
-
-LDAP_BASE_EXCEPTION = "LDAPException"
-
-
-def _is_ldap_exception(e):
-	"""Check if exception is from LDAP library.
-
-	This is a hack but ensures that LDAP is not imported unless it's required. This is tested in
-	unittests in case the exception changes in future.
-	"""
-
-	for t in type(e).__mro__:
-		if t.__name__ == LDAP_BASE_EXCEPTION:
-			return True
-
-	return False
-
 
 def _is_ldap_exception(e):
 	"""Check if exception is from LDAP library.
@@ -100,9 +77,6 @@ def log_error(title=None, message=None, reference_doctype=None, reference_name=N
 
 
 def log_error_snapshot(exception: Exception):
-	if isinstance(exception, EXCLUDE_EXCEPTIONS) or _is_ldap_exception(exception):
-		return
-
 	if isinstance(exception, EXCLUDE_EXCEPTIONS) or _is_ldap_exception(exception):
 		return
 

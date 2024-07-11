@@ -262,6 +262,7 @@ frappe.report_utils = {
 			}
 			update_csv_preview(dialog);
 		};
+
 		return dialog;
 	},
 

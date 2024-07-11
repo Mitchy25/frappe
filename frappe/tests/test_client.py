@@ -42,6 +42,7 @@ class TestClient(FrappeTestCase):
 	def test_http_valid_method_access(self):
 		from frappe.client import delete
 		from frappe.handler import execute_cmd
+
 		frappe.set_user("Administrator")
 
 		frappe.local.request = frappe._dict()

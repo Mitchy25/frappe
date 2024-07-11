@@ -182,7 +182,6 @@ def get_events_followed_by_user(event_name, user_name):
 	).run()
 
 
-
 def get_event():
 	doc = frappe.get_doc(
 		{

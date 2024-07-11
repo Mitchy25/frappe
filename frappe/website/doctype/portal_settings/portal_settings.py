@@ -52,7 +52,6 @@ class PortalSettings(Document):
 
 		self.remove_deleted_doctype_items()
 		if dirty:
-			self.remove_deleted_doctype_items()
 			self.save()
 
 	def on_update(self):

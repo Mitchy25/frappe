@@ -405,9 +405,7 @@ frappe.ui.GroupBy = class {
 			this.group_by_fields[cdt] = child_table_fields;
 			this.all_fields[cdt] = child_table_fields;
 		});
-		for (const key in this.group_by_fields) {
-			this.group_by_fields[key].sort((a, b) => a.fieldname.localeCompare(b.fieldname));
-		}
+
 		return this.group_by_fields;
 	}
 

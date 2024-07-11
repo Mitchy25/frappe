@@ -10,7 +10,6 @@ from frappe.utils import encode, get_request_site_address
 from frappe.website.utils import get_boot_data
 
 
-
 class WebsiteSettings(Document):
 	# begin: auto-generated types
 	# This code is auto-generated. Do not modify anything in this block.

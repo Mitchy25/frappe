@@ -298,8 +298,6 @@ def change_settings(doctype, settings_dict=None, /, commit=False, **settings):
 		settings_dict = settings
 
 	try:
-		if settings_dict is None:
-			settings_dict = settings
 		settings = frappe.get_doc(doctype)
 		# remember setting
 		previous_settings = copy.deepcopy(settings_dict)

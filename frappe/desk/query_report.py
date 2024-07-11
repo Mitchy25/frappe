@@ -204,8 +204,7 @@ def run(
 			raise_exception=True,
 		)
 
-	if sbool(are_default_filters) and report.custom_filters:
-		filters = report.custom_filters
+	result = None
 
 	if sbool(are_default_filters) and report.custom_filters:
 		filters = report.custom_filters

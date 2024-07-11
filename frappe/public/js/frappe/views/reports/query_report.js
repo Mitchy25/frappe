@@ -25,13 +25,6 @@ frappe.standard_pages["query-report"] = function () {
 	$(wrapper).bind("show", function () {
 		frappe.query_report.show();
 	});
-	var me = frappe.query_report
-	$(document).on('change',".dt-filter", function (e) {
-		var col = $(this).attr('data-col-index')
-		me.data_table_filters[col] = $(this).val()
-	});
-
-
 };
 
 frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
@@ -40,7 +33,6 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 	}
 
 	init() {
-		this.data_table_filters = {}
 		if (this.init_promise) {
 			return this.init_promise;
 		}
@@ -653,11 +645,6 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 
 		this.show_loading_screen();
 
-		// for custom reports,
-		// are_default_filters is true if the filters haven't been modified and for all filters,
-		// the filter value is the default value or there's no default value for the filter and the current value is empty.
-		// are_default_filters is false otherwise.
-
 		// only one refresh at a time
 		if (this.last_ajax) {
 			this.last_ajax.abort();
@@ -1023,29 +1010,6 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		if (this.report_settings.after_datatable_render) {
 			this.report_settings.after_datatable_render(this.datatable);
 		}
-		for (let col in this.data_table_filters) {
-			let value = this.data_table_filters[col]
-			let col_wrapper = $(this.datatable.wrapper).find(`[data-col-index='${col}'] .dt-filter`)
-			col_wrapper.prop("value", value)
-		}
-		this.datatable.columnmanager.applyFilter(this.datatable.columnmanager.getAppliedFilters())
-	}
-
-	show_loading_screen() {
-		const loading_state = `<div class="msg-box no-border">
-			<div>
-				<img src="/assets/frappe/images/ui-states/list-empty-state.svg" alt="Generic Empty State" class="null-state">
-			</div>
-			<p>${__("Loading")}...</p>
-		</div>`;
-
-		this.$loading.find("div").html(loading_state);
-		this.$report.hide();
-		this.$loading.show();
-	}
-
-	hide_loading_screen() {
-		this.$loading.hide();
 	}
 
 	show_loading_screen() {

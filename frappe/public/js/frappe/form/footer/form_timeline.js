@@ -334,11 +334,6 @@ class FormTimeline extends BaseTimeline {
 	}
 
 	get_comment_timeline_item(comment) {
-		var icon_type = 'small-message';
-		if (comment.notify_on_load)	 {
-			icon_type = 'notification-black';
-		}
-
 		return {
 			icon: "es-line-chat-alt",
 			icon_size: "sm",

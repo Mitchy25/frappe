@@ -55,53 +55,22 @@ class TestDefaults(FrappeTestCase):
 		self.assertEqual(get_user_default("language"), "en")
 		self.assertEqual(get_user_default_as_list("language"), ["en"])
 
-		with as_restricted_user():
-			self.assertEqual(get_global_default("language"), None)
-			self.assertEqual(get_user_default("language"), None)
-			self.assertEqual(get_user_default_as_list("language"), [])
-
-
-@contextmanager
-def as_restricted_user():
-	old_user = frappe.session.user
-	user = "test@example.com"
-
-	perm_doc = frappe.get_doc(
-		{
-			"doctype": "User Permission",
-			"user": user,
-			"allow": "Language",
-			"for_value": "en-GB",
-		}
-	).insert(ignore_permissions=True)
-
-	frappe.set_user(user)
-
-	yield
-
-	perm_doc.delete(ignore_permissions=True)
-	frappe.set_user(old_user)
-
-	@run_only_if(db_type_is.MARIADB)
-	def test_user_permission_defaults(self):
-		# Create user permission
-		create_user("user_default_test@example.com", "Blogger")
-		frappe.set_user("user_default_test@example.com")
-		set_global_default("Country", "")
-		clear_user_default("Country")
+		old_user = frappe.session.user
+		user = "test@example.com"
+		frappe.set_user(user)
 
 		perm_doc = frappe.get_doc(
 			dict(
 				doctype="User Permission",
 				user=frappe.session.user,
-				allow="Country",
-				for_value="India",
+				allow="Language",
+				for_value="en-GB",
 			)
 		).insert(ignore_permissions=True)
 
-		frappe.db.set_value("User Permission", perm_doc.name, "is_default", 1)
-		set_global_default("Country", "United States")
-		self.assertEqual(get_user_default("Country"), "India")
+		self.assertEqual(get_global_default("language"), None)
+		self.assertEqual(get_user_default("language"), None)
+		self.assertEqual(get_user_default_as_list("language"), [])
 
 		frappe.delete_doc("User Permission", perm_doc.name)
 		frappe.set_user(old_user)

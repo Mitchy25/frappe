@@ -26,15 +26,6 @@ rights = (
 	"share",
 )
 
-GUEST_ROLE = "Guest"
-ALL_USER_ROLE = "All"  # This includes website users too.
-SYSTEM_USER_ROLE = "Desk User"
-ADMIN_ROLE = "Administrator"
-
-
-# These roles are automatically assigned based on user type
-AUTOMATIC_ROLES = (GUEST_ROLE, ALL_USER_ROLE, SYSTEM_USER_ROLE, ADMIN_ROLE)
-
 
 GUEST_ROLE = "Guest"
 ALL_USER_ROLE = "All"  # This includes website users too.

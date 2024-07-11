@@ -48,7 +48,6 @@ def cache_email_account(cache_name):
 	return decorator_cache_email_account
 
 
-
 class EmailAccount(Document):
 	# begin: auto-generated types
 	# This code is auto-generated. Do not modify anything in this block.
@@ -855,7 +854,6 @@ def pull_from_email_account(email_account):
 	"""Runs within a worker process"""
 	email_account = frappe.get_doc("Email Account", email_account)
 	email_account.receive()
-
 
 
 def get_max_email_uid(email_account):

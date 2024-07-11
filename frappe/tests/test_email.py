@@ -230,36 +230,6 @@ class TestEmail(FrappeTestCase):
 		email_account.always_use_account_name_as_sender_name = 1
 		_patched_assertion(email_account, "_Test Email Account 1 <test@example.com>")
 
-	def test_sender(self):
-		def _patched_assertion(email_account, assertion):
-			with patch.object(QueueBuilder, "get_outgoing_email_account", return_value=email_account):
-				frappe.sendmail(
-					recipients=["test1@example.com"],
-					sender="admin@example.com",
-					subject="Test Email Queue",
-					message="This mail is queued!",
-					now=True,
-				)
-				email_queue_sender = frappe.db.get_value("Email Queue", {"status": "Sent"}, "sender")
-				self.assertEqual(email_queue_sender, assertion)
-
-		email_account = frappe.get_doc("Email Account", "_Test Email Account 1")
-		email_account.default_outgoing = 1
-
-		email_account.always_use_account_name_as_sender_name = 0
-		email_account.always_use_account_email_id_as_sender = 0
-		_patched_assertion(email_account, "admin@example.com")
-
-		email_account.always_use_account_name_as_sender_name = 1
-		_patched_assertion(email_account, "_Test Email Account 1 <admin@example.com>")
-
-		email_account.always_use_account_name_as_sender_name = 0
-		email_account.always_use_account_email_id_as_sender = 1
-		_patched_assertion(email_account, '"admin@example.com" <test@example.com>')
-
-		email_account.always_use_account_name_as_sender_name = 1
-		_patched_assertion(email_account, "_Test Email Account 1 <test@example.com>")
-
 	def test_unsubscribe(self):
 		from frappe.email.queue import unsubscribe
 

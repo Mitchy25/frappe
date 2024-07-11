@@ -109,32 +109,14 @@ frappe.ui.form.Sidebar = class {
 						" · " +
 						comment_when(this.frm.doc.creation)
 				);
-				
-			const Access = new Promise((resolve, reject) => {
-				let data = ""
-				let date
-				frappe.db.get_list('Access Log',
-				{fields: ['user', 'timestamp'], 
-				filters:[['reference_document', '=', this.frm.doc.name],['method', '=', 'Print']]}).then((res) => {
-					res.forEach(element => {
-						date = new Date(element.timestamp)					
-						date.setSeconds(0, 0);
-						data += frappe.user.full_name(element["user"]).split(' ')[0].bold() + "</b>" + " printed on <br>" + date.toLocaleString('en-AU') + "<br>"
-					});
-					resolve(data)
-				});
-			})
-			Access.then((items)=>{
-			this.sidebar
-				.find(".printed-by")
-				.html(items);
-			})
+
 			this.refresh_like();
 			this.refresh_follow();
 			this.refresh_comments_count();
 			frappe.ui.form.set_user_image(this.frm);
 		}
 	}
+
 	show_auto_repeat_status() {
 		if (this.frm.meta.allow_auto_repeat && this.frm.doc.auto_repeat) {
 			const me = this;

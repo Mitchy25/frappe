@@ -2,10 +2,6 @@
 # License: MIT. See LICENSE
 import json
 from contextlib import contextmanager
-from unittest import skip
-
-import responses
-from responses.matchers import json_params_matcher
 
 import responses
 from responses.matchers import json_params_matcher

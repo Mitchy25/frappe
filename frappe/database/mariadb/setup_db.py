@@ -119,28 +119,6 @@ def check_compatible_versions():
 		)
 
 
-def check_compatible_versions():
-	try:
-		version = get_mariadb_version()
-		version_tuple = tuple(int(v) for v in version[0].split("."))
-
-		if version_tuple < (10, 3):
-			click.secho(
-				f"Warning: MariaDB version {version} is less than 10.3 which is not supported by Frappe",
-				fg="yellow",
-			)
-		elif version_tuple >= (10, 9):
-			click.secho(
-				f"Warning: MariaDB version {version} is more than 10.8 which is not yet tested with Frappe Framework.",
-				fg="yellow",
-			)
-	except Exception:
-		click.secho(
-			"MariaDB version compatibility checks failed, make sure you're running a supported version.",
-			fg="yellow",
-		)
-
-
 def get_root_connection(root_login, root_password):
 	import getpass
 

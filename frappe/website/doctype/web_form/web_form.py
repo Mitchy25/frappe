@@ -544,7 +544,6 @@ def accept(web_form, data):
 	return doc
 
 
-
 @frappe.whitelist()
 def delete(web_form_name, docname):
 	web_form = frappe.get_doc("Web Form", web_form_name)

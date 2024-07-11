@@ -19,9 +19,6 @@ EXTRA_ARGS_CTX = {"ignore_unknown_options": True, "allow_extra_args": True}
 if typing.TYPE_CHECKING:
 	from IPython.terminal.embed import InteractiveShellEmbed
 
-if typing.TYPE_CHECKING:
-	from IPython.terminal.embed import InteractiveShellEmbed
-
 
 @click.command("build")
 @click.option("--app", help="Build assets for app")
@@ -489,8 +486,6 @@ def mariadb(context, extra_args):
 	"""
 	Enter into mariadb console for a given site.
 	"""
-	from frappe.utils import get_site_path
-
 	site = get_site(context)
 	frappe.init(site=site)
 	frappe.conf.db_type = "mariadb"
@@ -605,7 +600,6 @@ def store_logs(terminal: "InteractiveShellEmbed") -> None:
 @pass_context
 def console(context, autoreload=False):
 	"Start ipython console for a site"
-
 	site = get_site(context)
 	frappe.init(site=site)
 	frappe.connect()

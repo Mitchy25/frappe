@@ -142,18 +142,6 @@ frappe.ui.form.on("DocType", {
 			frm.form_wrapper.removeClass("mb-1");
 		}
 	},
-
-	is_tree: (frm) => {
-		frm.trigger("setup_default_views");
-	},
-
-	is_calendar_and_gantt: (frm) => {
-		frm.trigger("setup_default_views");
-	},
-
-	setup_default_views: (frm) => {
-		frappe.model.set_default_views_for_doctype(frm.doc.name, frm);
-	},
 });
 
 frappe.ui.form.on("DocField", {

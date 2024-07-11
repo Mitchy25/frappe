@@ -291,10 +291,6 @@ class Recorder:
 		frappe.db.sql = frappe.db._sql
 
 
-def _unpatch():
-	frappe.db.sql = frappe.db._sql
-
-
 def do_not_record(function):
 	@functools.wraps(function)
 	def wrapper(*args, **kwargs):
