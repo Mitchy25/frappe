@@ -58,6 +58,8 @@ frappe.ui.form.Form = class FrappeForm {
 			this.meta.in_dialog = 1;
 		}
 
+		this.__changed_fields = {}
+
 		this.perm = frappe.perm.get_perm(this.doctype); // for create
 		this.action_perm_type_map = {
 			Create: "create",
