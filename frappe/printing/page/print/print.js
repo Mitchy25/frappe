@@ -8,7 +8,7 @@ frappe.pages['print'].on_page_load = function(wrapper) {
 		const route = frappe.get_route();
 		const doctype = route[1];
 		const docname = route.slice(2).join("/");
-		let cur_doc;
+
 		if (!frappe.route_options || !frappe.route_options.frm) {
 			frappe.model.with_doc(doctype, docname, () => {
 				let frm = { doctype: doctype, docname: docname };
@@ -17,41 +17,16 @@ frappe.pages['print'].on_page_load = function(wrapper) {
 					frm.meta = frappe.get_meta(route[1]);
 					print_view.show(frm);
 				});
-
-				let addIndicator = check_invoice_printed(frm.doc);
-				if (addIndicator) { this.page.set_indicator(__("Invoice has already been printed"), "red") }
 			});
 		} else {
 			print_view.frm = frappe.route_options.frm.doctype ?
 				frappe.route_options.frm : frappe.route_options.frm.frm;
 			frappe.route_options.frm = null;
 			print_view.show(print_view.frm);
-			
-			let addIndicator = check_invoice_printed(print_view.frm.doc);
-			if (addIndicator) { this.page.set_indicator(__("Invoice has already been printed"), "red") }
 		}
 	});
 };
 
-function check_invoice_printed(cur_doc) {
-	let invoicePrinted = 0;
-	if (cur_doc.doctype != "Sales Invoice" || !["FxMed", "NaturalMeds"].includes(cur_doc.company)) {
-		return invoicePrinted;
-	}
-	
-	frappe.call({
-		method: 'fxnmrnth.utils.sales_invoice.check_email_sent',
-		args: {
-			name: cur_doc.name
-		},
-		async: 0,
-		callback: function (r) {
-			invoicePrinted = r.message;
-		}
-	});
-
-	return invoicePrinted;
-}
 
 frappe.ui.form.PrintView = class {
 	constructor(wrapper) {
