@@ -38,6 +38,21 @@ frappe.views.CommunicationComposer = class {
 
 		$(this.dialog.$wrapper.find(".form-section").get(0)).addClass("to_section");
 
+		let $printFormat = $(this.dialog.$wrapper.find("select[data-fieldname='select_print_format']"));
+		$printFormat.prop('disabled', true);
+		$printFormat.css('cursor', 'not-allowed');
+		$printFormat.css("opacity", "0.5");
+		$printFormat.val("Sales Invoice Only");
+		
+		if (this.doc.hasOwnProperty("exclude_invoice") && this.doc.exclude_invoice && this.doc.company != "FxMed") {
+			var $checkbox = $(this.dialog.$wrapper.find(".input-area input[data-fieldname='attach_document_print']"));
+			$checkbox.prop('disabled', true);
+			$checkbox.css('cursor', 'not-allowed');
+			$checkbox.css("opacity", "0.5");
+			var $label = $checkbox.closest('.checkbox').find('.label-area');
+			$label.css('opacity', '0.5');
+		}
+
 		this.prepare();
 		this.dialog.show();
 
