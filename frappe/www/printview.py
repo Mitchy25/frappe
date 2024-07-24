@@ -49,16 +49,9 @@ def get_context(context):
 
 	print_format = get_print_format_doc(None, meta=meta)
 
-	if frappe.form_dict.doctype == "Sales Invoice" and get_default_company() in ["FxMed", "NaturalMeds"]:
-		# Excluding the PDF button from adding to the printed access log. CS Request.
-		if context.get('canonical') and 'printview' in context.get('canonical'):
-			make_access_log(
-				doctype=frappe.form_dict.doctype, document=frappe.form_dict.name, file_type="PDF", method="Print"
-			)
-	else:
-		make_access_log(
-			doctype=frappe.form_dict.doctype, document=frappe.form_dict.name, file_type="PDF", method="Print"
-		)
+	make_access_log(
+		doctype=frappe.form_dict.doctype, document=frappe.form_dict.name, file_type="PDF", method="Print"
+	)
 
 	is_invalid_print = False
 	print_style = None
