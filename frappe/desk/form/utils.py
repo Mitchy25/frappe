@@ -24,11 +24,14 @@ def remove_attach():
 
 @frappe.whitelist(methods=["POST", "PUT"])
 def add_comment(
-	reference_doctype: str, reference_name: str, content: str, comment_email: str, comment_by: str
+	reference_doctype: str, reference_name: str, content: str, comment_email: str, comment_by: str, notify_on_load: str = "0"
 ) -> "Comment":
 	"""Allow logged user with permission to read document to add a comment"""
 	reference_doc = frappe.get_doc(reference_doctype, reference_name)
 	reference_doc.check_permission()
+
+	if notify_on_load == "1":
+		notify_on_load = True
 
 	comment = frappe.new_doc("Comment")
 	comment.update(
@@ -39,8 +42,10 @@ def add_comment(
 			"comment_email": comment_email,
 			"comment_by": comment_by,
 			"content": extract_images_from_html(reference_doc, content, is_private=True),
+			"notify_on_load": notify_on_load
 		}
 	)
+	
 	comment.insert(ignore_permissions=True)
 
 	if frappe.get_cached_value("User", frappe.session.user, "follow_commented_documents"):

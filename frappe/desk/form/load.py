@@ -147,7 +147,7 @@ def add_comments(doc, docinfo):
 
 	comments = frappe.get_all(
 		"Comment",
-		fields=["name", "creation", "content", "owner", "comment_type"],
+		fields=["name", "creation", "content", "owner", "comment_type", "notify_on_load"],
 		filters={"reference_doctype": doc.doctype, "reference_name": doc.name},
 	)
 
@@ -235,14 +235,13 @@ def get_comments(doctype: str, name: str, comment_type: str | list[str] = "Comme
 
 	comments = frappe.get_all(
 		"Comment",
-		fields=["name", "creation", "content", "owner", "comment_type"],
+		fields=["name", "creation", "content", "owner", "comment_type", "notify_on_load"],
 		filters={
 			"reference_doctype": doctype,
 			"reference_name": name,
 			"comment_type": ["in", comment_types],
 		},
 	)
-
 	# convert to markdown (legacy ?)
 	for c in comments:
 		if c.comment_type == "Comment":

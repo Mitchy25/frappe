@@ -349,7 +349,7 @@ class FormTimeline extends BaseTimeline {
 		}
 
 		return {
-			icon: "small-message",
+			icon: icon_type,
 			creation: comment.creation,
 			is_card: true,
 			doctype: "Comment",
