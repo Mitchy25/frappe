@@ -2,6 +2,7 @@
 @import "color_picker";
 @import "icon_picker";
 @import "datepicker";
+@import "phone_picker";
 
 // password
 .form-control[data-fieldtype="Password"] {
@@ -91,7 +92,8 @@ select.form-control {
 		}
 	}
 
-	.selectable-item:hover, .selectable-item.highlighted {
+	.selectable-item:hover,
+	.selectable-item.highlighted {
 		background-color: var(--fg-hover-color);
 	}
 
@@ -108,8 +110,11 @@ select.form-control {
 .frappe-control {
 	font-size: var(--text-md);
 	.control-label.reqd:after {
-		content: ' *';
+		content: " *";
 		color: var(--red-400);
+	}
+	.help:empty {
+		display: none;
 	}
 	.ql-editor:not(.read-mode) {
 		background-color: var(--control-bg);
@@ -126,9 +131,27 @@ select.form-control {
 			margin-bottom: 0;
 		}
 	}
+	.action-btn {
+		position: absolute;
+		top: 4px;
+		right: 4px;
+		padding: 3px;
+		z-index: 3;
+	}
+
+	button.action-btn {
+		padding: 3px 5px;
+		background-color: var(--fg-color);
+	}
+
+	.link-btn {
+		@extend .action-btn;
+		background-color: none;
+		display: none;
+	}
 }
 
-.frappe-control:not([data-fieldtype='MultiSelectPills']):not([data-fieldtype='Table MultiSelect']) {
+.frappe-control:not([data-fieldtype="MultiSelectPills"]):not([data-fieldtype="Table MultiSelect"]) {
 	&.has-error {
 		input {
 			border: 1px solid var(--error-border);
@@ -140,8 +163,8 @@ select.form-control {
 	}
 }
 
-.frappe-control[data-fieldtype='MultiSelectPills'],
-.frappe-control[data-fieldtype='Table MultiSelect'] {
+.frappe-control[data-fieldtype="MultiSelectPills"],
+.frappe-control[data-fieldtype="Table MultiSelect"] {
 	&.has-error {
 		.control-input {
 			border: 1px solid var(--error-border);
@@ -184,7 +207,8 @@ select.form-control {
 }
 
 /* progress bar */
-.progress, .progress-bar {
+.progress,
+.progress-bar {
 	box-shadow: none;
 }
 
@@ -238,9 +262,6 @@ textarea.form-control {
 	svg > g {
 		fill: var(--text-color) !important;
 	}
-	svg > text {
-		font-family: var(--font-stack) !important;
-	}
 }
 
 @media (min-width: 768px) {
@@ -287,17 +308,9 @@ textarea.form-control {
 	overflow-wrap: break-word;
 }
 
-.frappe-control[data-fieldtype="Data"] .control-input, .control-value {
+.frappe-control[data-fieldtype="Data"] .control-input,
+.control-value {
 	position: relative;
-}
-
-.link-btn {
-	position: absolute;
-	top: 4px;
-	right: 4px;
-	padding: 3px;
-	display: none;
-	z-index: 3;
 }
 
 .phone-btn {
@@ -307,14 +320,16 @@ textarea.form-control {
 	padding: 3px;
 }
 
-.markdown-preview, .html-preview {
+.markdown-preview,
+.html-preview {
 	padding: var(--padding-md);
 	min-height: 300px;
 	max-height: 600px;
 	overflow: auto;
 }
 
-.markdown-toggle, .html-toggle {
+.markdown-toggle,
+.html-toggle {
 	margin-bottom: var(--margin-xs);
 }
 
@@ -329,12 +344,14 @@ textarea.form-control {
 .barcode-scanner {
 	position: relative;
 
-	& > canvas, & > video {
+	& > canvas,
+	& > video {
 		max-width: 100%;
 		width: 100%;
 	}
 
-	canvas.drawing, canvas.drawingBuffer {
+	canvas.drawing,
+	canvas.drawingBuffer {
 		position: absolute;
 		left: 0;
 		top: 0;
@@ -416,12 +433,11 @@ textarea.form-control {
 	border: 1px solid var(--border-color);
 	border-radius: var(--border-radius);
 	position: relative;
-	margin-top: -10px;
 }
 
 .signature-display {
-	margin: 7px 0px;
 	background: var(--control-bg);
+	border-radius: var(--border-radius);
 	.attach-missing-image,
 	.attach-image-display {
 		cursor: pointer;

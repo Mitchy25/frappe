@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import re
 
 import frappe
@@ -7,6 +5,7 @@ from frappe import _
 from frappe.utils import cint, cstr, flt
 
 SPECIAL_CHAR_PATTERN = re.compile(r"[\W]", flags=re.UNICODE)
+VARCHAR_CAST_PATTERN = re.compile(r"varchar\(([\d]+)\)")
 
 
 class InvalidColumnName(frappe.ValidationError):
@@ -16,7 +15,7 @@ class InvalidColumnName(frappe.ValidationError):
 class DBTable:
 	def __init__(self, doctype, meta=None):
 		self.doctype = doctype
-		self.table_name = "tab{}".format(doctype)
+		self.table_name = f"tab{doctype}"
 		self.meta = meta or frappe.get_meta(doctype, False)
 		self.columns: dict[str, DbColumn] = {}
 		self.current_columns = {}
@@ -48,7 +47,7 @@ class DBTable:
 		pass
 
 	def get_column_definitions(self):
-		column_list = [] + frappe.db.DEFAULT_COLUMNS
+		column_list = [*frappe.db.DEFAULT_COLUMNS]
 		ret = []
 		for k in list(self.columns):
 			if k not in column_list:
@@ -74,7 +73,7 @@ class DBTable:
 		"""
 		get columns from docfields and custom fields
 		"""
-		fields = self.meta.get_fieldnames_with_value(True)
+		fields = self.meta.get_fieldnames_with_value(with_field_meta=True)
 
 		# optional fields like _comments
 		if not self.meta.get("istable"):
@@ -86,6 +85,9 @@ class DBTable:
 				fields.append({"fieldname": "_seen", "fieldtype": "Text"})
 
 		for field in fields:
+			if field.get("is_virtual"):
+				continue
+
 			self.columns[field.get("fieldname")] = DbColumn(
 				self,
 				field.get("fieldname"),
@@ -108,6 +110,10 @@ class DBTable:
 		columns = [
 			frappe._dict({"fieldname": f, "fieldtype": "Data"}) for f in frappe.db.STANDARD_VARCHAR_COLUMNS
 		]
+		if self.meta.get("istable"):
+			columns += [
+				frappe._dict({"fieldname": f, "fieldtype": "Data"}) for f in frappe.db.CHILD_TABLE_COLUMNS
+			]
 		columns += self.columns.values()
 
 		for col in columns:
@@ -117,7 +123,6 @@ class DBTable:
 				)
 
 			if "varchar" in frappe.db.type_map.get(col.fieldtype, ()):
-
 				# validate length range
 				new_length = cint(col.length) or cint(frappe.db.VARCHAR_LEN)
 				if not (1 <= new_length <= 1000):
@@ -127,7 +132,7 @@ class DBTable:
 				if not current_col:
 					continue
 				current_type = self.current_columns[col.fieldname]["type"]
-				current_length = re.findall(r"varchar\(([\d]+)\)", current_type)
+				current_length = VARCHAR_CAST_PATTERN.findall(current_type)
 				if not current_length:
 					# case when the field is no longer a varchar
 					continue
@@ -136,9 +141,7 @@ class DBTable:
 					try:
 						# check for truncation
 						max_length = frappe.db.sql(
-							"""SELECT MAX(CHAR_LENGTH(`{fieldname}`)) FROM `tab{doctype}`""".format(
-								fieldname=col.fieldname, doctype=self.doctype
-							)
+							f"""SELECT MAX(CHAR_LENGTH(`{col.fieldname}`)) FROM `tab{self.doctype}`"""
 						)
 
 					except frappe.db.InternalError as e:
@@ -168,9 +171,7 @@ class DBTable:
 
 
 class DbColumn:
-	def __init__(
-		self, table, fieldname, fieldtype, length, default, set_index, options, unique, precision
-	):
+	def __init__(self, table, fieldname, fieldtype, length, default, set_index, options, unique, precision):
 		self.table = table
 		self.fieldname = fieldname
 		self.fieldtype = fieldtype
@@ -189,19 +190,18 @@ class DbColumn:
 
 		if self.fieldtype in ("Check", "Int"):
 			default_value = cint(self.default) or 0
-			column_def += " not null default {0}".format(default_value)
+			column_def += f" not null default {default_value}"
 
 		elif self.fieldtype in ("Currency", "Float", "Percent"):
 			default_value = flt(self.default) or 0
-			column_def += " not null default {0}".format(default_value)
+			column_def += f" not null default {default_value}"
 
 		elif (
 			self.default
 			and (self.default not in frappe.db.DEFAULT_SHORTCUTS)
 			and not cstr(self.default).startswith(":")
-			and column_def not in ("text", "longtext")
 		):
-			column_def += " default {}".format(frappe.db.escape(self.default))
+			column_def += f" default {frappe.db.escape(self.default)}"
 
 		if self.unique and not for_modification and (column_def not in ("text", "longtext")):
 			column_def += " unique"
@@ -242,7 +242,6 @@ class DbColumn:
 			self.default_changed(current_def)
 			and (self.default not in frappe.db.DEFAULT_SHORTCUTS)
 			and not cstr(self.default).startswith(":")
-			and not (column_type in ["text", "longtext"])
 		):
 			self.table.set_default.append(self)
 
@@ -250,7 +249,7 @@ class DbColumn:
 		if (current_def["index"] and not self.set_index) and column_type not in ("text", "longtext"):
 			self.table.drop_index.append(self)
 
-		elif (not current_def["index"] and self.set_index) and not (column_type in ("text", "longtext")):
+		elif (not current_def["index"] and self.set_index) and column_type not in ("text", "longtext"):
 			self.table.add_index.append(self)
 
 	def default_changed(self, current_def):
@@ -301,9 +300,8 @@ class DbColumn:
 
 
 def validate_column_name(n):
-	special_characters = SPECIAL_CHAR_PATTERN.findall(n)
-	if special_characters:
-		special_characters = ", ".join('"{0}"'.format(c) for c in special_characters)
+	if special_characters := SPECIAL_CHAR_PATTERN.findall(n):
+		special_characters = ", ".join(f'"{c}"' for c in special_characters)
 		frappe.throw(
 			_("Fieldname {0} cannot have special characters like {1}").format(
 				frappe.bold(cstr(n)), special_characters
@@ -321,12 +319,12 @@ def validate_column_length(fieldname):
 def get_definition(fieldtype, precision=None, length=None):
 	d = frappe.db.type_map.get(fieldtype)
 
-	# convert int to long int if the length of the int is greater than 11
-	if fieldtype == "Int" and length and length > 11:
-		d = frappe.db.type_map.get("Long Int")
-
 	if not d:
 		return
+
+	if fieldtype == "Int" and length and length > 11:
+		# convert int to long int if the length of the int is greater than 11
+		d = frappe.db.type_map.get("Long Int")
 
 	coltype = d[0]
 	size = d[1] if d[1] else None
@@ -337,22 +335,32 @@ def get_definition(fieldtype, precision=None, length=None):
 		if fieldtype in ["Float", "Currency", "Percent"] and cint(precision) > 6:
 			size = "21,9"
 
-		if coltype == "varchar" and length:
-			size = length
+		if length:
+			if coltype == "varchar":
+				size = length
+			elif coltype == "int" and length < 11:
+				# allow setting custom length for int if length provided is less than 11
+				# NOTE: this will only be applicable for mariadb as frappe implements int
+				# in postgres as bigint (as seen in type_map)
+				size = length
 
 	if size is not None:
-		coltype = "{coltype}({size})".format(coltype=coltype, size=size)
+		coltype = f"{coltype}({size})"
 
 	return coltype
 
 
-def add_column(doctype, column_name, fieldtype, precision=None):
-	if column_name in frappe.db.get_table_columns(doctype):
-		# already exists
-		return
-
+def add_column(doctype, column_name, fieldtype, precision=None, length=None, default=None, not_null=False):
 	frappe.db.commit()
-	frappe.db.sql(
-		"alter table `tab%s` add column %s %s"
-		% (doctype, column_name, get_definition(fieldtype, precision))
+	query = "alter table `tab{}` add column if not exists {} {}".format(
+		doctype,
+		column_name,
+		get_definition(fieldtype, precision, length),
 	)
+
+	if not_null:
+		query += " not null"
+	if default:
+		query += f" default '{default}'"
+
+	frappe.db.sql(query)

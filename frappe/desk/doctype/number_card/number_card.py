@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2020, Frappe Technologies and contributors
-# For license information, please see license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 import frappe
 from frappe import _
@@ -13,7 +10,7 @@ from frappe.model.naming import append_number_if_name_exists
 from frappe.modules.export_file import export_to_files
 from frappe.query_builder import Criterion
 from frappe.query_builder.utils import DocType
-from frappe.utils import cint
+from frappe.utils import cint, flt
 
 
 class NumberCard(Document):
@@ -62,9 +59,7 @@ def get_permission_query_conditions(user=None):
 	doctype_condition = False
 	module_condition = False
 
-	allowed_doctypes = [
-		frappe.db.escape(doctype) for doctype in frappe.permissions.get_doctypes_with_read()
-	]
+	allowed_doctypes = [frappe.db.escape(doctype) for doctype in frappe.permissions.get_doctypes_with_read()]
 	allowed_modules = [
 		frappe.db.escape(module.get("module_name")) for module in get_modules_from_all_apps_for_user()
 	]
@@ -75,17 +70,13 @@ def get_permission_query_conditions(user=None):
 		)
 	if allowed_modules:
 		module_condition = """`tabNumber Card`.`module` in ({allowed_modules})
-			or `tabNumber Card`.`module` is NULL""".format(
-			allowed_modules=",".join(allowed_modules)
-		)
+			or `tabNumber Card`.`module` is NULL""".format(allowed_modules=",".join(allowed_modules))
 
-	return """
+	return f"""
 		{doctype_condition}
 		and
 		{module_condition}
-	""".format(
-		doctype_condition=doctype_condition, module_condition=module_condition
-	)
+	"""
 
 
 def has_permission(doc, ptype, user):
@@ -119,26 +110,25 @@ def get_result(doc, filters, to_date=None):
 	function = sql_function_map[doc.function]
 
 	if function == "count":
-		fields = ["{function}(*) as result".format(function=function)]
+		fields = [f"{function}(*) as result"]
 	else:
-		fields = [
-			"{function}({based_on}) as result".format(
-				function=function, based_on=doc.aggregate_function_based_on
-			)
-		]
-
-	filters = frappe.parse_json(filters)
+		fields = [f"{function}({doc.aggregate_function_based_on}) as result"]
 
 	if not filters:
 		filters = []
+	elif isinstance(filters, str):
+		filters = frappe.parse_json(filters)
 
 	if to_date:
 		filters.append([doc.document_type, "creation", "<", to_date])
 
-	res = frappe.db.get_list(doc.document_type, fields=fields, filters=filters)
+	res = frappe.get_list(
+		doc.document_type, fields=fields, filters=filters, parent_doctype=doc.parent_document_type
+	)
 	number = res[0]["result"] if res else 0
 
-	return cint(number)
+	return flt(number)
+
 
 
 @frappe.whitelist()
@@ -201,9 +191,13 @@ def get_cards_for_user(doctype, txt, searchfield, start, page_len, filters):
 	numberCard = DocType("Number Card")
 
 	if txt:
-		search_conditions = [numberCard[field].like("%{txt}%".format(txt=txt)) for field in searchfields]
+		search_conditions = [numberCard[field].like(f"%{txt}%") for field in searchfields]
 
-	condition_query = frappe.db.query.build_conditions(doctype, filters)
+	condition_query = frappe.qb.get_query(
+		doctype,
+		filters=filters,
+		validate_filters=True,
+	)
 
 	return (
 		condition_query.select(numberCard.name, numberCard.label, numberCard.document_type)

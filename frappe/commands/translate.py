@@ -1,5 +1,3 @@
-from __future__ import absolute_import, print_function, unicode_literals
-
 import click
 
 from frappe.commands import get_site, pass_context
@@ -39,22 +37,17 @@ def new_language(context, lang_code, app):
 	frappe.connect(site=context["sites"][0])
 	frappe.translate.write_translations_file(app, lang_code)
 
-	print(
-		"File created at ./apps/{app}/{app}/translations/{lang_code}.csv".format(
-			app=app, lang_code=lang_code
-		)
-	)
-	print(
-		"You will need to add the language in frappe/geo/languages.json, if you haven't done it already."
-	)
+	print(f"File created at ./apps/{app}/{app}/translations/{lang_code}.csv")
+	print("You will need to add the language in frappe/geo/languages.json, if you haven't done it already.")
 
 
 @click.command("get-untranslated")
+@click.option("--app", default="_ALL_APPS")
 @click.argument("lang")
 @click.argument("untranslated_file")
 @click.option("--all", default=False, is_flag=True, help="Get all message strings")
 @pass_context
-def get_untranslated(context, lang, untranslated_file, all=None):
+def get_untranslated(context, lang, untranslated_file, app="_ALL_APPS", all=None):
 	"Get untranslated strings for language"
 	import frappe.translate
 
@@ -62,17 +55,18 @@ def get_untranslated(context, lang, untranslated_file, all=None):
 	try:
 		frappe.init(site=site)
 		frappe.connect()
-		frappe.translate.get_untranslated(lang, untranslated_file, get_all=all)
+		frappe.translate.get_untranslated(lang, untranslated_file, get_all=all, app=app)
 	finally:
 		frappe.destroy()
 
 
 @click.command("update-translations")
+@click.option("--app", default="_ALL_APPS")
 @click.argument("lang")
 @click.argument("untranslated_file")
 @click.argument("translated-file")
 @pass_context
-def update_translations(context, lang, untranslated_file, translated_file):
+def update_translations(context, lang, untranslated_file, translated_file, app="_ALL_APPS"):
 	"Update translated strings"
 	import frappe.translate
 
@@ -80,7 +74,7 @@ def update_translations(context, lang, untranslated_file, translated_file):
 	try:
 		frappe.init(site=site)
 		frappe.connect()
-		frappe.translate.update_translations(lang, untranslated_file, translated_file)
+		frappe.translate.update_translations(lang, untranslated_file, translated_file, app=app)
 	finally:
 		frappe.destroy()
 
@@ -102,10 +96,28 @@ def import_translations(context, lang, path):
 		frappe.destroy()
 
 
+@click.command("migrate-translations")
+@click.argument("source-app")
+@click.argument("target-app")
+@pass_context
+def migrate_translations(context, source_app, target_app):
+	"Migrate target-app-specific translations from source-app to target-app"
+	import frappe.translate
+
+	site = get_site(context)
+	try:
+		frappe.init(site=site)
+		frappe.connect()
+		frappe.translate.migrate_translations(source_app, target_app)
+	finally:
+		frappe.destroy()
+
+
 commands = [
 	build_message_files,
 	get_untranslated,
 	import_translations,
 	new_language,
 	update_translations,
+	migrate_translations,
 ]

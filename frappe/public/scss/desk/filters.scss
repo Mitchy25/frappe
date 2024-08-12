@@ -39,7 +39,6 @@
 				}
 			}
 		}
-
 	}
 
 	.empty-filters {
@@ -74,6 +73,9 @@
 			position: relative;
 		}
 	}
+	.modal .remove-filter {
+		display: block !important;
+	}
 }
 
 @include media-breakpoint-down(sm) {
@@ -100,4 +102,3 @@
 		}
 	}
 }
-

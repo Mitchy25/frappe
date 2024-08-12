@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2015, Frappe Technologies and contributors
-# For license information, please see license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 import frappe
 from frappe.model.document import Document
@@ -20,7 +17,7 @@ def deduplicate_dynamic_links(doc):
 	links, duplicate = [], False
 	for l in doc.links or []:
 		t = (l.link_doctype, l.link_name)
-		if not t in links:
+		if t not in links:
 			links.append(t)
 		else:
 			duplicate = True

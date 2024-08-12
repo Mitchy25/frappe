@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2020, Frappe Technologies and contributors
-# For license information, please see license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 import json
 
@@ -31,7 +28,7 @@ class InstalledApplications(Document):
 
 
 @frappe.whitelist()
-def update_installed_apps_order(new_order):
+def update_installed_apps_order(new_order: list[str] | str):
 	"""Change the ordering of `installed_apps` global
 
 	This list is used to resolve hooks and by default it's order of installation on site.
@@ -43,6 +40,7 @@ def update_installed_apps_order(new_order):
 	if isinstance(new_order, str):
 		new_order = json.loads(new_order)
 
+	frappe.local.request_cache and frappe.local.request_cache.clear()
 	existing_order = frappe.get_installed_apps(_ensure_on_bench=True)
 
 	if set(existing_order) != set(new_order) or not isinstance(new_order, list):
@@ -71,7 +69,7 @@ def _create_version_log_for_change(old, new):
 
 
 @frappe.whitelist()
-def get_installed_app_order():
+def get_installed_app_order() -> list[str]:
 	frappe.only_for("System Manager")
 
 	return frappe.get_installed_apps(_ensure_on_bench=True)

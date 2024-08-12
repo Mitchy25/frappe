@@ -1,7 +1,5 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# MIT License. See license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 """Utils for inter-process synchronization using file-locks.
 
@@ -11,6 +9,7 @@ Use `frappe.utils.synchroniztion.filelock` for process synchroniztion.
 """
 
 import os
+from pathlib import Path
 from time import time
 
 import frappe
@@ -43,6 +42,11 @@ def lock_exists(name):
 	return os.path.exists(get_lock_path(name))
 
 
+def lock_age(name) -> float:
+	"""Return time in seconds since lock was created."""
+	return time() - Path(get_lock_path(name)).stat().st_mtime
+
+
 def check_lock(path, timeout=600):
 	if not os.path.exists(path):
 		return False
@@ -68,5 +72,5 @@ def get_lock_path(name):
 
 def release_document_locks():
 	"""Unlocks all documents that were locked by the current context."""
-	for doc in getattr(frappe.local, "locked_documents", []):
+	for doc in frappe.local.locked_documents:
 		doc.unlock()

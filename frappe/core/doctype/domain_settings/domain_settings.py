@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2017, Frappe Technologies and contributors
-# For license information, please see license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 import frappe
 from frappe.model.document import Document
@@ -13,7 +10,7 @@ class DomainSettings(Document):
 		active_domains = [d.domain for d in self.active_domains]
 		added = False
 		for d in domains:
-			if not d in active_domains:
+			if d not in active_domains:
 				self.append("active_domains", dict(domain=d))
 				added = True
 
@@ -34,10 +31,10 @@ class DomainSettings(Document):
 	def restrict_roles_and_modules(self):
 		"""Disable all restricted roles and set `restrict_to_domain` property in Module Def"""
 		active_domains = frappe.get_active_domains()
-		all_domains = list((frappe.get_hooks("domains") or {}))
+		all_domains = list(frappe.get_hooks("domains") or {})
 
 		def remove_role(role):
-			frappe.db.sql("delete from `tabHas Role` where role=%s", role)
+			frappe.db.delete("Has Role", {"role": role})
 			frappe.set_value("Role", role, "disabled", 1)
 
 		for domain in all_domains:

@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import json
 
 import frappe
@@ -23,7 +21,7 @@ def get_email_accounts(user=None):
 	if not accounts:
 		return {"email_accounts": [], "all_accounts": ""}
 
-	all_accounts = ",".join([account.get("email_account") for account in accounts])
+	all_accounts = ",".join(account.get("email_account") for account in accounts)
 	if len(accounts) > 1:
 		email_accounts.append({"email_account": all_accounts, "email_id": "All Accounts"})
 	email_accounts.extend(accounts)
@@ -57,8 +55,10 @@ def create_email_flag_queue(names, action):
 
 	for name in json.loads(names or []):
 		uid, seen_status, email_account = frappe.db.get_value(
-			"Communication", name, ["ifnull(uid, -1)", "ifnull(seen, 0)", "email_account"]
+			"Communication", name, ["uid", "seen", "email_account"]
 		)
+		uid = uid if uid else -1
+		seen_status = seen_status if seen_status else 0
 
 		# can not mark email SEEN or UNSEEN without uid
 		if not uid or uid == -1:
@@ -126,9 +126,7 @@ def mark_as_spam(communication: str, sender: str):
 	set_value("Communication", communication, "email_status", "Spam")
 
 
-def link_communication_to_document(
-	doc, reference_doctype, reference_name, ignore_communication_links
-):
+def link_communication_to_document(doc, reference_doctype, reference_name, ignore_communication_links):
 	if not ignore_communication_links:
 		doc.reference_doctype = reference_doctype
 		doc.reference_name = reference_name

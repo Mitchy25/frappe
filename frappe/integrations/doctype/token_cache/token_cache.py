@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2019, Frappe Technologies and contributors
-# For license information, please see license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 from datetime import datetime, timedelta
 
@@ -11,7 +8,7 @@ import pytz
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import cint, cstr, get_time_zone
+from frappe.utils import cint, cstr, get_system_timezone
 
 
 class TokenCache(Document):
@@ -37,8 +34,10 @@ class TokenCache(Document):
 
 		self.token_type = token_type
 		self.access_token = cstr(data.get("access_token", ""))
-		self.refresh_token = cstr(data.get("refresh_token", ""))
 		self.expires_in = cint(data.get("expires_in", 0))
+
+		if "refresh_token" in data:
+			self.refresh_token = cstr(data.get("refresh_token"))
 
 		new_scopes = data.get("scope")
 		if new_scopes:
@@ -55,8 +54,9 @@ class TokenCache(Document):
 		return self
 
 	def get_expires_in(self):
-		system_timezone = pytz.timezone(get_time_zone())
-		modified = system_timezone.localize(frappe.utils.get_datetime(self.modified))
+		system_timezone = pytz.timezone(get_system_timezone())
+		modified = frappe.utils.get_datetime(self.modified)
+		modified = system_timezone.localize(modified)
 		expiry_utc = modified.astimezone(pytz.utc) + timedelta(seconds=self.expires_in)
 		now_utc = datetime.utcnow().replace(tzinfo=pytz.utc)
 		return cint((expiry_utc - now_utc).total_seconds())

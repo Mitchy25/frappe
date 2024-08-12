@@ -1,8 +1,5 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# MIT License. See license.txt
-
-from __future__ import print_function, unicode_literals
-
+# License: MIT. See LICENSE
 import getpass
 
 import frappe
@@ -10,21 +7,22 @@ from frappe.utils.password import update_password
 
 
 def before_install():
+	frappe.reload_doc("core", "doctype", "doctype_state")
 	frappe.reload_doc("core", "doctype", "docfield")
 	frappe.reload_doc("core", "doctype", "docperm")
 	frappe.reload_doc("core", "doctype", "doctype_action")
 	frappe.reload_doc("core", "doctype", "doctype_link")
+	frappe.reload_doc("desk", "doctype", "form_tour_step")
+	frappe.reload_doc("desk", "doctype", "form_tour")
 	frappe.reload_doc("core", "doctype", "doctype")
+	frappe.clear_cache()
 
 
 def after_install():
-	# reset installed apps for re-install
-	frappe.db.set_global("installed_apps", '["frappe"]')
-
 	create_user_type()
 	install_basic_docs()
 
-	from frappe.core.doctype.file.file import make_home_folder
+	from frappe.core.doctype.file.utils import make_home_folder
 
 	make_home_folder()
 
@@ -39,15 +37,16 @@ def after_install():
 	print_settings.save()
 
 	# all roles to admin
-	frappe.get_doc("User", "Administrator").add_roles(
-		*frappe.db.sql_list("""select name from tabRole""")
-	)
+	frappe.get_doc("User", "Administrator").add_roles(*frappe.get_all("Role", pluck="name"))
 
 	# update admin password
 	update_password("Administrator", get_admin_password())
 
 	if not frappe.conf.skip_setup_wizard:
-		frappe.db.set_default("desktop:home_page", "setup-wizard")
+		# only set home_page if the value doesn't exist in the db
+		if not frappe.db.get_default("desktop:home_page"):
+			frappe.db.set_default("desktop:home_page", "setup-wizard")
+			frappe.db.set_single_value("System Settings", "setup_complete", 0)
 
 	# clear test log
 	with open(frappe.get_site_path(".test_log"), "w") as f:
@@ -139,7 +138,7 @@ def install_basic_docs():
 
 	for d in install_docs:
 		try:
-			frappe.get_doc(d).insert()
+			frappe.get_doc(d).insert(ignore_if_duplicate=True)
 		except frappe.NameError:
 			pass
 
@@ -164,16 +163,16 @@ def before_tests():
 		# don't run before tests if any other app is installed
 		return
 
-	frappe.db.sql("delete from `tabCustom Field`")
-	frappe.db.sql("delete from `tabEvent`")
-	frappe.db.commit()
+	frappe.db.truncate("Custom Field")
+	frappe.db.truncate("Event")
+
 	frappe.clear_cache()
 
 	# complete setup if missing
 	if not int(frappe.db.get_single_value("System Settings", "setup_complete") or 0):
 		complete_setup_wizard()
 
-	frappe.db.set_value("Website Settings", "Website Settings", "disable_signup", 0)
+	frappe.db.set_single_value("Website Settings", "disable_signup", 0)
 	frappe.db.commit()
 	frappe.clear_cache()
 
@@ -244,6 +243,10 @@ def add_country_and_currency(name, country):
 def add_standard_navbar_items():
 	navbar_settings = frappe.get_single("Navbar Settings")
 
+	# don't add settings/help options if they're already present
+	if navbar_settings.settings_dropdown and navbar_settings.help_dropdown:
+		return
+
 	standard_navbar_items = [
 		{
 			"item_label": "My Profile",
@@ -288,14 +291,12 @@ def add_standard_navbar_items():
 			"is_standard": 1,
 		},
 		{
-			"item_label": "Background Jobs",
-			"item_type": "Route",
-			"route": "/app/background_jobs",
+			"item_type": "Separator",
 			"is_standard": 1,
+			"item_label": "",
 		},
-		{"item_type": "Separator", "is_standard": 1},
 		{
-			"item_label": "Logout",
+			"item_label": "Log out",
 			"item_type": "Action",
 			"action": "frappe.app.logout()",
 			"is_standard": 1,
@@ -313,6 +314,12 @@ def add_standard_navbar_items():
 			"item_label": "Keyboard Shortcuts",
 			"item_type": "Action",
 			"action": "frappe.ui.toolbar.show_shortcuts(event)",
+			"is_standard": 1,
+		},
+		{
+			"item_label": "Frappe Support",
+			"item_type": "Route",
+			"route": "https://frappe.io/support",
 			"is_standard": 1,
 		},
 	]

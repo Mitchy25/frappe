@@ -1,14 +1,10 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2019, Frappe Technologies and contributors
-# For license information, please see license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 import json
 import time
 
 import requests
-from six import iteritems
 
 import frappe
 from frappe import _
@@ -49,7 +45,10 @@ class EventProducer(Document):
 					frappe.throw(_("Please set API Key and Secret on the producer and consumer sites first."))
 				else:
 					doc_before_save = self.get_doc_before_save()
-					if doc_before_save.api_key != self.api_key or doc_before_save.api_secret != self.api_secret:
+					if (
+						doc_before_save.api_key != self.api_key
+						or doc_before_save.api_secret != self.api_secret
+					):
 						return
 
 					self.update_event_consumer()
@@ -174,7 +173,9 @@ class EventProducer(Document):
 				for entry in self.producer_doctypes:
 					if entry.has_mapping:
 						# if mapping, subscribe to remote doctype on consumer's site
-						ref_doctype = frappe.db.get_value("Document Type Mapping", entry.mapping, "remote_doctype")
+						ref_doctype = frappe.db.get_value(
+							"Document Type Mapping", entry.mapping, "remote_doctype"
+						)
 					else:
 						ref_doctype = entry.ref_doctype
 
@@ -308,7 +309,7 @@ def set_insert(update, producer_site, event_producer):
 	if update.mapping:
 		if update.get("dependencies"):
 			dependencies_created = sync_mapped_dependencies(update.dependencies, producer_site)
-			for fieldname, value in iteritems(dependencies_created):
+			for fieldname, value in dependencies_created.items():
 				doc.update({fieldname: value})
 	else:
 		sync_dependencies(doc, producer_site)
@@ -341,7 +342,7 @@ def set_update(update, producer_site):
 		if update.mapping:
 			if update.get("dependencies"):
 				dependencies_created = sync_mapped_dependencies(update.dependencies, producer_site)
-				for fieldname, value in iteritems(dependencies_created):
+				for fieldname, value in dependencies_created.items():
 					local_doc.update({fieldname: value})
 		else:
 			sync_dependencies(local_doc, producer_site)
@@ -352,8 +353,8 @@ def set_update(update, producer_site):
 
 def update_row_removed(local_doc, removed):
 	"""Sync child table row deletion type update"""
-	for tablename, rownames in iteritems(removed):
-		table = local_doc.get_table_field_doctype(tablename)
+	for tablename, rownames in removed.items():
+		local_doc.get_table_field_doctype(tablename)
 		for row in rownames:
 			table_rows = local_doc.get(tablename)
 			child_table_row = get_child_table_row(table_rows, row)
@@ -370,7 +371,7 @@ def get_child_table_row(table_rows, row):
 
 def update_row_changed(local_doc, changed):
 	"""Sync child table row updation type update"""
-	for tablename, rows in iteritems(changed):
+	for tablename, rows in changed.items():
 		old = local_doc.get(tablename)
 		for doc in old:
 			for row in rows:
@@ -380,7 +381,7 @@ def update_row_changed(local_doc, changed):
 
 def update_row_added(local_doc, added):
 	"""Sync child table row addition type update"""
-	for tablename, rows in iteritems(added):
+	for tablename, rows in added.items():
 		local_doc.extend(tablename, rows)
 		for child in rows:
 			child_doc = frappe.get_doc(child)
@@ -450,7 +451,9 @@ def sync_dependencies(document, producer_site):
 				child_doc = producer_site.get_doc(entry.doctype, entry.name)
 				if child_doc:
 					child_doc = frappe._dict(child_doc)
-					set_dependencies(child_doc, frappe.get_meta(entry.doctype).get_link_fields(), producer_site)
+					set_dependencies(
+						child_doc, frappe.get_meta(entry.doctype).get_link_fields(), producer_site
+					)
 
 	def sync_link_dependencies(doc, link_fields, producer_site):
 		set_dependencies(doc, link_fields, producer_site)

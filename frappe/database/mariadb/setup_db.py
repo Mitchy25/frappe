@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import os
 
 import click
@@ -31,17 +29,17 @@ def setup_database(force, source_sql, verbose, no_mariadb_socket=False):
 	db_name = frappe.local.conf.db_name
 	root_conn = get_root_connection(frappe.flags.root_login, frappe.flags.root_password)
 	dbman = DbManager(root_conn)
+	dbman_kwargs = {}
+	if no_mariadb_socket:
+		dbman_kwargs["host"] = "%"
+
 	if force or (db_name not in dbman.get_database_list()):
-		dbman.delete_user(db_name)
-		if no_mariadb_socket:
-			dbman.delete_user(db_name, host="%")
+		dbman.delete_user(db_name, **dbman_kwargs)
 		dbman.drop_database(db_name)
 	else:
-		raise Exception("Database %s already exists" % (db_name,))
+		raise Exception(f"Database {db_name} already exists")
 
-	dbman.create_user(db_name, frappe.conf.db_password)
-	if no_mariadb_socket:
-		dbman.create_user(db_name, frappe.conf.db_password, host="%")
+	dbman.create_user(db_name, frappe.conf.db_password, **dbman_kwargs)
 	if verbose:
 		print("Created user %s" % db_name)
 
@@ -49,12 +47,10 @@ def setup_database(force, source_sql, verbose, no_mariadb_socket=False):
 	if verbose:
 		print("Created database %s" % db_name)
 
-	dbman.grant_all_privileges(db_name, db_name)
-	if no_mariadb_socket:
-		dbman.grant_all_privileges(db_name, db_name, host="%")
+	dbman.grant_all_privileges(db_name, db_name, **dbman_kwargs)
 	dbman.flush_privileges()
 	if verbose:
-		print("Granted privileges to user %s and database %s" % (db_name, db_name))
+		print(f"Granted privileges to user {db_name} and database {db_name}")
 
 	# close root connection
 	root_conn.close()
@@ -67,7 +63,7 @@ def setup_help_database(help_db_name):
 	dbman.drop_database(help_db_name)
 
 	# make database
-	if not help_db_name in dbman.get_database_list():
+	if help_db_name not in dbman.get_database_list():
 		try:
 			dbman.create_user(help_db_name, help_db_name)
 		except Exception as e:
@@ -82,9 +78,9 @@ def setup_help_database(help_db_name):
 def drop_user_and_database(db_name, root_login, root_password):
 	frappe.local.db = get_root_connection(root_login, root_password)
 	dbman = DbManager(frappe.local.db)
+	dbman.drop_database(db_name)
 	dbman.delete_user(db_name, host="%")
 	dbman.delete_user(db_name)
-	dbman.drop_database(db_name)
 
 
 def bootstrap_database(db_name, verbose, source_sql=None):
@@ -124,7 +120,6 @@ def import_db_from_sql(source_sql=None, verbose=False):
 
 
 def check_database_settings():
-
 	check_compatible_versions()
 
 	# Check each expected value vs. actuals:
@@ -132,10 +127,7 @@ def check_database_settings():
 	result = True
 	for key, expected_value in REQUIRED_MARIADB_CONFIG.items():
 		if mariadb_variables.get(key) != expected_value:
-			print(
-				"For key %s. Expected value %s, found value %s"
-				% (key, expected_value, mariadb_variables.get(key))
-			)
+			print(f"For key {key}. Expected value {expected_value}, found value {mariadb_variables.get(key)}")
 			result = False
 
 	if not result:
@@ -186,14 +178,6 @@ def get_root_connection(root_login, root_password):
 		if not root_password:
 			root_password = getpass.getpass("MySQL root password: ")
 
-		frappe.local.flags.root_connection = frappe.database.get_db(
-			user=root_login, password=root_password
-		)
+		frappe.local.flags.root_connection = frappe.database.get_db(user=root_login, password=root_password)
 
 	return frappe.local.flags.root_connection
-
-
-def print_db_config(explanation):
-	print("=" * 80)
-	print(explanation)
-	print("=" * 80)

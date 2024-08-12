@@ -1,18 +1,14 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2017, Frappe Technologies and contributors
-# For license information, please see license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 import base64
-import datetime
 import hashlib
 import hmac
 import json
 from time import sleep
+from urllib.parse import urlparse
 
 import requests
-from six.moves.urllib.parse import urlparse
 
 import frappe
 from frappe import _
@@ -29,6 +25,8 @@ class Webhook(Document):
 		self.validate_request_url()
 		self.validate_request_body()
 		self.validate_repeating_fields()
+		self.validate_secret()
+		self.preview_document = None
 
 	def on_update(self):
 		frappe.cache().delete_value("webhooks")
@@ -76,16 +74,59 @@ class Webhook(Document):
 		if len(webhook_data) != len(set(webhook_data)):
 			frappe.throw(_("Same Field is entered more than once"))
 
+	def validate_secret(self):
+		if self.enable_security:
+			try:
+				self.get_password("webhook_secret", False).encode("utf8")
+			except Exception:
+				frappe.throw(_("Invalid Webhook Secret"))
+
+	@frappe.whitelist()
+	def generate_preview(self):
+		# This function doesn't need to do anything specific as virtual fields
+		# get evaluated automatically.
+		pass
+
+	@property
+	def meets_condition(self):
+		if not self.condition:
+			return _("Yes")
+
+		if not (self.preview_document and self.webhook_doctype):
+			return _("Select a document to check if it meets conditions.")
+
+		try:
+			doc = frappe.get_cached_doc(self.webhook_doctype, self.preview_document)
+			met_condition = frappe.safe_eval(self.condition, eval_locals=get_context(doc))
+		except Exception as e:
+			return _("Failed to evaluate conditions: {}").format(e)
+		return _("Yes") if met_condition else _("No")
+
+	@property
+	def preview_request_body(self):
+		if not (self.preview_document and self.webhook_doctype):
+			return _("Select a document to preview request data")
+
+		try:
+			doc = frappe.get_cached_doc(self.webhook_doctype, self.preview_document)
+			return frappe.as_json(get_webhook_data(doc, self))
+		except Exception as e:
+			return _("Failed to compute request body: {}").format(e)
+
 
 def get_context(doc):
 	return {"doc": doc, "utils": get_safe_globals().get("frappe").get("utils")}
 
 
-def enqueue_webhook(doc, webhook):
-	webhook = frappe.get_doc("Webhook", webhook.get("name"))
-	headers = get_webhook_headers(doc, webhook)
-	data = get_webhook_data(doc, webhook)
-	r = None
+def enqueue_webhook(doc, webhook) -> None:
+	try:
+		webhook: Webhook = frappe.get_doc("Webhook", webhook.get("name"))
+		headers = get_webhook_headers(doc, webhook)
+		data = get_webhook_data(doc, webhook)
+	except Exception as e:
+		frappe.logger().debug({"enqueue_webhook_error": e})
+		log_request(webhook.name, doc.name, webhook.request_url, headers, data)
+		return
 
 	for i in range(3):
 		try:
@@ -94,31 +135,44 @@ def enqueue_webhook(doc, webhook):
 				url=webhook.request_url,
 				data=json.dumps(data, default=str),
 				headers=headers,
-				timeout=5,
+				timeout=webhook.timeout or 5,
 			)
 			r.raise_for_status()
 			frappe.logger().debug({"webhook_success": r.text})
-			log_request(webhook.request_url, headers, data, r)
+			log_request(webhook.name, doc.name, webhook.request_url, headers, data, r)
 			break
+
+		except requests.exceptions.ReadTimeout as e:
+			frappe.logger().debug({"webhook_error": e, "try": i + 1})
+			log_request(webhook.name, doc.name, webhook.request_url, headers, data)
+
 		except Exception as e:
 			frappe.logger().debug({"webhook_error": e, "try": i + 1})
-			log_request(webhook.request_url, headers, data, r)
+			log_request(webhook.name, doc.name, webhook.request_url, headers, data, r)
 			sleep(3 * i + 1)
 			if i != 2:
 				continue
-			else:
-				raise e
 
 
-def log_request(url, headers, data, res):
+def log_request(
+	webhook: str,
+	docname: str,
+	url: str,
+	headers: dict,
+	data: dict,
+	res: requests.Response | None = None,
+):
 	request_log = frappe.get_doc(
 		{
 			"doctype": "Webhook Request Log",
+			"webhook": webhook,
+			"reference_document": docname,
 			"user": frappe.session.user if frappe.session.user else None,
 			"url": url,
 			"headers": frappe.as_json(headers) if headers else None,
 			"data": frappe.as_json(data) if data else None,
-			"response": frappe.as_json(res.json()) if res else None,
+			"response": res and res.text,
+			"error": frappe.get_traceback(),
 		}
 	)
 

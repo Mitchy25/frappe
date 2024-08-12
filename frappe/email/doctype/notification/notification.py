@@ -1,13 +1,9 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2018, Frappe Technologies and contributors
-# For license information, please see license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 import json
 import os
-
-from six import string_types
+from collections import namedtuple
 
 import frappe
 from frappe import _
@@ -17,9 +13,13 @@ from frappe.desk.doctype.notification_log.notification_log import enqueue_create
 from frappe.integrations.doctype.slack_webhook_url.slack_webhook_url import send_slack_message
 from frappe.model.document import Document
 from frappe.modules.utils import export_module_json, get_doc_module
-from frappe.utils import add_to_date, cast, is_html, nowdate, validate_email_address
+from frappe.utils import add_to_date, cast, nowdate, validate_email_address
 from frappe.utils.jinja import validate_template
 from frappe.utils.safe_exec import get_safe_globals
+
+FORMATS = {"HTML": ".html", "Markdown": ".md", "Plain Text": ".txt"}
+FORBIDDEN_DOCUMENT_TYPES = frozenset(("Email Queue",))
+DATE_BASED_EVENTS = frozenset(("Days Before", "Days After"))
 
 
 class Notification(Document):
@@ -44,7 +44,7 @@ class Notification(Document):
 		if self.event == "Value Change" and not self.value_changed:
 			frappe.throw(_("Please specify which value field must be checked"))
 
-		self.validate_forbidden_types()
+		self.validate_forbidden_document_types()
 		self.validate_condition()
 		self.validate_standard()
 		frappe.cache().hdel("notifications", self.document_type)
@@ -52,19 +52,17 @@ class Notification(Document):
 	def on_update(self):
 		frappe.cache().hdel("notifications", self.document_type)
 		path = export_module_json(self, self.is_standard, self.module)
-		if path:
-			# js
-			if not os.path.exists(path + ".md") and not os.path.exists(path + ".html"):
-				with open(path + ".md", "w") as f:
-					f.write(self.message)
+		if path and self.message:
+			extension = FORMATS.get(self.message_type, ".md")
+			file_path = path + extension
+			with open(file_path, "w") as f:
+				f.write(self.message)
 
 			# py
 			if not os.path.exists(path + ".py"):
 				with open(path + ".py", "w") as f:
 					f.write(
-						"""from __future__ import unicode_literals
-
-import frappe
+						"""import frappe
 
 def get_context(context):
 	# do your magic here
@@ -86,13 +84,16 @@ def get_context(context):
 			except Exception:
 				frappe.throw(_("The Condition '{0}' is invalid").format(self.condition))
 
-	def validate_forbidden_types(self):
-		forbidden_document_types = ("Email Queue",)
-		if ((self.document_type in forbidden_document_types and self.channel == "Email")
-			or frappe.get_meta(self.document_type).istable):
-			# currently notifications don't work on child tables as events are not fired for each record of child table
-
-			frappe.throw(_("Cannot set Notification on Document Type {0}").format(self.document_type))
+	def validate_forbidden_document_types(self):
+		if self.document_type in FORBIDDEN_DOCUMENT_TYPES or (
+			frappe.get_meta(self.document_type).istable and self.event not in DATE_BASED_EVENTS
+		):
+			# only date based events are allowed for child tables
+			frappe.throw(
+				_("Cannot set Notification with event {0} on Document Type {1}").format(
+					_(self.event), _(self.document_type)
+				)
+			)
 
 	def get_documents_for_today(self):
 		"""get list of documents that will be triggered today"""
@@ -149,11 +150,14 @@ def get_context(context):
 				self.create_system_notification(doc, context)
 
 		except Exception:
-			frappe.log_error(title="Failed to send notification", message=frappe.get_traceback())
+			self.log_error("Failed to send Notification")
 
 		if self.set_property_after_alert:
 			allow_update = True
-			if doc.docstatus == 1 and not doc.meta.get_field(self.set_property_after_alert).allow_on_submit:
+			if (
+				doc.docstatus.is_submitted()
+				and not doc.meta.get_field(self.set_property_after_alert).allow_on_submit
+			):
 				allow_update = False
 			try:
 				if allow_update and not doc.flags.in_notification_update:
@@ -173,7 +177,7 @@ def get_context(context):
 					doc.save(ignore_permissions=True)
 					doc.flags.in_notification_update = False
 			except Exception:
-				frappe.log_error(title="Document update failed", message=frappe.get_traceback())
+				self.log_error("Document update failed")
 
 	def create_system_notification(self, doc, context):
 		subject = self.subject
@@ -191,8 +195,8 @@ def get_context(context):
 
 		notification_doc = {
 			"type": "Alert",
-			"document_type": doc.doctype,
-			"document_name": doc.name,
+			"document_type": get_reference_doctype(doc),
+			"document_name": get_reference_name(doc),
 			"subject": subject,
 			"from_user": doc.modified_by or doc.owner,
 			"email_content": frappe.render_template(self.message, context),
@@ -228,8 +232,8 @@ def get_context(context):
 			cc=cc,
 			bcc=bcc,
 			message=message,
-			reference_doctype=doc.doctype,
-			reference_name=doc.name,
+			reference_doctype=get_reference_doctype(doc),
+			reference_name=get_reference_name(doc),
 			attachments=attachments,
 			expose_recipients="header",
 			print_letterhead=((attachments and attachments[0].get("print_letterhead")) or False),
@@ -250,15 +254,15 @@ def get_context(context):
 				attachments=attachments,
 				cc=cc,
 				bcc=bcc,
-				communication_type='Automated Message',
-				ignore_permissions=True)
+				communication_type="Automated Message",
+			)
 
 	def send_a_slack_msg(self, doc, context):
 		send_slack_message(
 			webhook_url=self.slack_webhook_url,
 			message=frappe.render_template(self.message, context),
-			reference_doctype=doc.doctype,
-			reference_name=doc.name,
+			reference_doctype=get_reference_doctype(doc),
+			reference_name=get_reference_name(doc),
 		)
 
 	def send_sms(self, doc, context):
@@ -335,7 +339,6 @@ def get_context(context):
 		if (doc.docstatus == 0 and not print_settings.allow_print_for_draft) or (
 			doc.docstatus == 2 and not print_settings.allow_print_for_cancelled
 		):
-
 			# ignoring attachment as draft and cancelled documents are not allowed to print
 			status = "Draft" if doc.docstatus == 0 else "Cancelled"
 			frappe.throw(
@@ -358,18 +361,26 @@ def get_context(context):
 				}
 			]
 
-	def get_template(self):
+	def get_template(self, md_as_html=False):
 		module = get_doc_module(self.module, self.doctype, self.name)
 
-		def load_template(extn):
-			template = ""
-			template_path = os.path.join(os.path.dirname(module.__file__), frappe.scrub(self.name) + extn)
-			if os.path.exists(template_path):
-				with open(template_path, "r") as f:
-					template = f.read()
-			return template
+		path = os.path.join(os.path.dirname(module.__file__), frappe.scrub(self.name))
+		extension = FORMATS.get(self.message_type, ".md")
+		file_path = path + extension
 
-		return load_template(".html") or load_template(".md")
+		template = ""
+
+		if os.path.exists(file_path):
+			with open(file_path) as f:
+				template = f.read()
+
+		if not template:
+			return
+
+		if extension == ".md":
+			return frappe.utils.md_to_html(template)
+
+		return template
 
 	def load_standard_properties(self, context):
 		"""load templates and run get_context"""
@@ -380,10 +391,11 @@ def get_context(context):
 				if out:
 					context.update(out)
 
-		self.message = self.get_template()
+		self.message = self.get_template(md_as_html=True)
 
-		if not is_html(self.message):
-			self.message = frappe.utils.md_to_html(self.message)
+	def on_trash(self):
+		frappe.cache().hdel("notifications", self.document_type)
+
 
 
 @frappe.whitelist()
@@ -418,7 +430,7 @@ def evaluate_alert(doc: Document, alert, event):
 	from jinja2 import TemplateError
 
 	try:
-		if isinstance(alert, string_types):
+		if isinstance(alert, str):
 			alert = frappe.get_doc("Notification", alert)
 
 		context = get_context(doc)
@@ -430,7 +442,7 @@ def evaluate_alert(doc: Document, alert, event):
 		if event == "Value Change" and not doc.is_new():
 			if not frappe.db.has_column(doc.doctype, alert.value_changed):
 				alert.db_set("enabled", 0)
-				frappe.log_error("Notification {0} has been disabled due to missing field".format(alert.name))
+				alert.log_error(f"Notification {alert.name} has been disabled due to missing field")
 				return
 
 			doc_before_save = doc.get_doc_before_save()
@@ -461,10 +473,11 @@ def evaluate_alert(doc: Document, alert, event):
 
 
 def get_context(doc):
+	Frappe = namedtuple("frappe", ["utils"])
 	return {
 		"doc": doc,
 		"nowdate": nowdate,
-		"frappe": frappe._dict(utils=get_safe_globals().get("frappe").get("utils")),
+		"frappe": Frappe(utils=get_safe_globals().get("frappe").get("utils")),
 	}
 
 
@@ -473,10 +486,10 @@ def get_assignees(doc):
 	assignees = frappe.get_all(
 		"ToDo",
 		filters={"status": "Open", "reference_name": doc.name, "reference_type": doc.doctype},
-		fields=["owner"],
+		fields=["allocated_to"],
 	)
 
-	recipients = [d.owner for d in assignees]
+	recipients = [d.allocated_to for d in assignees]
 
 	return recipients
 
@@ -487,3 +500,11 @@ def get_emails_from_template(template, context):
 
 	emails = frappe.render_template(template, context) if "{" in template else template
 	return filter(None, emails.replace(",", "\n").split("\n"))
+
+
+def get_reference_doctype(doc):
+	return doc.parenttype if doc.meta.istable else doc.doctype
+
+
+def get_reference_name(doc):
+	return doc.parent if doc.meta.istable else doc.name

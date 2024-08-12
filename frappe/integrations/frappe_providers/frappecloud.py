@@ -1,30 +1,29 @@
 import click
 import requests
-from html2text import html2text
 
 import frappe
+from frappe.core.utils import html2text
 
 
-def frappecloud_migrator(local_site):
+def get_remote_script(remote_site):
 	print("Retrieving Site Migrator...")
-	remote_site = frappe.conf.frappecloud_url or "frappecloud.com"
-	request_url = "https://{}/api/method/press.api.script".format(remote_site)
+	request_url = f"http://{remote_site}/api/method/press.api.script"
 	request = requests.get(request_url)
 
 	if request.status_code / 100 != 2:
-		print(
-			"Request exitted with Status Code: {}\nPayload: {}".format(
-				request.status_code, html2text(request.text)
-			)
-		)
+		print(f"Request exitted with Status Code: {request.status_code}\nPayload: {html2text(request.text)}")
 		click.secho(
 			"Some errors occurred while recovering the migration script. Please contact us @ Frappe Cloud if this issue persists",
 			fg="yellow",
 		)
 		return
 
-	script_contents = request.json()["message"]
+	return request.json()["message"]
 
+
+def frappecloud_migrator():
+	remote_site_name = "frappecloud.com"
+	script_contents = get_remote_script(remote_site=remote_site_name)
 	import os
 	import sys
 	import tempfile
@@ -32,5 +31,5 @@ def frappecloud_migrator(local_site):
 	py = sys.executable
 	script = tempfile.NamedTemporaryFile(mode="w")
 	script.write(script_contents)
-	print("Site Migrator stored at {}".format(script.name))
-	os.execv(py, [py, script.name, local_site])
+	print(f"Site Migrator stored at {script.name}")
+	os.execv(py, [py, script.name])

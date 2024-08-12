@@ -1,13 +1,11 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2019, Frappe Technologies and Contributors
 # License: MIT. See LICENSE
-import unittest
-
 import frappe
 from frappe.core.doctype.data_export.exporter import DataExporter
+from frappe.tests.utils import FrappeTestCase
 
 
-class TestDataExporter(unittest.TestCase):
+class TestDataExporter(FrappeTestCase):
 	def setUp(self):
 		self.doctype_name = "Test DocType for Export Tool"
 		self.doc_name = "Test Data for Export Tool"
@@ -90,8 +88,8 @@ class TestDataExporter(unittest.TestCase):
 		self.assertEqual(frappe.response["type"], "csv")
 		self.assertEqual(frappe.response["doctype"], self.doctype_name)
 		self.assertTrue(frappe.response["result"])
-		self.assertIn('Child Title 1",50', frappe.response["result"])
-		self.assertIn('Child Title 2",51', frappe.response["result"])
+		self.assertRegex(frappe.response["result"], r"Child Title 1.*?,50")
+		self.assertRegex(frappe.response["result"], r"Child Title 2.*?,51")
 
 	def test_export_type(self):
 		for type in ["csv", "Excel"]:

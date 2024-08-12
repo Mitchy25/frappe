@@ -1,7 +1,5 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# MIT License. See license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 import json
 
@@ -122,7 +120,6 @@ def filter_by_restrict_to_domain(data):
 	for d in data:
 		_items = []
 		for item in d.get("items", []):
-
 			item_type = item.get("type")
 			item_name = item.get("name")
 
@@ -242,7 +239,6 @@ def apply_permissions(data):
 				or (item.type == "report" and item.name in allowed_reports)
 				or item.type == "help"
 			):
-
 				new_items.append(item)
 
 		if new_items:
@@ -255,13 +251,13 @@ def apply_permissions(data):
 
 def get_disabled_reports():
 	if not hasattr(frappe.local, "disabled_reports"):
-		frappe.local.disabled_reports = set(r.name for r in frappe.get_all("Report", {"disabled": 1}))
+		frappe.local.disabled_reports = {r.name for r in frappe.get_all("Report", {"disabled": 1})}
 	return frappe.local.disabled_reports
 
 
 def get_config(app, module):
 	"""Load module info from `[app].config.[module]`."""
-	config = frappe.get_module("{app}.config.{module}".format(app=app, module=module))
+	config = frappe.get_module(f"{app}.config.{module}")
 	config = config.get_data()
 
 	sections = [s for s in config if s.get("condition", True)]
@@ -285,7 +281,7 @@ def get_config(app, module):
 
 def config_exists(app, module):
 	try:
-		frappe.get_module("{app}.config.{module}".format(app=app, module=module))
+		frappe.get_module(f"{app}.config.{module}")
 		return True
 	except ImportError:
 		return False
@@ -578,7 +574,7 @@ def get_last_modified(doctype):
 				raise
 
 		# hack: save as -1 so that it is cached
-		if last_modified == None:
+		if last_modified is None:
 			last_modified = -1
 
 		return last_modified

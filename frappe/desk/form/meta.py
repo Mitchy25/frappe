@@ -1,14 +1,7 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# MIT License. See license.txt
-
-# metadata
-
-from __future__ import unicode_literals
-
+# License: MIT. See LICENSE
 import io
 import os
-
-from six import iteritems
 
 import frappe
 from frappe import _
@@ -16,8 +9,7 @@ from frappe.build import scrub_html_template
 from frappe.model.meta import Meta
 from frappe.model.utils import render_include
 from frappe.modules import get_module_path, load_doctype_module, scrub
-from frappe.translate import extract_messages_from_code, make_dict_from_messages
-from frappe.utils import get_html_format
+from frappe.utils import get_bench_path, get_html_format
 from frappe.utils.data import get_link_to_form
 
 ASSET_KEYS = (
@@ -44,12 +36,10 @@ ASSET_KEYS = (
 def get_meta(doctype, cached=True):
 	# don't cache for developer mode as js files, templates may be edited
 	if cached and not frappe.conf.developer_mode:
-		meta = frappe.cache().hget("form_meta", doctype)
-		if meta:
-			meta = FormMeta(meta)
-		else:
+		meta = frappe.cache().hget("doctype_form_meta", doctype)
+		if not meta:
 			meta = FormMeta(doctype)
-			frappe.cache().hset("form_meta", doctype, meta.as_dict())
+			frappe.cache().hset("doctype_form_meta", doctype, meta)
 	else:
 		meta = FormMeta(doctype)
 
@@ -61,14 +51,8 @@ def get_meta(doctype, cached=True):
 
 class FormMeta(Meta):
 	def __init__(self, doctype):
-		super(FormMeta, self).__init__(doctype)
+		super().__init__(doctype)
 		self.load_assets()
-
-	def set(self, key, value, *args, **kwargs):
-		if key in ASSET_KEYS:
-			self.__dict__[key] = value
-		else:
-			super(FormMeta, self).set(key, value, *args, **kwargs)
 
 	def load_assets(self):
 		if self.get("__assets_loaded", False):
@@ -89,7 +73,7 @@ class FormMeta(Meta):
 		self.set("__assets_loaded", True)
 
 	def as_dict(self, no_nulls=False):
-		d = super(FormMeta, self).as_dict(no_nulls=no_nulls)
+		d = super().as_dict(no_nulls=no_nulls)
 
 		for k in ASSET_KEYS:
 			d[k] = self.get(k)
@@ -138,7 +122,9 @@ class FormMeta(Meta):
 	def _add_code(self, path, fieldname):
 		js = get_js(path)
 		if js:
-			comment = f"\n\n/* Adding {path} */\n\n"
+			bench_path = get_bench_path() + "/"
+			asset_path = path.replace(bench_path, "")
+			comment = f"\n\n/* Adding {asset_path} */\n\n"
 			sourceURL = f"\n\n//# sourceURL={scrub(self.name) + fieldname}"
 			self.set(fieldname, (self.get(fieldname) or "") + comment + js + sourceURL)
 
@@ -148,8 +134,8 @@ class FormMeta(Meta):
 		templates = dict()
 		for fname in os.listdir(path):
 			if fname.endswith(".html"):
-				with io.open(os.path.join(path, fname), "r", encoding="utf-8") as f:
-					templates[fname.split(".")[0]] = scrub_html_template(f.read())
+				with open(os.path.join(path, fname), encoding="utf-8") as f:
+					templates[fname.split(".", 1)[0]] = scrub_html_template(f.read())
 
 		self.set("__templates", templates or None)
 
@@ -161,10 +147,10 @@ class FormMeta(Meta):
 		"""embed all require files"""
 		# custom script
 		client_scripts = (
-			frappe.db.get_all(
+			frappe.get_all(
 				"Client Script",
 				filters={"dt": self.name, "enabled": 1},
-				fields=["script", "view"],
+				fields=["name", "script", "view"],
 				order_by="creation asc",
 			)
 			or ""
@@ -177,10 +163,18 @@ class FormMeta(Meta):
 				continue
 
 			if script.view == "List":
-				list_script += script.script
+				list_script += f"""
+// {script.name}
+{script.script}
+
+"""
 
 			elif script.view == "Form":
-				form_script += script.script
+				form_script += f"""
+// {script.name}
+{script.script}
+
+"""
 
 		file = scrub(self.name)
 		form_script += f"\n\n//# sourceURL={file}__custom_js"
@@ -257,15 +251,17 @@ class FormMeta(Meta):
 	def load_templates(self):
 		if not self.custom:
 			module = load_doctype_module(self.name)
-			app = module.__name__.split(".")[0]
+			app = module.__name__.split(".", 1)[0]
 			templates = {}
 			if hasattr(module, "form_grid_templates"):
-				for key, path in iteritems(module.form_grid_templates):
+				for key, path in module.form_grid_templates.items():
 					templates[key] = get_html_format(frappe.get_app_path(app, path))
 
 				self.set("__form_grid_templates", templates)
 
 	def set_translations(self, lang):
+		from frappe.translate import extract_messages_from_code, make_dict_from_messages
+
 		self.set("__messages", frappe.get_lang_dict("doctype", self.name))
 
 		# set translations for grid templates

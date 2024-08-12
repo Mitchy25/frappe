@@ -12,7 +12,6 @@
   "use_html",
   "response_html",
   "response",
-  "owner",
   "section_break_4",
   "email_reply_help"
  ],
@@ -31,14 +30,6 @@
    "in_list_view": 1,
    "label": "Response",
    "mandatory_depends_on": "eval:!doc.use_html"
-  },
-  {
-   "default": "user",
-   "fieldname": "owner",
-   "fieldtype": "Link",
-   "hidden": 1,
-   "label": "Owner",
-   "options": "User"
   },
   {
    "fieldname": "section_break_4",
@@ -61,12 +52,12 @@
    "fieldname": "response_html",
    "fieldtype": "Code",
    "label": "Response ",
-   "options": "HTML"
+   "options": "Jinja"
   }
  ],
  "icon": "fa fa-comment",
  "links": [],
- "modified": "2023-01-02 03:56:48.437280",
+ "modified": "2023-12-12 20:01:07.080625",
  "modified_by": "Administrator",
  "module": "Email",
  "name": "Email Template",

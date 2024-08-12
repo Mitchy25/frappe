@@ -1,4 +1,5 @@
 {
+ "actions": [],
  "allow_rename": 1,
  "autoname": "field:letter_head_name",
  "creation": "2012-11-22 17:45:46",
@@ -14,6 +15,9 @@
   "is_default",
   "letter_head_image_section",
   "image",
+  "image_height",
+  "image_width",
+  "align",
   "header_section",
   "content",
   "footer_section",
@@ -22,7 +26,11 @@
   "footer_image",
   "footer_image_height",
   "footer_image_width",
-  "footer_align"
+  "footer_align",
+  "scripts_section",
+  "header_script",
+  "footer_script",
+  "instructions"
  ],
  "fields": [
   {
@@ -105,7 +113,7 @@
    "description": "Footer will display correctly only in PDF",
    "fieldname": "footer",
    "fieldtype": "HTML Editor",
-   "label": "Footer HTML"
+   "label": "Footer HTML (visible only in PDF)"
   },
   {
    "default": "Left",
@@ -158,15 +166,45 @@
    "fieldtype": "Select",
    "label": "Footer Based On",
    "options": "Image\nHTML"
+  },
+  {
+   "depends_on": "eval:!doc.__islocal && doc.source==='HTML'",
+   "fieldname": "header_script",
+   "fieldtype": "Code",
+   "label": "Header Script",
+   "options": "Javascript"
+  },
+  {
+   "depends_on": "eval:!doc.__islocal && doc.footer_source==='HTML'",
+   "fieldname": "footer_script",
+   "fieldtype": "Code",
+   "label": "Footer Script",
+   "options": "Javascript"
+  },
+  {
+   "collapsible": 1,
+   "collapsible_depends_on": "eval: doc.header_script || doc.footer_script",
+   "fieldname": "scripts_section",
+   "fieldtype": "Section Break",
+   "label": "Scripts"
+  },
+  {
+   "fieldname": "instructions",
+   "fieldtype": "HTML",
+   "label": "Instructions",
+   "read_only": 1
   }
  ],
  "icon": "fa fa-font",
  "idx": 1,
+ "links": [],
+ "make_attachments_public": 1,
  "max_attachments": 3,
- "modified": "2022-06-16 23:10:46.852116",
+ "modified": "2024-04-12 10:30:25.793932",
  "modified_by": "Administrator",
  "module": "Printing",
  "name": "Letter Head",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {

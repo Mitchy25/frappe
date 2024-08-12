@@ -29,13 +29,14 @@ frappe.ready(function() {
 			message: message,
 			callback: function(r) {
 				if (!r.exc) {
-					frappe.msgprint('{{ _("Thank you for your message") }}');
+					frappe.msgprint('{{ _("Thank you for your message") }}', '{{ _("Message Sent") }}');
 				}
 				$(':input').val('');
-			},
+			}
 		}, this);
 		return false;
 	});
+
 });
 
 var msgprint = function(txt) {

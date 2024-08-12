@@ -1,12 +1,11 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2020, Frappe Technologies and contributors
-# For license information, please see license.txt
+# License: MIT. See LICENSE
 
-from __future__ import unicode_literals
-
-# import frappe
+import frappe
 from frappe.model.document import Document
 
 
 class ConsoleLog(Document):
-	pass
+	def after_delete(self):
+		# because on_trash can be bypassed
+		frappe.throw(frappe._("Console Logs can not be deleted"))

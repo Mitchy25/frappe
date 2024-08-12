@@ -1,8 +1,5 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2020, Frappe Technologies Pvt. Ltd. and Contributors
-# MIT License. See license.txt
-
-from __future__ import unicode_literals
+# License: MIT. See LICENSE
 
 import json
 import os
@@ -13,6 +10,7 @@ from datetime import datetime
 import rq
 
 import frappe
+from frappe.utils.data import cint
 
 MONITOR_REDIS_KEY = "monitor-transactions"
 MONITOR_MAX_ENTRIES = 1000000
@@ -35,11 +33,19 @@ def add_data_to_monitor(**kwargs) -> None:
 		frappe.local.monitor.add_custom_data(**kwargs)
 
 
+def get_trace_id() -> str | None:
+	"""Get unique ID for current transaction."""
+	if monitor := getattr(frappe.local, "monitor", None):
+		return monitor.data.uuid
+
+
 def log_file():
 	return os.path.join(frappe.utils.get_bench_path(), "logs", "monitor.json.log")
 
 
 class Monitor:
+	__slots__ = ("data",)
+
 	def __init__(self, transaction_type, method, kwargs):
 		try:
 			self.data = frappe._dict(
@@ -107,10 +113,10 @@ class Monitor:
 			traceback.print_exc()
 
 	def store(self):
-		if frappe.cache().llen(MONITOR_REDIS_KEY) > MONITOR_MAX_ENTRIES:
-			frappe.cache().ltrim(MONITOR_REDIS_KEY, 1, -1)
 		serialized = json.dumps(self.data, sort_keys=True, default=str, separators=(",", ":"))
-		frappe.cache().rpush(MONITOR_REDIS_KEY, serialized)
+		length = frappe.cache().rpush(MONITOR_REDIS_KEY, serialized)
+		if cint(length) > MONITOR_MAX_ENTRIES:
+			frappe.cache().ltrim(MONITOR_REDIS_KEY, 1, -1)
 
 
 def flush():
