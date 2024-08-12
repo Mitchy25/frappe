@@ -277,14 +277,23 @@ def build_batch_content(filters, txt, res):
 		filters = json.loads(filters)
 
 	item_filter = ""
-	if filters and "item_code" in filters.keys():
-		item_filter = f"""batch.item = "{filters["item_code"]}" AND"""
-	elif filters and "item" in filters.keys():
-		item_filter = f"""batch.item = "{filters["item"]}" AND"""
-	
+
+	if filters:
+		if "item_code" in filters:
+			item_filter += f'batch.item = "{filters["item_code"]}" AND '
+		elif "item" in filters:
+			item_filter += f'batch.item = "{filters["item"]}" AND '
+
+		if "expiry_date" in filters:
+			item_filter += f"batch.expiry_date = '{filters['expiry_date']}' AND "
+
+		if "batch_qty" in filters:
+			qty = filters['batch_qty']
+			item_filter += "batch_qty = 0 AND " if not qty else "batch_qty > 0 AND "
+
 	res = frappe.db.sql(f"""
 	SELECT 
-		batch.name as "name",  batch.expiry_date, batch.batch_qty, item.shortdated_timeframe_in_months
+		batch.name as "name", batch.expiry_date, batch.batch_qty, item.shortdated_timeframe_in_months
 	FROM
 		`tabBatch` batch
 	JOIN
