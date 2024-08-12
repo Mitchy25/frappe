@@ -42,8 +42,9 @@ def get_pdf(html, options=None, output=None, meta={}):
 		options.update({"disable-smart-shrinking": ""})
 
 	try:
+		#TODO: Breaking Here
 		# Set filename property to false, so no file is actually created
-		filedata = pdfkit.from_string(html, False, options=options or {})
+		filedata = pdfkit.from_string(html, None, options=options or {})
 
 		# https://pythonhosted.org/PyPDF2/PdfFileReader.html
 		# create in-memory binary streams from filedata and create a PdfFileReader object
@@ -113,11 +114,11 @@ def prepare_options(html, options):
 		}
 	)
 
-	if not options.get("margin-right"):
-		options["margin-right"] = "15mm"
+	# if not options.get("margin-right"):
+	# 	options["margin-right"] = "15mm"
 
-	if not options.get("margin-left"):
-		options["margin-left"] = "15mm"
+	# if not options.get("margin-left"):
+	# 	options["margin-left"] = "15mm"
 
 	html, html_options = read_options_from_html(html)
 	options.update(html_options or {})
