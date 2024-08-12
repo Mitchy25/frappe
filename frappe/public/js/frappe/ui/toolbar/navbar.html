@@ -97,6 +97,9 @@
 								{% if (item.route) { %}
 									<a class="dropdown-item" href="{{ item.route }}">
 										{%= __(item.item_label) %}
+										{% if (item.svg) %}
+											{ item.svg }}
+										{% endif %}
 									</a>
 								{% } else if (item.action) { %}
 									<a class="dropdown-item" onclick="return {{ item.action }}">
