@@ -1,8 +1,12 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2019, Frappe Technologies and Contributors
-# License: MIT. See LICENSE
+# See license.txt
 
 import base64
 import os
+
+# imports - standard imports
+import unittest
 
 # imports - third party imports
 import requests
@@ -12,13 +16,10 @@ import frappe
 from frappe.core.doctype.access_log.access_log import make_access_log
 from frappe.core.doctype.data_import.data_import import export_csv
 from frappe.core.doctype.user.user import generate_keys
-
-# imports - standard imports
-from frappe.tests.utils import FrappeTestCase
 from frappe.utils import cstr, get_site_url
 
 
-class TestAccessLog(FrappeTestCase):
+class TestAccessLog(unittest.TestCase):
 	def setUp(self):
 		# generate keys for current user to send requests for the following tests
 		generate_keys(frappe.session.user)
@@ -27,7 +28,7 @@ class TestAccessLog(FrappeTestCase):
 			"User", frappe.session.user, fieldname="api_secret"
 		)
 		api_key = frappe.db.get_value("User", "Administrator", "api_key")
-		self.header = {"Authorization": f"token {api_key}:{generated_secret}"}
+		self.header = {"Authorization": "token {}:{}".format(api_key, generated_secret)}
 
 		self.test_html_template = """
 			<!DOCTYPE html>

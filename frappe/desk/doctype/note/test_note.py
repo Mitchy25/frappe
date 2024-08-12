@@ -1,19 +1,24 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors and Contributors
-# License: MIT. See LICENSE
+# See license.txt
+
+from __future__ import unicode_literals
+
+import unittest
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
 
 test_records = frappe.get_test_records("Note")
 
 
-class TestNote(FrappeTestCase):
+class TestNote(unittest.TestCase):
 	def insert_note(self):
-		frappe.db.delete("Version")
-		frappe.db.delete("Note")
-		frappe.db.delete("Note Seen By")
+		frappe.db.sql("delete from tabVersion")
+		frappe.db.sql("delete from tabNote")
+		frappe.db.sql("delete from `tabNote Seen By`")
 
-		return frappe.get_doc(dict(doctype="Note", title="test note", content="test note content")).insert()
+		return frappe.get_doc(
+			dict(doctype="Note", title="test note", content="test note content")
+		).insert()
 
 	def test_version(self):
 		note = self.insert_note()

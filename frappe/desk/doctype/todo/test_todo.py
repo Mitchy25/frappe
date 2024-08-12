@@ -1,21 +1,25 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# See license.txt
+from __future__ import unicode_literals
+
+import unittest
+
 import frappe
 from frappe.core.doctype.doctype.doctype import clear_permissions_cache
 from frappe.model.db_query import DatabaseQuery
 from frappe.permissions import add_permission, reset_perms
-from frappe.tests.utils import FrappeTestCase
 
 test_dependencies = ["User"]
 
 
-class TestToDo(FrappeTestCase):
+class TestToDo(unittest.TestCase):
 	def test_delete(self):
 		todo = frappe.get_doc(
 			dict(doctype="ToDo", description="test todo", assigned_by="Administrator")
 		).insert()
 
-		frappe.db.delete("Deleted Document")
+		frappe.db.sql("delete from `tabDeleted Document`")
 		todo.delete()
 
 		deleted = frappe.get_doc(
@@ -32,7 +36,7 @@ class TestToDo(FrappeTestCase):
 		)
 
 	def test_fetch_setup(self):
-		frappe.db.delete("ToDo")
+		frappe.db.sql("delete from tabToDo")
 
 		todo_meta = frappe.get_doc("DocType", "ToDo")
 		todo_meta.get("fields", dict(fieldname="assigned_by_full_name"))[0].fetch_from = ""
@@ -113,39 +117,41 @@ class TestToDo(FrappeTestCase):
 		clear_permissions_cache("ToDo")
 		frappe.db.rollback()
 
-	def test_fetch_if_empty(self):
-		frappe.db.delete("ToDo")
 
-		# Allow user changes
-		todo_meta = frappe.get_doc("DocType", "ToDo")
-		field = todo_meta.get("fields", dict(fieldname="assigned_by_full_name"))[0]
-		field.fetch_from = "assigned_by.full_name"
-		field.fetch_if_empty = 1
-		todo_meta.save()
+def test_fetch_if_empty(self):
+	frappe.db.sql("delete from tabToDo")
 
-		frappe.clear_cache(doctype="ToDo")
+	# Allow user changes
+	todo_meta = frappe.get_doc("DocType", "ToDo")
+	field = todo_meta.get("fields", dict(fieldname="assigned_by_full_name"))[0]
+	field.fetch_from = "assigned_by.full_name"
+	field.fetch_if_empty = 1
+	todo_meta.save()
 
-		todo = frappe.get_doc(
-			dict(
-				doctype="ToDo",
-				description="test todo",
-				assigned_by="Administrator",
-				assigned_by_full_name="Admin",
-			)
-		).insert()
+	frappe.clear_cache(doctype="ToDo")
 
-		self.assertEqual(todo.assigned_by_full_name, "Admin")
-
-		# Overwrite user changes
-		todo.meta.get("fields", dict(fieldname="assigned_by_full_name"))[0].fetch_if_empty = 0
-		todo.meta.save()
-
-		todo.reload()
-		todo.save()
-
-		self.assertEqual(
-			todo.assigned_by_full_name, frappe.db.get_value("User", todo.assigned_by, "full_name")
+	todo = frappe.get_doc(
+		dict(
+			doctype="ToDo",
+			description="test todo",
+			assigned_by="Administrator",
+			assigned_by_full_name="Admin",
 		)
+	).insert()
+
+	self.assertEqual(todo.assigned_by_full_name, "Admin")
+
+	# Overwrite user changes
+	todo_meta = frappe.get_doc("DocType", "ToDo")
+	todo_meta.get("fields", dict(fieldname="assigned_by_full_name"))[0].fetch_if_empty = 0
+	todo_meta.save()
+
+	todo.reload()
+	todo.save()
+
+	self.assertEqual(
+		todo.assigned_by_full_name, frappe.db.get_value("User", todo.assigned_by, "full_name")
+	)
 
 
 def create_new_todo(description, assigned_by):

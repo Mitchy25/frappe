@@ -1,5 +1,8 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2015, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# For license information, please see license.txt
+
+from __future__ import unicode_literals
 
 import json
 
@@ -12,14 +15,6 @@ from frappe.model.workflow import get_workflow_name
 
 class DeletedDocument(Document):
 	pass
-
-	@staticmethod
-	def clear_old_logs(days=180):
-		from frappe.query_builder import Interval
-		from frappe.query_builder.functions import Now
-
-		table = frappe.qb.DocType("Deleted Document")
-		frappe.db.delete(table, filters=(table.modified < (Now() - Interval(days=days))))
 
 
 @frappe.whitelist()

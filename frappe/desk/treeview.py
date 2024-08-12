@@ -1,5 +1,7 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+
+from __future__ import unicode_literals
 
 import frappe
 from frappe import _
@@ -15,7 +17,7 @@ def get_all_nodes(doctype, label, parent, tree_method, **filters):
 
 	tree_method = frappe.get_attr(tree_method)
 
-	if tree_method not in frappe.whitelisted:
+	if not tree_method in frappe.whitelisted:
 		frappe.throw(_("Not Permitted"), frappe.PermissionError)
 
 	data = tree_method(doctype, parent, **filters)
@@ -42,8 +44,8 @@ def get_children(doctype, parent="", **filters):
 
 
 def _get_children(doctype, parent="", ignore_permissions=False):
-	parent_field = "parent_" + frappe.scrub(doctype)
-	filters = [[f"ifnull(`{parent_field}`,'')", "=", parent], ["docstatus", "<", 2]]
+	parent_field = "parent_" + doctype.lower().replace(" ", "_")
+	filters = [['ifnull(`{0}`,"")'.format(parent_field), "=", parent], ["docstatus", "<", "2"]]
 
 	meta = frappe.get_meta(doctype)
 
@@ -51,7 +53,7 @@ def _get_children(doctype, parent="", ignore_permissions=False):
 		doctype,
 		fields=[
 			"name as value",
-			"{} as title".format(meta.get("title_field") or "name"),
+			"{0} as title".format(meta.get("title_field") or "name"),
 			"is_group as expandable",
 		],
 		filters=filters,
@@ -72,7 +74,7 @@ def make_tree_args(**kwarg):
 	kwarg.pop("cmd", None)
 
 	doctype = kwarg["doctype"]
-	parent_field = "parent_" + frappe.scrub(doctype)
+	parent_field = "parent_" + doctype.lower().replace(" ", "_")
 
 	if kwarg["is_root"] == "false":
 		kwarg["is_root"] = False

@@ -1,39 +1,36 @@
-# Copyright (c) 2022, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# -*- coding: utf-8 -*-
+# Copyright (c) 2019, Frappe Technologies and contributors
+# For license information, please see license.txt
 
-from collections.abc import Iterable
+from __future__ import unicode_literals
 
 import frappe
+import frappe.cache_manager
 from frappe import _
-from frappe.cache_manager import clear_doctype_map, get_doctype_map
 from frappe.desk.form import assign_to
 from frappe.model import log_types
 from frappe.model.document import Document
-from frappe.utils.data import comma_and
 
 
 class AssignmentRule(Document):
 	def validate(self):
-		self.validate_document_types()
-		self.validate_assignment_days()
-
-	def clear_cache(self):
-		super().clear_cache()
-		clear_doctype_map(self.doctype, self.document_type)
-		clear_doctype_map(self.doctype, f"due_date_rules_for_{self.document_type}")
-
-	def validate_document_types(self):
-		if self.document_type == "ToDo":
-			frappe.throw(_("Assignment Rule is not allowed on {0} document type").format(frappe.bold("ToDo")))
-
-	def validate_assignment_days(self):
 		assignment_days = self.get_assignment_days()
-		if len(set(assignment_days)) != len(assignment_days):
+		if not len(set(assignment_days)) == len(assignment_days):
+			repeated_days = get_repeated(assignment_days)
+			frappe.throw(_("Assignment Day {0} has been repeated.").format(frappe.bold(repeated_days)))
+		if self.document_type == "ToDo":
 			frappe.throw(
-				_("The following Assignment Days have been repeated: {0}").format(
-					comma_and([_(day) for day in get_repeated(assignment_days)], add_quotes=False)
-				)
+				_("Assignment Rule is not allowed on {0} document type").format(frappe.bold("ToDo"))
 			)
+
+	def on_update(self):
+		clear_assignment_rule_cache(self)
+
+	def after_rename(self, old, new, merge):
+		clear_assignment_rule_cache(self)
+
+	def on_trash(self):
+		clear_assignment_rule_cache(self)
 
 	def apply_unassign(self, doc, assignments):
 		if self.unassign_condition and self.name in [d.assignment_rule for d in assignments]:
@@ -47,7 +44,7 @@ class AssignmentRule(Document):
 
 	def do_assignment(self, doc):
 		# clear existing assignment, to reassign
-		assign_to.clear(doc.get("doctype"), doc.get("name"), ignore_permissions=True)
+		assign_to.clear(doc.get("doctype"), doc.get("name"))
 
 		user = self.get_user(doc)
 
@@ -61,8 +58,7 @@ class AssignmentRule(Document):
 					assignment_rule=self.name,
 					notify=True,
 					date=doc.get(self.due_date_based_on) if self.due_date_based_on else None,
-				),
-				ignore_permissions=True,
+				)
 			)
 
 			# set for reference in round robin
@@ -74,14 +70,12 @@ class AssignmentRule(Document):
 	def clear_assignment(self, doc):
 		"""Clear assignments"""
 		if self.safe_eval("unassign_condition", doc):
-			return assign_to.clear(doc.get("doctype"), doc.get("name"), ignore_permissions=True)
+			return assign_to.clear(doc.get("doctype"), doc.get("name"))
 
 	def close_assignments(self, doc):
 		"""Close assignments"""
 		if self.safe_eval("close_condition", doc):
-			return assign_to.close_all_assignments(
-				doc.get("doctype"), doc.get("name"), ignore_permissions=True
-			)
+			return assign_to.close_all_assignments(doc.get("doctype"), doc.get("name"))
 
 	def get_user(self, doc):
 		"""
@@ -119,7 +113,7 @@ class AssignmentRule(Document):
 				dict(
 					user=d.user,
 					count=frappe.db.count(
-						"ToDo", dict(reference_type=self.document_type, allocated_to=d.user, status="Open")
+						"ToDo", dict(reference_type=self.document_type, owner=d.user, status="Open")
 					),
 				)
 			)
@@ -152,10 +146,13 @@ class AssignmentRule(Document):
 	def is_rule_not_applicable_today(self):
 		today = frappe.flags.assignment_day or frappe.utils.get_weekday()
 		assignment_days = self.get_assignment_days()
-		return assignment_days and today not in assignment_days
+		if assignment_days and not today in assignment_days:
+			return True
+
+		return False
 
 
-def get_assignments(doc) -> list[dict]:
+def get_assignments(doc):
 	return frappe.get_all(
 		"ToDo",
 		fields=["name", "assignment_rule"],
@@ -168,9 +165,11 @@ def get_assignments(doc) -> list[dict]:
 
 @frappe.whitelist()
 def bulk_apply(doctype, docnames):
-	docnames = frappe.parse_json(docnames)
-	background = len(docnames) > 5
+	import json
 
+	docnames = json.loads(docnames)
+
+	background = len(docnames) > 5
 	for name in docnames:
 		if background:
 			frappe.enqueue(
@@ -180,56 +179,49 @@ def bulk_apply(doctype, docnames):
 				name=name,
 			)
 		else:
-			apply(doctype=doctype, name=name)
-
+			apply(None, doctype=doctype, name=name)
 
 
 def reopen_closed_assignment(doc):
-	todo_list = frappe.get_all(
-		"ToDo",
-		filters={
-			"reference_type": doc.doctype,
-			"reference_name": doc.name,
-			"status": "Closed",
-		},
-		pluck="name",
+	todo_list = frappe.db.get_all(
+		"ToDo", filters=dict(reference_type=doc.doctype, reference_name=doc.name, status="Closed")
 	)
-
+	if not todo_list:
+		return False
 	for todo in todo_list:
-		todo_doc = frappe.get_doc("ToDo", todo)
+		todo_doc = frappe.get_doc("ToDo", todo.name)
 		todo_doc.status = "Open"
 		todo_doc.save(ignore_permissions=True)
+	return True
 
-	return bool(todo_list)
 
+def apply(doc, method=None, doctype=None, name=None):
+	if not doctype:
+		doctype = doc.doctype
 
-def apply(doc=None, method=None, doctype=None, name=None):
-	doctype = doctype or doc.doctype
-
-	skip_assignment_rules = (
+	if (
 		frappe.flags.in_patch
 		or frappe.flags.in_install
 		or frappe.flags.in_setup_wizard
 		or doctype in log_types
-	)
-
-	if skip_assignment_rules:
+	):
 		return
 
 	if not doc and doctype and name:
 		doc = frappe.get_doc(doctype, name)
 
-	assignment_rules = get_doctype_map(
+	assignment_rules = frappe.cache_manager.get_doctype_map(
 		"Assignment Rule",
 		doc.doctype,
-		filters={"document_type": doc.doctype, "disabled": 0},
+		dict(document_type=doc.doctype, disabled=0),
 		order_by="priority desc",
 	)
 
+	assignment_rule_docs = []
+
 	# multiple auto assigns
-	assignment_rule_docs: list[AssignmentRule] = [
-		frappe.get_cached_doc("Assignment Rule", d.get("name")) for d in assignment_rules
-	]
+	for d in assignment_rules:
+		assignment_rule_docs.append(frappe.get_cached_doc("Assignment Rule", d.get("name")))
 
 	if not assignment_rule_docs:
 		return
@@ -265,7 +257,6 @@ def apply(doc=None, method=None, doctype=None, name=None):
 
 	# apply close rule only if assignments exists
 	assignments = get_assignments(doc)
-
 	if assignments:
 		for assignment_rule in assignment_rule_docs:
 			if assignment_rule.is_rule_not_applicable_today():
@@ -273,77 +264,47 @@ def apply(doc=None, method=None, doctype=None, name=None):
 
 			if not new_apply:
 				# only reopen if close condition is not satisfied
-				to_close_todos = assignment_rule.safe_eval("close_condition", doc)
-
-				if to_close_todos:
-					# close todo status
-					todos_to_close = frappe.get_all(
-						"ToDo",
-						filters={
-							"reference_type": doc.doctype,
-							"reference_name": doc.name,
-						},
-						pluck="name",
-					)
-
-					for todo in todos_to_close:
-						_todo = frappe.get_doc("ToDo", todo)
-						_todo.status = "Closed"
-						_todo.save(ignore_permissions=True)
-					break
-
-				else:
-					reopened = reopen_closed_assignment(doc)
-					if reopened:
+				if not assignment_rule.safe_eval("close_condition", doc):
+					reopen = reopen_closed_assignment(doc)
+					if reopen:
 						break
-
 			assignment_rule.close_assignments(doc)
 
 
 def update_due_date(doc, state=None):
-	"""Run on_update on every Document (via hooks.py)"""
-	skip_document_update = (
-		frappe.flags.in_migrate
-		or frappe.flags.in_patch
+	# called from hook
+	if (
+		frappe.flags.in_patch
+		or frappe.flags.in_install
+		or frappe.flags.in_migrate
 		or frappe.flags.in_import
 		or frappe.flags.in_setup_wizard
-		or frappe.flags.in_install
-	)
-
-	if skip_document_update:
+	):
 		return
-
-	assignment_rules = get_doctype_map(
-		doctype="Assignment Rule",
-		name=f"due_date_rules_for_{doc.doctype}",
-		filters={
-			"due_date_based_on": ["is", "set"],
-			"document_type": doc.doctype,
-			"disabled": 0,
-		},
+	assignment_rules = frappe.cache_manager.get_doctype_map(
+		"Assignment Rule",
+		"due_date_rules_for_" + doc.doctype,
+		dict(document_type=doc.doctype, disabled=0, due_date_based_on=["is", "set"]),
 	)
-
 	for rule in assignment_rules:
 		rule_doc = frappe.get_cached_doc("Assignment Rule", rule.get("name"))
 		due_date_field = rule_doc.due_date_based_on
-		field_updated = (
-			doc.meta.has_field(due_date_field) and doc.has_value_changed(due_date_field) and rule.get("name")
-		)
-
-		if field_updated:
+		if (
+			doc.meta.has_field(due_date_field)
+			and doc.has_value_changed(due_date_field)
+			and rule.get("name")
+		):
 			assignment_todos = frappe.get_all(
 				"ToDo",
-				filters={
+				{
 					"assignment_rule": rule.get("name"),
+					"status": "Open",
 					"reference_type": doc.doctype,
 					"reference_name": doc.name,
-					"status": "Open",
 				},
-				pluck="name",
 			)
-
 			for todo in assignment_todos:
-				todo_doc = frappe.get_doc("ToDo", todo)
+				todo_doc = frappe.get_doc("ToDo", todo.name)
 				todo_doc.date = doc.get(due_date_field)
 				todo_doc.flags.updater_reference = {
 					"doctype": "Assignment Rule",
@@ -353,18 +314,27 @@ def update_due_date(doc, state=None):
 				todo_doc.save(ignore_permissions=True)
 
 
-def get_assignment_rules() -> list[str]:
-	return frappe.get_all("Assignment Rule", filters={"disabled": 0}, pluck="document_type")
+def get_assignment_rules():
+	return [
+		d.document_type
+		for d in frappe.db.get_all("Assignment Rule", fields=["document_type"], filters=dict(disabled=0))
+	]
 
 
-def get_repeated(values: Iterable) -> list:
-	unique = set()
-	repeated = set()
-
+def get_repeated(values):
+	unique_list = []
+	diff = []
 	for value in values:
-		if value in unique:
-			repeated.add(value)
+		if value not in unique_list:
+			unique_list.append(str(value))
 		else:
-			unique.add(value)
+			if value not in diff:
+				diff.append(str(value))
+	return " ".join(diff)
 
-	return [str(x) for x in repeated]
+
+def clear_assignment_rule_cache(rule):
+	frappe.cache_manager.clear_doctype_map("Assignment Rule", rule.document_type)
+	frappe.cache_manager.clear_doctype_map(
+		"Assignment Rule", "due_date_rules_for_" + rule.document_type
+	)

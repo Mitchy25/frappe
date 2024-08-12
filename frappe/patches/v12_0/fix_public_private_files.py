@@ -2,7 +2,9 @@ import frappe
 
 
 def execute():
-	files = frappe.get_all("File", fields=["is_private", "file_url", "name"], filters={"is_folder": 0})
+	files = frappe.get_all(
+		"File", fields=["is_private", "file_url", "name"], filters={"is_folder": 0}
+	)
 
 	for file in files:
 		file_url = file.file_url or ""
@@ -28,7 +30,7 @@ def generate_file(file_name):
 
 		file_doc.file_url = new_doc.file_url
 		file_doc.save()
-	except OSError:
+	except IOError:
 		pass
 	except Exception as e:
 		print(e)

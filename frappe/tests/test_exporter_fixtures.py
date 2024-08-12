@@ -1,14 +1,16 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+from __future__ import unicode_literals
+
 import os
+import unittest
 
 import frappe
 import frappe.defaults
 from frappe.core.doctype.data_import.data_import import export_csv
-from frappe.tests.utils import FrappeTestCase
 
 
-class TestDataImportFixtures(FrappeTestCase):
+class TestDataImportFixtures(unittest.TestCase):
 	def setUp(self):
 		pass
 

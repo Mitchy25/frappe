@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 import frappe
 
 
@@ -22,7 +24,7 @@ def execute():
 		if communication.timeline_doctype and communication.timeline_name:
 			name += 1
 			values.append(
-				"""({}, "{}", "timeline_links", "Communication", "{}", "{}", "{}", "{}", "{}", "{}")""".format(
+				"""({0}, "{1}", "timeline_links", "Communication", "{2}", "{3}", "{4}", "{5}", "{6}", "{7}")""".format(
 					counter,
 					str(name),
 					frappe.db.escape(communication.name),
@@ -37,7 +39,7 @@ def execute():
 		if communication.link_doctype and communication.link_name:
 			name += 1
 			values.append(
-				"""({}, "{}", "timeline_links", "Communication", "{}", "{}", "{}", "{}", "{}", "{}")""".format(
+				"""({0}, "{1}", "timeline_links", "Communication", "{2}", "{3}", "{4}", "{5}", "{6}", "{7}")""".format(
 					counter,
 					str(name),
 					frappe.db.escape(communication.name),
@@ -55,8 +57,10 @@ def execute():
 				INSERT INTO `tabCommunication Link`
 					(`idx`, `name`, `parentfield`, `parenttype`, `parent`, `link_doctype`, `link_name`, `creation`,
 					`modified`, `modified_by`)
-				VALUES {}
-			""".format(", ".join([d for d in values]))
+				VALUES {0}
+			""".format(
+					", ".join([d for d in values])
+				)
 			)
 
 			values = []

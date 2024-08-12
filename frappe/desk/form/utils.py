@@ -1,58 +1,51 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+
+from __future__ import unicode_literals
 
 import json
-from typing import TYPE_CHECKING
+
+from six import string_types
 
 import frappe
 import frappe.desk.form.load
 import frappe.desk.form.meta
 from frappe import _
-from frappe.core.doctype.file.utils import extract_images_from_html
+from frappe.core.doctype.file.file import extract_images_from_html
 from frappe.desk.form.document_follow import follow_document
 
-if TYPE_CHECKING:
-	from frappe.core.doctype.comment.comment import Comment
 
-
-@frappe.whitelist(methods=["DELETE", "POST"])
+@frappe.whitelist()
 def remove_attach():
 	"""remove attachment"""
 	fid = frappe.form_dict.get("fid")
+	file_name = frappe.form_dict.get("file_name")
 	frappe.delete_doc("File", fid)
 
 
-@frappe.whitelist(methods=["POST", "PUT"])
-def add_comment(
-	reference_doctype: str, reference_name: str, content: str, comment_email: str, comment_by: str, notify_on_load: str = "0"
-) -> "Comment":
-	"""Allow logged user with permission to read document to add a comment"""
-	reference_doc = frappe.get_doc(reference_doctype, reference_name)
-	reference_doc.check_permission()
-
+@frappe.whitelist()
+def add_comment(reference_doctype, reference_name, content, comment_email, comment_by, notify_on_load=False):
+	"""allow any logged user to post a comment"""
 	if notify_on_load == "1":
 		notify_on_load = True
-
-	comment = frappe.new_doc("Comment")
-	comment.update(
-		{
-			"comment_type": "Comment",
-			"reference_doctype": reference_doctype,
-			"reference_name": reference_name,
-			"comment_email": comment_email,
-			"comment_by": comment_by,
-			"content": extract_images_from_html(reference_doc, content, is_private=True),
-			"notify_on_load": notify_on_load
-		}
+	
+	doc = frappe.get_doc(
+		dict(
+			doctype="Comment",
+			reference_doctype=reference_doctype,
+			reference_name=reference_name,
+			comment_email=comment_email,
+			comment_type="Comment",
+			comment_by=comment_by,
+			notify_on_load=notify_on_load
+		)
 	)
 	
-	comment.insert(ignore_permissions=True)
-
-	if frappe.get_cached_value("User", frappe.session.user, "follow_commented_documents"):
-		follow_document(comment.reference_doctype, comment.reference_name, frappe.session.user)
-
-	return comment
-
+	reference_doc = frappe.get_doc(reference_doctype, reference_name)
+	doc.content = extract_images_from_html(reference_doc, content, is_private=True)
+	doc.insert(ignore_permissions=True)
+	follow_document(doc.reference_doctype, doc.reference_name, frappe.session.user)
+	return doc.as_dict()
 
 
 @frappe.whitelist()
@@ -63,23 +56,17 @@ def update_comment(name, content):
 	if frappe.session.user not in ["Administrator", doc.owner]:
 		frappe.throw(_("Comment can only be edited by the owner"), frappe.PermissionError)
 
-	if doc.reference_doctype and doc.reference_name:
-		reference_doc = frappe.get_doc(doc.reference_doctype, doc.reference_name)
-		reference_doc.check_permission()
-
-		doc.content = extract_images_from_html(reference_doc, content, is_private=True)
-	else:
-		doc.content = content
-
+	doc.content = content
 	doc.save(ignore_permissions=True)
 
 
 @frappe.whitelist()
 def get_next(doctype, value, prev, filters=None, sort_order="desc", sort_field="modified"):
+
 	prev = int(prev)
 	if not filters:
 		filters = []
-	if isinstance(filters, str):
+	if isinstance(filters, string_types):
 		filters = json.loads(filters)
 
 	# # condition based on sort order
@@ -97,7 +84,7 @@ def get_next(doctype, value, prev, filters=None, sort_order="desc", sort_field="
 		doctype,
 		fields=["name"],
 		filters=filters,
-		order_by=f"`tab{doctype}`.{sort_field}" + " " + sort_order,
+		order_by="`tab{0}`.{1}".format(doctype, sort_field) + " " + sort_order,
 		limit_start=0,
 		limit_page_length=1,
 		as_list=True,
@@ -111,4 +98,6 @@ def get_next(doctype, value, prev, filters=None, sort_order="desc", sort_field="
 
 
 def get_pdf_link(doctype, docname, print_format="Standard", no_letterhead=0):
-	return f"/api/method/frappe.utils.print_format.download_pdf?doctype={doctype}&name={docname}&format={print_format}&no_letterhead={no_letterhead}"
+	return "/api/method/frappe.utils.print_format.download_pdf?doctype={doctype}&name={docname}&format={print_format}&no_letterhead={no_letterhead}".format(
+		doctype=doctype, docname=docname, print_format=print_format, no_letterhead=no_letterhead
+	)

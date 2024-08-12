@@ -1,6 +1,5 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
-
+# MIT License. See license.txt
 
 import frappe
 import frappe.defaults
@@ -12,7 +11,6 @@ from frappe.core.doctype.doctype.doctype import (
 from frappe.exceptions import DoesNotExistError
 from frappe.modules.import_file import get_file_path, read_doc_from_file
 from frappe.permissions import (
-	AUTOMATIC_ROLES,
 	add_permission,
 	get_all_perms,
 	get_linked_doctypes,
@@ -44,8 +42,10 @@ def get_roles_and_doctypes():
 	restricted_roles = ["Administrator"]
 	if frappe.session.user != "Administrator":
 		custom_user_type_roles = frappe.get_all("User Type", filters={"is_standard": 0}, fields=["role"])
-		restricted_roles.extend(row.role for row in custom_user_type_roles)
-		restricted_roles.extend(AUTOMATIC_ROLES)
+		for row in custom_user_type_roles:
+			restricted_roles.append(row.role)
+
+		restricted_roles.append("All")
 
 	roles = frappe.get_all(
 		"Role",
@@ -67,7 +67,7 @@ def get_roles_and_doctypes():
 
 
 @frappe.whitelist()
-def get_permissions(doctype: str | None = None, role: str | None = None):
+def get_permissions(doctype=None, role=None):
 	frappe.only_for("System Manager")
 
 	if role:
@@ -95,7 +95,8 @@ def get_permissions(doctype: str | None = None, role: str | None = None):
 				frappe.clear_last_message()
 				continue
 		d.linked_doctypes = linked_doctypes[d.parent]
-		if meta := frappe.get_meta(d.parent):
+		meta = frappe.get_meta(d.parent)
+		if meta:
 			d.is_submittable = meta.is_submittable
 			d.in_create = meta.in_create
 
@@ -109,43 +110,33 @@ def add(parent, role, permlevel):
 
 
 @frappe.whitelist()
-def update(doctype, role, permlevel, ptype, value=None, if_owner=0):
+def update(doctype, role, permlevel, ptype, value=None):
 	"""Update role permission params
 
 	Args:
-	        doctype (str): Name of the DocType to update params for
-	        role (str): Role to be updated for, eg "Website Manager".
-	        permlevel (int): perm level the provided rule applies to
-	        ptype (str): permission type, example "read", "delete", etc.
-	        value (None, optional): value for ptype, None indicates False
+	    doctype (str): Name of the DocType to update params for
+	    role (str): Role to be updated for, eg "Website Manager".
+	    permlevel (int): perm level the provided rule applies to
+	    ptype (str): permission type, example "read", "delete", etc.
+	    value (None, optional): value for ptype, None indicates False
 
 	Returns:
-	        str: Refresh flag is permission is updated successfully
+	    str: Refresh flag is permission is updated successfully
 	"""
 	frappe.only_for("System Manager")
-
-	if ptype == "report" and value == "1" and if_owner == "1":
-		frappe.throw(_("Cannot set 'Report' permission if 'Only If Creator' permission is set"))
-
-	out = update_permission_property(doctype, role, permlevel, ptype, value, if_owner=if_owner)
-
-	if ptype == "if_owner" and value == "1":
-		update_permission_property(doctype, role, permlevel, "report", "0", if_owner=value)
-
+	out = update_permission_property(doctype, role, permlevel, ptype, value)
 	return "refresh" if out else None
 
 
 @frappe.whitelist()
-def remove(doctype, role, permlevel, if_owner=0):
+def remove(doctype, role, permlevel):
 	frappe.only_for("System Manager")
 	setup_custom_perms(doctype)
 
-	frappe.db.delete(
-		"Custom DocPerm",
-		{"parent": doctype, "role": role, "permlevel": permlevel, "if_owner": if_owner},
-	)
+	name = frappe.get_value("Custom DocPerm", dict(parent=doctype, role=role, permlevel=permlevel))
 
-	if not frappe.get_all("Custom DocPerm", {"parent": doctype}):
+	frappe.db.sql("delete from `tabCustom DocPerm` where name=%s", name)
+	if not frappe.get_all("Custom DocPerm", dict(parent=doctype)):
 		frappe.throw(_("There must be atleast one permission rule."), title=_("Cannot Remove"))
 
 	validate_permissions_for_doctype(doctype, for_remove=True, alert=True)

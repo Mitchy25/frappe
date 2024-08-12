@@ -1,5 +1,7 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+
+from __future__ import unicode_literals
 
 """Allow adding of likes to documents"""
 
@@ -45,8 +47,7 @@ def _toggle_like(doctype, name, add, user=None):
 			if user not in liked_by:
 				liked_by.append(user)
 				add_comment(doctype, name)
-				if frappe.get_cached_value("User", user, "follow_liked_documents"):
-					follow_document(doctype, name, user)
+				follow_document(doctype, name, user)
 		else:
 			if user in liked_by:
 				liked_by.remove(user)
@@ -85,4 +86,20 @@ def remove_like(doctype, name):
 
 def add_comment(doctype, name):
 	doc = frappe.get_doc(doctype, name)
-	doc.add_comment("Like", _("Liked"))
+
+	if doctype == "Communication" and doc.reference_doctype and doc.reference_name:
+		link = get_link_to_form(
+			doc.reference_doctype,
+			doc.reference_name,
+			"{0} {1}".format(_(doc.reference_doctype), doc.reference_name),
+		)
+
+		doc.add_comment(
+			"Like",
+			_("{0}: {1} in {2}").format(_(doc.communication_type), "<b>" + doc.subject + "</b>", link),
+			link_doctype=doc.reference_doctype,
+			link_name=doc.reference_name,
+		)
+
+	else:
+		doc.add_comment("Like", _("Liked"))

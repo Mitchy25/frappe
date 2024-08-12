@@ -1,5 +1,8 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2020, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# For license information, please see license.txt
+
+from __future__ import unicode_literals
 
 import json
 
@@ -27,7 +30,7 @@ def get_permission_query_conditions(user):
 	if not user:
 		user = frappe.session.user
 
-	return f"""(`tabDashboard Settings`.name = {frappe.db.escape(user)})"""
+	return """(`tabDashboard Settings`.name = {user})""".format(user=frappe.db.escape(user))
 
 
 @frappe.whitelist()
@@ -40,8 +43,10 @@ def save_chart_config(reset, config, chart_name):
 		chart_config[chart_name] = {}
 	else:
 		config = frappe.parse_json(config)
-		if chart_name not in chart_config:
+		if not chart_name in chart_config:
 			chart_config[chart_name] = {}
 		chart_config[chart_name].update(config)
 
-	frappe.db.set_value("Dashboard Settings", frappe.session.user, "chart_config", json.dumps(chart_config))
+	frappe.db.set_value(
+		"Dashboard Settings", frappe.session.user, "chart_config", json.dumps(chart_config)
+	)

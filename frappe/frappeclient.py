@@ -1,11 +1,15 @@
 """
 FrappeClient is a library that helps you connect with other frappe systems
 """
+from __future__ import print_function, unicode_literals
+
 import base64
 import json
 
+import requests
+from six import iteritems, string_types
+
 import frappe
-from frappe.utils.data import cstr
 
 
 class AuthError(Exception):
@@ -24,7 +28,7 @@ class FrappeException(Exception):
 	pass
 
 
-class FrappeClient:
+class FrappeClient(object):
 	def __init__(
 		self,
 		url,
@@ -35,8 +39,6 @@ class FrappeClient:
 		api_secret=None,
 		frappe_authorization_source=None,
 	):
-		import requests
-
 		self.headers = {
 			"Accept": "application/json",
 			"content-type": "application/x-www-form-urlencoded",
@@ -85,9 +87,11 @@ class FrappeClient:
 
 	def setup_key_authentication_headers(self):
 		if self.api_key and self.api_secret:
-			token = base64.b64encode((f"{self.api_key}:{self.api_secret}").encode()).decode("utf-8")
+			token = base64.b64encode(
+				("{}:{}".format(self.api_key, self.api_secret)).encode("utf-8")
+			).decode("utf-8")
 			auth_header = {
-				"Authorization": f"Basic {token}",
+				"Authorization": "Basic {}".format(token),
 			}
 			self.headers.update(auth_header)
 
@@ -106,9 +110,11 @@ class FrappeClient:
 			headers=self.headers,
 		)
 
-	def get_list(self, doctype, fields='["name"]', filters=None, limit_start=0, limit_page_length=None):
+	def get_list(
+		self, doctype, fields='["name"]', filters=None, limit_start=0, limit_page_length=None
+	):
 		"""Returns list of records of a particular type"""
-		if not isinstance(fields, str):
+		if not isinstance(fields, string_types):
 			fields = json.dumps(fields)
 		params = {
 			"fields": fields,
@@ -145,7 +151,7 @@ class FrappeClient:
 		"""Update a remote document
 
 		:param doc: dict or Document object to be updated remotely. `name` is mandatory for this"""
-		url = self.url + "/api/resource/" + doc.get("doctype") + "/" + cstr(doc.get("name"))
+		url = self.url + "/api/resource/" + doc.get("doctype") + "/" + doc.get("name")
 		res = self.session.put(
 			url, data={"data": frappe.as_json(doc)}, verify=self.verify, headers=self.headers
 		)
@@ -223,7 +229,7 @@ class FrappeClient:
 			params["fields"] = json.dumps(fields)
 
 		res = self.session.get(
-			self.url + "/api/resource/" + doctype + "/" + cstr(name),
+			self.url + "/api/resource/" + doctype + "/" + name,
 			params=params,
 			verify=self.verify,
 			headers=self.headers,
@@ -245,7 +251,9 @@ class FrappeClient:
 		}
 		return self.post_request(params)
 
-	def migrate_doctype(self, doctype, filters=None, update=None, verbose=1, exclude=None, preprocess=None):
+	def migrate_doctype(
+		self, doctype, filters=None, update=None, verbose=1, exclude=None, preprocess=None
+	):
 		"""Migrate records from another doctype"""
 		meta = frappe.get_meta(doctype)
 		tables = {}
@@ -262,7 +270,7 @@ class FrappeClient:
 		# build - attach children to parents
 		if tables:
 			docs = [frappe._dict(doc) for doc in docs]
-			docs_map = {doc.name: doc for doc in docs}
+			docs_map = dict((doc.name, doc) for doc in docs)
 
 			for fieldname in tables:
 				for child in tables[fieldname]:
@@ -284,11 +292,7 @@ class FrappeClient:
 
 			if doctype != "User" and not frappe.db.exists("User", doc.get("owner")):
 				frappe.get_doc(
-					{
-						"doctype": "User",
-						"email": doc.get("owner"),
-						"first_name": doc.get("owner").split("@", 1)[0],
-					}
+					{"doctype": "User", "email": doc.get("owner"), "first_name": doc.get("owner").split("@")[0]}
 				).insert()
 
 			if update:
@@ -327,7 +331,10 @@ class FrappeClient:
 		if params is None:
 			params = {}
 		res = self.session.get(
-			f"{self.url}/api/method/{method}", params=params, verify=self.verify, headers=self.headers
+			"{0}/api/method/{1}".format(self.url, method),
+			params=params,
+			verify=self.verify,
+			headers=self.headers,
 		)
 		return self.post_process(res)
 
@@ -335,7 +342,10 @@ class FrappeClient:
 		if params is None:
 			params = {}
 		res = self.session.post(
-			f"{self.url}/api/method/{method}", params=params, verify=self.verify, headers=self.headers
+			"{0}/api/method/{1}".format(self.url, method),
+			params=params,
+			verify=self.verify,
+			headers=self.headers,
 		)
 		return self.post_process(res)
 
@@ -355,8 +365,8 @@ class FrappeClient:
 
 	def preprocess(self, params):
 		"""convert dicts, lists to json"""
-		for key, value in params.items():
-			if isinstance(value, dict | list):
+		for key, value in iteritems(params):
+			if isinstance(value, (dict, list)):
 				params[key] = json.dumps(value)
 
 		return params
@@ -386,13 +396,42 @@ class FrappeClient:
 
 class FrappeOAuth2Client(FrappeClient):
 	def __init__(self, url, access_token, verify=True):
-		import requests
-
 		self.access_token = access_token
 		self.headers = {
 			"Authorization": "Bearer " + access_token,
 			"content-type": "application/x-www-form-urlencoded",
 		}
 		self.verify = verify
-		self.session = requests.session()
+		self.session = OAuth2Session(self.headers)
 		self.url = url
+
+	def get_request(self, params):
+		res = requests.get(
+			self.url, params=self.preprocess(params), headers=self.headers, verify=self.verify
+		)
+		res = self.post_process(res)
+		return res
+
+	def post_request(self, data):
+		res = requests.post(
+			self.url, data=self.preprocess(data), headers=self.headers, verify=self.verify
+		)
+		res = self.post_process(res)
+		return res
+
+
+class OAuth2Session:
+	def __init__(self, headers):
+		self.headers = headers
+
+	def get(self, url, params, verify):
+		res = requests.get(url, params=params, headers=self.headers, verify=verify)
+		return res
+
+	def post(self, url, data, verify):
+		res = requests.post(url, data=data, headers=self.headers, verify=verify)
+		return res
+
+	def put(self, url, data, verify):
+		res = requests.put(url, data=data, headers=self.headers, verify=verify)
+		return res

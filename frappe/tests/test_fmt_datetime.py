@@ -1,9 +1,11 @@
 # Copyright (c) 2019, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+from __future__ import unicode_literals
+
 import datetime
+import unittest
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
 from frappe.utils import (
 	format_datetime,
 	format_time,
@@ -33,7 +35,7 @@ test_time_formats = {
 }
 
 
-class TestFmtDatetime(FrappeTestCase):
+class TestFmtDatetime(unittest.TestCase):
 	"""Tests date, time and datetime formatters and some associated
 	utility functions. These rely on the system-wide date and time
 	formats.
@@ -125,5 +127,5 @@ class TestFmtDatetime(FrappeTestCase):
 			for time_fmt, valid_time in test_time_formats.items():
 				frappe.db.set_default("time_format", time_fmt)
 				frappe.local.user_time_format = None
-				valid_fmt = f"{valid_date} {valid_time}"
+				valid_fmt = valid_date + " " + valid_time
 				self.assertEqual(format_datetime(test_datetime), valid_fmt)

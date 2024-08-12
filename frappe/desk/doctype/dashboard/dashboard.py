@@ -1,5 +1,8 @@
-# Copyright (c) 2022, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# -*- coding: utf-8 -*-
+# Copyright (c) 2019, Frappe Technologies and contributors
+# For license information, please see license.txt
+
+from __future__ import unicode_literals
 
 import json
 
@@ -8,20 +11,21 @@ from frappe import _
 from frappe.config import get_modules_from_all_apps_for_user
 from frappe.model.document import Document
 from frappe.modules.export_file import export_to_files
-from frappe.query_builder import DocType
 
 
 class Dashboard(Document):
 	def on_update(self):
 		if self.is_default:
 			# make all other dashboards non-default
-			DashBoard = DocType("Dashboard")
-
-			frappe.qb.update(DashBoard).set(DashBoard.is_default, 0).where(DashBoard.name != self.name).run()
+			frappe.db.sql(
+				"""update
+				tabDashboard set is_default = 0 where name != %s""",
+				self.name,
+			)
 
 		if frappe.conf.developer_mode and self.is_standard:
 			export_to_files(
-				record_list=[["Dashboard", self.name, f"{self.module} Dashboard"]], record_module=self.module
+				record_list=[["Dashboard", self.name, self.module + " Dashboard"]], record_module=self.module
 			)
 
 	def validate(self):
@@ -52,18 +56,23 @@ def get_permission_query_conditions(user):
 	if not user:
 		user = frappe.session.user
 
-	if user == "Administrator" or "System Manager" in frappe.get_roles(user):
+	if user == "Administrator":
 		return
 
-	module_not_set = " ifnull(`tabDashboard`.`module`, '') = '' "
+	roles = frappe.get_roles(user)
+	if "System Manager" in roles:
+		return None
+
 	allowed_modules = [
 		frappe.db.escape(module.get("module_name")) for module in get_modules_from_all_apps_for_user()
 	]
-	if not allowed_modules:
-		return module_not_set
+	module_condition = (
+		"`tabDashboard`.`module` in ({allowed_modules}) or `tabDashboard`.`module` is NULL".format(
+			allowed_modules=",".join(allowed_modules)
+		)
+	)
 
-	return f" `tabDashboard`.`module` in ({','.join(allowed_modules)}) or {module_not_set} "
-
+	return module_condition
 
 
 @frappe.whitelist()
@@ -94,7 +103,9 @@ def get_permitted_cards(dashboard_name):
 
 def get_non_standard_charts_in_dashboard(dashboard):
 	non_standard_charts = [doc.name for doc in frappe.get_list("Dashboard Chart", {"is_standard": 0})]
-	return [chart_link.chart for chart_link in dashboard.charts if chart_link.chart in non_standard_charts]
+	return [
+		chart_link.chart for chart_link in dashboard.charts if chart_link.chart in non_standard_charts
+	]
 
 
 def get_non_standard_cards_in_dashboard(dashboard):
@@ -106,9 +117,11 @@ def get_non_standard_warning_message(non_standard_docs_map):
 	message = _("""Please set the following documents in this Dashboard as standard first.""")
 
 	def get_html(docs, doctype):
-		html = f"<p>{frappe.bold(doctype)}</p>"
+		html = "<p>{}</p>".format(frappe.bold(doctype))
 		for doc in docs:
-			html += f'<div><a href="/app/Form/{doctype}/{doc}">{doc}</a></div>'
+			html += '<div><a href="/app/Form/{doctype}/{doc}">{doc}</a></div>'.format(
+				doctype=doctype, doc=doc
+			)
 		html += "<br>"
 		return html
 

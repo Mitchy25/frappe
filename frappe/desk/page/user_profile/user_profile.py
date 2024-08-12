@@ -1,8 +1,6 @@
 from datetime import datetime
 
 import frappe
-from frappe.query_builder import Interval, Order
-from frappe.query_builder.functions import Date, Sum, UnixTimestamp
 from frappe.utils import getdate
 
 
@@ -13,24 +11,27 @@ def get_energy_points_heatmap_data(user, date):
 	except Exception:
 		date = getdate()
 
-	eps_log = frappe.qb.DocType("Energy Point Log")
-
 	return dict(
-		frappe.qb.from_(eps_log)
-		.select(UnixTimestamp(Date(eps_log.creation)), Sum(eps_log.points))
-		.where(eps_log.user == user)
-		.where(eps_log["type"] != "Review")
-		.where(Date(eps_log.creation) > Date(date) - Interval(years=1))
-		.where(Date(eps_log.creation) < Date(date) + Interval(years=1))
-		.groupby(Date(eps_log.creation))
-		.orderby(Date(eps_log.creation), order=Order.asc)
-		.run()
+		frappe.db.sql(
+			"""select unix_timestamp(date(creation)), sum(points)
+		from `tabEnergy Point Log`
+		where
+			date(creation) > subdate('{date}', interval 1 year) and
+			date(creation) < subdate('{date}', interval -1 year) and
+			user = %s and
+			type != 'Review'
+		group by date(creation)
+		order by creation asc""".format(
+				date=date
+			),
+			user,
+		)
 	)
 
 
 @frappe.whitelist()
 def get_energy_points_percentage_chart_data(user, field):
-	result = frappe.get_all(
+	result = frappe.db.get_all(
 		"Energy Point Log",
 		filters={"user": user, "type": ["!=", "Review"]},
 		group_by=field,
@@ -40,7 +41,7 @@ def get_energy_points_percentage_chart_data(user, field):
 	)
 
 	return {
-		"labels": [r[0] for r in result if r[0] is not None],
+		"labels": [r[0] for r in result if r[0] != None],
 		"datasets": [{"values": [r[1] for r in result]}],
 	}
 
@@ -48,18 +49,18 @@ def get_energy_points_percentage_chart_data(user, field):
 @frappe.whitelist()
 def get_user_rank(user):
 	month_start = datetime.today().replace(day=1)
-	monthly_rank = frappe.get_all(
+	monthly_rank = frappe.db.get_all(
 		"Energy Point Log",
-		group_by="`tabEnergy Point Log`.`user`",
+		group_by="user",
 		filters={"creation": [">", month_start], "type": ["!=", "Review"]},
 		fields=["user", "sum(points)"],
 		order_by="sum(points) desc",
 		as_list=True,
 	)
 
-	all_time_rank = frappe.get_all(
+	all_time_rank = frappe.db.get_all(
 		"Energy Point Log",
-		group_by="`tabEnergy Point Log`.`user`",
+		group_by="user",
 		filters={"type": ["!=", "Review"]},
 		fields=["user", "sum(points)"],
 		order_by="sum(points) desc",

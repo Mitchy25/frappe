@@ -14,11 +14,6 @@
 	}
 }
 
-.preview-beta-wrapper {
-	border-radius: var(--border-radius);
-	overflow: hidden;
-}
-
 .print-toolbar {
 	margin: 0px;
 	padding: var(--padding-md) 0;
@@ -76,6 +71,7 @@
 	}
 
 	.skeleton-body {
+
 		.skeleton-table {
 			width: 100%;
 
@@ -146,8 +142,9 @@
 		background-position: -100px;
 	}
 
-	50%,
-	100% {
+	50%, 100% {
 		background-position: 500px;
 	}
 }
+
+

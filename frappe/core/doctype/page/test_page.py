@@ -1,12 +1,15 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# See license.txt
+from __future__ import unicode_literals
+
+import unittest
+
 import frappe
-from frappe.tests.utils import FrappeTestCase
 
 test_records = frappe.get_test_records("Page")
 
 
-class TestPage(FrappeTestCase):
+class TestPage(unittest.TestCase):
 	def test_naming(self):
 		self.assertRaises(
 			frappe.NameError,

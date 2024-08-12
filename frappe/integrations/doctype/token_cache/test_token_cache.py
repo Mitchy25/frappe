@@ -1,12 +1,16 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2019, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# See license.txt
+from __future__ import unicode_literals
+
+import unittest
+
 import frappe
-from frappe.tests.utils import FrappeTestCase
 
 test_dependencies = ["User", "Connected App", "Token Cache"]
 
 
-class TestTokenCache(FrappeTestCase):
+class TestTokenCache(unittest.TestCase):
 	def setUp(self):
 		self.token_cache = frappe.get_last_doc("Token Cache")
 		self.token_cache.update({"connected_app": frappe.get_last_doc("Connected App").name})

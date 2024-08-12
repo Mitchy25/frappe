@@ -1,5 +1,8 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2020, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# For license information, please see license.txt
+
+from __future__ import unicode_literals
 
 import frappe
 from frappe.model.document import Document
@@ -12,6 +15,7 @@ class ListViewSettings(Document):
 
 @frappe.whitelist()
 def save_listview_settings(doctype, listview_settings, removed_listview_fields):
+
 	listview_settings = frappe.parse_json(listview_settings)
 	removed_listview_fields = frappe.parse_json(removed_listview_fields)
 
@@ -33,7 +37,9 @@ def save_listview_settings(doctype, listview_settings, removed_listview_fields):
 def set_listview_fields(doctype, listview_fields, removed_listview_fields):
 	meta = frappe.get_meta(doctype)
 
-	listview_fields = [f.get("fieldname") for f in frappe.parse_json(listview_fields) if f.get("fieldname")]
+	listview_fields = [
+		f.get("fieldname") for f in frappe.parse_json(listview_fields) if f.get("fieldname")
+	]
 
 	for field in removed_listview_fields:
 		set_in_list_view_property(doctype, meta.get_field(field), "0")
@@ -79,7 +85,7 @@ def get_default_listview_fields(doctype):
 	fields = [f.get("fieldname") for f in doctype_json.get("fields") if f.get("in_list_view")]
 
 	if meta.title_field:
-		if meta.title_field.strip() not in fields:
+		if not meta.title_field.strip() in fields:
 			fields.append(meta.title_field.strip())
 
 	return fields

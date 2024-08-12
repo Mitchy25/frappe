@@ -1,7 +1,7 @@
 import sys
+import requests
 from urllib.parse import urlparse
 
-import requests
 
 docs_repos = [
 	"frappe_docs",
@@ -15,23 +15,20 @@ def uri_validator(x):
 	result = urlparse(x)
 	return all([result.scheme, result.netloc, result.path])
 
-
 def docs_link_exists(body):
 	for line in body.splitlines():
 		for word in line.split():
-			if word.startswith("http") and uri_validator(word):
+			if word.startswith('http') and uri_validator(word):
 				parsed_url = urlparse(word)
 				if parsed_url.netloc == "github.com":
-					parts = parsed_url.path.split("/")
+					parts = parsed_url.path.split('/')
 					if len(parts) == 5 and parts[1] == "frappe" and parts[2] in docs_repos:
 						return True
-				if parsed_url.netloc in ["docs.erpnext.com", "frappeframework.com"]:
-					return True
 
 
 if __name__ == "__main__":
 	pr = sys.argv[1]
-	response = requests.get(f"https://api.github.com/repos/frappe/frappe/pulls/{pr}")
+	response = requests.get("https://api.github.com/repos/frappe/frappe/pulls/{}".format(pr))
 
 	if response.ok:
 		payload = response.json()

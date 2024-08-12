@@ -22,11 +22,9 @@
  "fields": [
   {
    "default": "0",
-   "depends_on": "eval: frappe.boot.developer_mode",
    "fieldname": "is_standard",
    "fieldtype": "Check",
-   "label": "Is Standard",
-   "read_only_depends_on": "eval: !frappe.boot.developer_mode"
+   "label": "Is Standard"
   },
   {
    "depends_on": "eval: !doc.is_standard",
@@ -35,21 +33,21 @@
    "label": "Document Types and Permissions"
   },
   {
-   "depends_on": "eval: !doc.is_standard",
    "fieldname": "user_doctypes",
    "fieldtype": "Table",
    "label": "Document Types",
    "mandatory_depends_on": "eval: !doc.is_standard",
-   "options": "User Document Type"
+   "options": "User Document Type",
+   "read_only": 1
   },
   {
-   "depends_on": "eval: !doc.is_standard",
    "fieldname": "role",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Role",
    "mandatory_depends_on": "eval: !doc.is_standard",
-   "options": "Role"
+   "options": "Role",
+   "read_only": 1
   },
   {
    "fieldname": "select_doctypes",
@@ -64,13 +62,13 @@
    "fieldtype": "Column Break"
   },
   {
-   "depends_on": "eval: !doc.is_standard",
    "description": "Can only list down the document types which has been linked to the User document type.",
    "fieldname": "apply_user_permission_on",
    "fieldtype": "Link",
    "label": "Apply User Permission On",
    "mandatory_depends_on": "eval: !doc.is_standard",
-   "options": "DocType"
+   "options": "DocType",
+   "read_only": 1
   },
   {
    "depends_on": "eval: !doc.is_standard",
@@ -83,7 +81,8 @@
    "fieldname": "user_id_field",
    "fieldtype": "Select",
    "label": "User Id Field",
-   "mandatory_depends_on": "eval: !doc.is_standard"
+   "mandatory_depends_on": "eval: !doc.is_standard",
+   "read_only": 1
   },
   {
    "depends_on": "eval: !doc.is_standard",
@@ -94,7 +93,6 @@
   {
    "fieldname": "user_type_modules",
    "fieldtype": "Table",
-   "label": "User Type Module",
    "no_copy": 1,
    "options": "User Type Module",
    "print_hide": 1,
@@ -109,11 +107,10 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2022-06-09 14:00:36.820306",
+ "modified": "2021-03-12 16:25:18.639050",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "User Type",
- "naming_rule": "Set by user",
  "owner": "Administrator",
  "permissions": [
   {
@@ -140,6 +137,5 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": [],
  "track_changes": 1
 }

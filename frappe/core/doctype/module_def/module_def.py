@@ -1,13 +1,13 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+
+from __future__ import unicode_literals
 
 import json
 import os
 
 import frappe
 from frappe.model.document import Document
-from frappe.modules.export_file import delete_folder
-
 
 
 class ModuleDef(Document):
@@ -31,9 +31,9 @@ class ModuleDef(Document):
 		"""Adds to `[app]/modules.txt`"""
 		modules = None
 		if not frappe.local.module_app.get(frappe.scrub(self.name)):
-			with open(frappe.get_app_path(self.app_name, "modules.txt")) as f:
+			with open(frappe.get_app_path(self.app_name, "modules.txt"), "r") as f:
 				content = f.read()
-				if self.name not in content.splitlines():
+				if not self.name in content.splitlines():
 					modules = list(filter(None, content.splitlines()))
 					modules.append(self.name)
 
@@ -52,8 +52,7 @@ class ModuleDef(Document):
 
 		modules = None
 		if frappe.local.module_app.get(frappe.scrub(self.name)):
-			delete_folder(self.module_name, "Module Def", self.name)
-			with open(frappe.get_app_path(self.app_name, "modules.txt")) as f:
+			with open(frappe.get_app_path(self.app_name, "modules.txt"), "r") as f:
 				content = f.read()
 				if self.name in content.splitlines():
 					modules = list(filter(None, content.splitlines()))

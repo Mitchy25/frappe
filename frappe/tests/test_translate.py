@@ -1,23 +1,16 @@
 # Copyright (c) 2021, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+from __future__ import unicode_literals
+
 import os
-import textwrap
+import unittest
 from random import choices
 from unittest.mock import patch
 
 import frappe
 import frappe.translate
 from frappe import _
-from frappe.tests.utils import FrappeTestCase
-from frappe.translate import (
-	extract_javascript,
-	extract_messages_from_javascript_code,
-	extract_messages_from_python_code,
-	get_language,
-	get_messages_for_app,
-	get_parent_language,
-	get_translation_dict_from_file,
-)
+from frappe.translate import get_language, get_parent_language, get_translation_dict_from_file
 from frappe.utils import set_request
 
 dirname = os.path.dirname(__file__)
@@ -29,20 +22,22 @@ first_lang, second_lang, third_lang, fourth_lang, fifth_lang = choices(
 )
 
 
-class TestTranslate(FrappeTestCase):
-	guest_sessions_required = (
+class TestTranslate(unittest.TestCase):
+	guest_sessions_required = [
 		"test_guest_request_language_resolution_with_cookie",
 		"test_guest_request_language_resolution_with_request_header",
-	)
+	]
 
 	def setUp(self):
 		if self._testMethodName in self.guest_sessions_required:
 			frappe.set_user("Guest")
+		frappe.local.lang_full_dict = None  # reset cached translations
 
 	def tearDown(self):
 		frappe.form_dict.pop("_lang", None)
 		if self._testMethodName in self.guest_sessions_required:
 			frappe.set_user("Administrator")
+		frappe.local.lang_full_dict = None  # reset cached translations
 
 	def test_extract_message_from_file(self):
 		data = frappe.translate.get_messages_from_file(translation_string_file)
@@ -54,7 +49,7 @@ class TestTranslate(FrappeTestCase):
 			msg=f"Mismatched output:\nExpected: {expected_output}\nFound: {data}",
 		)
 
-		for extracted, expected in zip(data, expected_output, strict=False):
+		for extracted, expected in zip(data, expected_output):
 			ext_filename, ext_message, ext_context, ext_line = extracted
 			exp_message, exp_context, exp_line = expected
 			self.assertEqual(ext_filename, exp_filename)
@@ -108,14 +103,6 @@ class TestTranslate(FrappeTestCase):
 
 		self.assertIn(return_val, [second_lang, get_parent_language(second_lang)])
 
-	def test_global_translations(self):
-		""" """
-		site = frappe.local.site
-		frappe.destroy()
-		_("this shouldn't break")
-		frappe.init(site=site)
-		frappe.connect()
-
 	def test_guest_request_language_resolution_with_request_header(self):
 		"""Test for frappe.translate.get_language
 
@@ -140,89 +127,6 @@ class TestTranslate(FrappeTestCase):
 		"""Load all CSV files to ensure they have correct format"""
 		verify_translation_files("frappe")
 
-	def test_python_extractor(self):
-		code = textwrap.dedent(
-			"""
-			frappe._("attr")
-			_("name")
-			frappe._("attr with", context="attr context")
-			_("name with", context="name context")
-			_("broken on",
-				context="new line")
-			__("This wont be captured")
-			__init__("This shouldn't too")
-			_(
-				"broken on separate line",
-				)
-			_(not_a_string)
-			_(not_a_string, context="wat")
-		"""
-		)
-		expected_output = [
-			(2, "attr", None),
-			(3, "name", None),
-			(4, "attr with", "attr context"),
-			(5, "name with", "name context"),
-			(6, "broken on", "new line"),
-			(10, "broken on separate line", None),
-		]
-
-		output = extract_messages_from_python_code(code)
-		self.assertEqual(len(expected_output), len(output))
-		for expected, actual in zip(expected_output, output, strict=False):
-			with self.subTest():
-				self.assertEqual(expected, actual)
-
-	def test_js_extractor(self):
-		code = textwrap.dedent(
-			"""
-			__("attr")
-			__("attr with", null, "context")
-			__("attr with", ["format", "replacements"], "context")
-			__("attr with", ["format", "replacements"])
-			__(
-				"Long JS string with", [
-					"format", "replacements"
-				],
-				"JS context on newline"
-			)
-			__(
-				"Long JS string with formats only {0}", [
-					"format", "replacements"
-				],
-			)
-			_(`template strings not supported yet`)
-		"""
-		)
-		expected_output = [
-			(2, "attr", None),
-			(3, "attr with", "context"),
-			(4, "attr with", "context"),
-			(5, "attr with", None),
-			(6, "Long JS string with", "JS context on newline"),
-			(12, "Long JS string with formats only {0}", None),
-		]
-
-		output = extract_messages_from_javascript_code(code)
-
-		self.assertEqual(len(expected_output), len(output))
-		for expected, actual in zip(expected_output, output, strict=False):
-			with self.subTest():
-				self.assertEqual(expected, actual)
-
-	def test_js_parser_arg_capturing(self):
-		"""Get non-flattened args in correct order so 3rd arg if present is always context."""
-
-		def get_args(code):
-			*__, args = next(extract_javascript(code))
-			return args
-
-		args = get_args("""__("attr with", ["format", "replacements"], "context")""")
-		self.assertEqual(args, ("attr with", None, "context"))
-
-		args = get_args("""__("attr with", ["format", "replacements"])""")
-		self.assertEqual(args, "attr with")
-
 
 def verify_translation_files(app):
 	"""Function to verify translation file syntax in app."""
@@ -235,8 +139,6 @@ def verify_translation_files(app):
 	for file in translations_dir.glob("*.csv"):
 		lang = file.stem  # basename of file = lang
 		get_translation_dict_from_file(file, lang, app, throw=True)
-
-	get_messages_for_app(app)
 
 
 expected_output = [

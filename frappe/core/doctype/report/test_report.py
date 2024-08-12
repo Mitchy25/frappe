@@ -1,9 +1,11 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# See license.txt
+
+from __future__ import unicode_literals
 
 import json
 import os
-import textwrap
+import unittest
 
 import frappe
 from frappe.core.doctype.user_permission.test_user_permission import create_user
@@ -11,18 +13,17 @@ from frappe.custom.doctype.customize_form.customize_form import reset_customizat
 from frappe.desk.query_report import add_total_row, run, save_report
 from frappe.desk.reportview import delete_report
 from frappe.desk.reportview import save_report as _save_report
-from frappe.tests.utils import FrappeTestCase
 
 test_records = frappe.get_test_records("Report")
 test_dependencies = ["User"]
 
 
-class TestReport(FrappeTestCase):
+class TestReport(unittest.TestCase):
 	def test_report_builder(self):
 		if frappe.db.exists("Report", "User Activity Report"):
 			frappe.delete_doc("Report", "User Activity Report")
 
-		with open(os.path.join(os.path.dirname(__file__), "user_activity_report.json")) as f:
+		with open(os.path.join(os.path.dirname(__file__), "user_activity_report.json"), "r") as f:
 			frappe.get_doc(json.loads(f.read())).insert()
 
 		report = frappe.get_doc("Report", "User Activity Report")
@@ -151,7 +152,9 @@ class TestReport(FrappeTestCase):
 		)
 		result = response.get("result")
 		columns = response.get("columns")
-		self.assertListEqual(["name", "email", "user_type"], [column.get("fieldname") for column in columns])
+		self.assertListEqual(
+			["name", "email", "user_type"], [column.get("fieldname") for column in columns]
+		)
 		admin_dict = frappe.core.utils.find(result, lambda d: d["name"] == "Administrator")
 		self.assertDictEqual(
 			{"name": "Administrator", "user_type": "System User", "email": "admin@example.com"}, admin_dict
@@ -159,10 +162,17 @@ class TestReport(FrappeTestCase):
 
 	def test_report_permissions(self):
 		frappe.set_user("test@example.com")
-		frappe.db.delete("Has Role", {"parent": frappe.session.user, "role": "Test Has Role"})
-		frappe.db.commit()
+		frappe.db.sql(
+			"""delete from `tabHas Role` where parent = %s
+			and role = 'Test Has Role'""",
+			frappe.session.user,
+			auto_commit=1,
+		)
+
 		if not frappe.db.exists("Role", "Test Has Role"):
-			frappe.get_doc({"doctype": "Role", "role_name": "Test Has Role"}).insert(ignore_permissions=True)
+			role = frappe.get_doc({"doctype": "Role", "role_name": "Test Has Role"}).insert(
+				ignore_permissions=True
+			)
 
 		if not frappe.db.exists("Report", "Test Report"):
 			report = frappe.get_doc(
@@ -178,7 +188,7 @@ class TestReport(FrappeTestCase):
 		else:
 			report = frappe.get_doc("Report", "Test Report")
 
-		self.assertNotEqual(report.is_permitted(), True)
+		self.assertNotEquals(report.is_permitted(), True)
 		frappe.set_user("Administrator")
 
 	def test_report_custom_permissions(self):
@@ -217,7 +227,9 @@ class TestReport(FrappeTestCase):
 	def test_format_method(self):
 		if frappe.db.exists("Report", "User Activity Report Without Sort"):
 			frappe.delete_doc("Report", "User Activity Report Without Sort")
-		with open(os.path.join(os.path.dirname(__file__), "user_activity_report_without_sort.json")) as f:
+		with open(
+			os.path.join(os.path.dirname(__file__), "user_activity_report_without_sort.json"), "r"
+		) as f:
 			frappe.get_doc(json.loads(f.read())).insert()
 
 		report = frappe.get_doc("Report", "User Activity Report Without Sort")
@@ -358,33 +370,3 @@ result = [
 		self.assertEqual(result[-1][0], "Total")
 		self.assertEqual(result[-1][1], 200)
 		self.assertEqual(result[-1][2], 150.50)
-
-	def test_cte_in_query_report(self):
-		cte_query = textwrap.dedent(
-			"""
-			with enabled_users as (
-				select name
-				from `tabUser`
-				where enabled = 1
-			)
-			select * from enabled_users;
-		"""
-		)
-
-		report = frappe.get_doc(
-			{
-				"doctype": "Report",
-				"ref_doctype": "User",
-				"report_name": "Enabled Users List",
-				"report_type": "Query Report",
-				"is_standard": "No",
-				"query": cte_query,
-			}
-		).insert()
-
-		if frappe.db.db_type == "mariadb":
-			col, rows = report.execute_query_report(filters={})
-			self.assertEqual(col[0], "name")
-			self.assertGreaterEqual(len(rows), 1)
-		elif frappe.db.db_type == "postgres":
-			self.assertRaises(frappe.PermissionError, report.execute_query_report, filters={})

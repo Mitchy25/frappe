@@ -1,10 +1,14 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2018, Frappe Technologies and Contributors
-# License: MIT. See LICENSE
+# See license.txt
+from __future__ import unicode_literals
+
+import unittest
+
 import frappe
-from frappe.tests.utils import FrappeTestCase
 
 
-class TestViewLog(FrappeTestCase):
+class TestViewLog(unittest.TestCase):
 	def tearDown(self):
 		frappe.set_user("Administrator")
 

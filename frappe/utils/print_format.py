@@ -1,25 +1,23 @@
-import os
-from io import BytesIO
+from __future__ import unicode_literals
 
-from PyPDF2 import PdfWriter
+import os
+
+from PyPDF2 import PdfFileWriter
 
 import frappe
 from frappe import _
 from frappe.core.doctype.access_log.access_log import make_access_log
-from frappe.translate import print_language
-from frappe.utils.deprecations import deprecated
-from frappe.utils.pdf import get_pdf
+from frappe.utils.pdf import cleanup, get_pdf
+from frappe.www.printview import validate_print_permission
 
 no_cache = 1
 
-base_template_path = "www/printview.html"
+base_template_path = "templates/www/printview.html"
 standard_format = "templates/print_formats/standard.html"
-
-from frappe.www.printview import validate_print_permission
 
 
 @frappe.whitelist()
-def download_multi_pdf(doctype, name, format=None, no_letterhead=False, letterhead=None, options=None):
+def download_multi_pdf(doctype, name, format=None, no_letterhead=False, options=None):
 	"""
 	Concatenate multiple docs as PDF .
 
@@ -61,7 +59,7 @@ def download_multi_pdf(doctype, name, format=None, no_letterhead=False, letterhe
 
 	import json
 
-	pdf_writer = PdfWriter()
+	output = PdfFileWriter()
 
 	if isinstance(options, str):
 		options = json.loads(options)
@@ -70,15 +68,14 @@ def download_multi_pdf(doctype, name, format=None, no_letterhead=False, letterhe
 		result = json.loads(name)
 
 		# Concatenating pdf files
-		for _i, ss in enumerate(result):
-			pdf_writer = frappe.get_print(
+		for i, ss in enumerate(result):
+			output = frappe.get_print(
 				doctype,
 				ss,
 				format,
 				as_pdf=True,
-				output=pdf_writer,
+				output=output,
 				no_letterhead=no_letterhead,
-				letterhead=letterhead,
 				pdf_options=options,
 			)
 		frappe.local.response.filename = "{doctype}.pdf".format(
@@ -88,51 +85,53 @@ def download_multi_pdf(doctype, name, format=None, no_letterhead=False, letterhe
 		for doctype_name in doctype:
 			for doc_name in doctype[doctype_name]:
 				try:
-					pdf_writer = frappe.get_print(
+					output = frappe.get_print(
 						doctype_name,
 						doc_name,
 						format,
 						as_pdf=True,
-						output=pdf_writer,
+						output=output,
 						no_letterhead=no_letterhead,
-						letterhead=letterhead,
 						pdf_options=options,
 					)
 				except Exception:
-					frappe.log_error(
-						title="Error in Multi PDF download",
-						message=f"Permission Error on doc {doc_name} of doctype {doctype_name}",
-						reference_doctype=doctype_name,
-						reference_name=doc_name,
-					)
-		frappe.local.response.filename = f"{name}.pdf"
+					frappe.log_error("Permission Error on doc {} of doctype {}".format(doc_name, doctype_name))
+		frappe.local.response.filename = "{}.pdf".format(name)
 
-	with BytesIO() as merged_pdf:
-		pdf_writer.write(merged_pdf)
-		frappe.local.response.filecontent = merged_pdf.getvalue()
-
-	frappe.local.response.type = "pdf"
+	frappe.local.response.filecontent = read_multi_pdf(output)
+	frappe.local.response.type = "download"
 
 
-@deprecated
-def read_multi_pdf(output: PdfWriter) -> bytes:
-	with BytesIO() as merged_pdf:
-		output.write(merged_pdf)
-		return merged_pdf.getvalue()
+def read_multi_pdf(output):
+	# Get the content of the merged pdf files
+	fname = os.path.join("/tmp", "frappe-pdf-{0}.pdf".format(frappe.generate_hash()))
+	output.write(open(fname, "wb"))
+
+	with open(fname, "rb") as fileobj:
+		filedata = fileobj.read()
+
+	return filedata
 
 
 @frappe.whitelist(allow_guest=True)
-def download_pdf(doctype, name, format=None, doc=None, no_letterhead=0, language=None, letterhead=None):
+def download_pdf(doctype, name, format=None, doc=None, no_letterhead=0):
 	doc = doc or frappe.get_doc(doctype, name)
-	validate_print_permission(doc)
+	try:
+		validate_print_permission(doc)
+	except frappe.exceptions.LinkExpired:
+		frappe.local.response.http_status_code = 410
+		frappe.local.response.message = _("Link Expired")
+		return
+	except frappe.exceptions.InvalidKeyError:
+		frappe.local.response.http_status_code = 401
+		frappe.local.response.message = _("Invalid Key")
+		return
 
-	with print_language(language):
-		pdf_file = frappe.get_print(
-			doctype, name, format, doc=doc, as_pdf=True, letterhead=letterhead, no_letterhead=no_letterhead
-		)
-
-	frappe.local.response.filename = "{name}.pdf".format(name=name.replace(" ", "-").replace("/", "-"))
-	frappe.local.response.filecontent = pdf_file
+	html = frappe.get_print(doctype, name, format, doc=doc, no_letterhead=no_letterhead)
+	frappe.local.response.filename = "{name}.pdf".format(
+		name=name.replace(" ", "-").replace("/", "-")
+	)
+	frappe.local.response.filecontent = get_pdf(html)
 	frappe.local.response.type = "pdf"
 
 
@@ -158,15 +157,15 @@ def print_by_server(
 		cups.setServer(print_settings.server_ip)
 		cups.setPort(print_settings.port)
 		conn = cups.Connection()
-		output = PdfWriter()
+		output = PdfFileWriter()
 		output = frappe.get_print(
 			doctype, name, print_format, doc=doc, no_letterhead=no_letterhead, as_pdf=True, output=output
 		)
 		if not file_path:
-			file_path = os.path.join("/", "tmp", f"frappe-pdf-{frappe.generate_hash()}.pdf")
+			file_path = os.path.join("/", "tmp", "frappe-pdf-{0}.pdf".format(frappe.generate_hash()))
 		output.write(open(file_path, "wb"))
 		conn.printFile(print_settings.printer_name, file_path, name, {})
-	except OSError as e:
+	except IOError as e:
 		if (
 			"ContentNotFoundError" in e.message
 			or "ContentOperationNotPermittedError" in e.message
@@ -176,3 +175,5 @@ def print_by_server(
 			frappe.throw(_("PDF generation failed"))
 	except cups.IPPError:
 		frappe.throw(_("Printing failed"))
+	finally:
+		return

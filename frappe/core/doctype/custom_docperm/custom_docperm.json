@@ -212,8 +212,7 @@
    "fieldname": "parent",
    "fieldtype": "Data",
    "label": "Reference Document Type",
-   "read_only": 1,
-   "search_index": 1
+   "read_only": 1
   },
   {
    "default": "0",

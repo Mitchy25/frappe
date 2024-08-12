@@ -1,22 +1,40 @@
+from __future__ import unicode_literals
+
+import unittest
+
 import frappe
-from frappe.tests.utils import FrappeTestCase
-from frappe.website.path_resolver import PathResolver
-from frappe.website.serve import get_response_content
+import frappe.website.render
+from frappe.utils import set_request
+from frappe.website.router import resolve_route
 
 test_records = frappe.get_test_records("Web Page")
 
 
-class TestWebPage(FrappeTestCase):
+def get_page_content(route):
+	set_request(method="GET", path=route)
+	response = frappe.website.render.render()
+	return frappe.as_unicode(response.data)
+
+
+class TestWebPage(unittest.TestCase):
 	def setUp(self):
-		frappe.db.delete("Web Page")
+		frappe.db.sql("delete from `tabWeb Page`")
 		for t in test_records:
 			frappe.get_doc(t).insert()
 
-	def test_path_resolver(self):
-		self.assertTrue(PathResolver("test-web-page-1").is_valid_path())
-		self.assertTrue(PathResolver("test-web-page-1/test-web-page-2").is_valid_path())
-		self.assertTrue(PathResolver("test-web-page-1/test-web-page-3").is_valid_path())
-		self.assertFalse(PathResolver("test-web-page-1/test-web-page-Random").is_valid_path())
+	def test_check_sitemap(self):
+		resolve_route("test-web-page-1")
+		resolve_route("test-web-page-1/test-web-page-2")
+		resolve_route("test-web-page-1/test-web-page-3")
+
+	def test_base_template(self):
+		content = get_page_content("/_test/_test_custom_base.html")
+
+		# assert the text in base template is rendered
+		self.assertTrue("<h1>This is for testing</h1>" in frappe.as_unicode(content))
+
+		# assert template block rendered
+		self.assertTrue("<p>Test content</p>" in frappe.as_unicode(content))
 
 	def test_content_type(self):
 		web_page = frappe.get_doc(
@@ -31,15 +49,15 @@ class TestWebPage(FrappeTestCase):
 			)
 		).insert()
 
-		self.assertIn("rich text", get_response_content("/test-content-type"))
+		self.assertTrue("rich text" in get_page_content("/test-content-type"))
 
 		web_page.content_type = "Markdown"
 		web_page.save()
-		self.assertIn("markdown content", get_response_content("/test-content-type"))
+		self.assertTrue("markdown content" in get_page_content("/test-content-type"))
 
 		web_page.content_type = "HTML"
 		web_page.save()
-		self.assertIn("html content", get_response_content("/test-content-type"))
+		self.assertTrue("html content" in get_page_content("/test-content-type"))
 
 		web_page.delete()
 
@@ -52,14 +70,13 @@ class TestWebPage(FrappeTestCase):
 				dynamic_route=1,
 				route="/doctype-view/<doctype>",
 				content_type="HTML",
-				dynamic_template=1,
+				dymamic_template=1,
 				main_section_html="<div>{{ frappe.form_dict.doctype }}</div>",
 			)
 		).insert()
-		try:
-			from frappe.utils import get_html_for_route
 
-			content = get_html_for_route("/doctype-view/DocField")
-			self.assertIn("<div>DocField</div>", content)
+		try:
+			content = get_page_content("/doctype-view/DocField")
+			self.assertTrue("<div>DocField</div>" in content)
 		finally:
 			web_page.delete()

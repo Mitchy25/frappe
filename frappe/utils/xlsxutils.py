@@ -1,5 +1,5 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
 import re
 from io import BytesIO
 
@@ -10,7 +10,6 @@ from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 
 import frappe
-from frappe import _
 from frappe.utils.html_utils import unescape_html
 
 ILLEGAL_CHARACTERS_RE = re.compile(r"[\000-\010]|[\013-\014]|[\016-\037]")
@@ -41,7 +40,7 @@ def make_xlsx(data, sheet_name, wb=None, column_widths=None):
 
 			if isinstance(item, str) and next(ILLEGAL_CHARACTERS_RE.finditer(value), None):
 				# Remove illegal characters from the string
-				value = ILLEGAL_CHARACTERS_RE.sub("", value)
+				value = re.sub(ILLEGAL_CHARACTERS_RE, "", value)
 
 			clean_row.append(value)
 
@@ -53,7 +52,7 @@ def make_xlsx(data, sheet_name, wb=None, column_widths=None):
 
 
 def handle_html(data):
-	from frappe.core.utils import html2text
+	from html2text import HTML2Text
 
 	# return if no html tags found
 	data = frappe.as_unicode(data)
@@ -63,8 +62,12 @@ def handle_html(data):
 
 	h = unescape_html(data or "")
 
+	obj = HTML2Text()
+	obj.ignore_links = True
+	obj.body_width = 0
+
 	try:
-		value = html2text(h, strip_links=True, wrap=False)
+		value = obj.handle(h)
 	except Exception:
 		# unable to parse html, send it raw
 		return data
@@ -88,7 +91,7 @@ def read_xlsx_file_from_attached_file(file_url=None, fcontent=None, filepath=Non
 		return
 
 	rows = []
-	wb1 = load_workbook(filename=filename, data_only=True)
+	wb1 = load_workbook(filename=filename, read_only=True, data_only=True)
 	ws1 = wb1.active
 	for row in ws1.iter_rows():
 		tmp_list = []
@@ -109,6 +112,8 @@ def read_xls_file_from_attached_file(content):
 
 
 def build_xlsx_response(data, filename):
-	from frappe.desk.utils import provide_binary_file
-
-	provide_binary_file(filename, "xlsx", make_xlsx(data, filename).getvalue())
+	xlsx_file = make_xlsx(data, filename)
+	# write out response as a xlsx type
+	frappe.response["filename"] = filename + ".xlsx"
+	frappe.response["filecontent"] = xlsx_file.getvalue()
+	frappe.response["type"] = "binary"

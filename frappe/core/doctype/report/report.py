@@ -1,7 +1,12 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+
+from __future__ import unicode_literals
+
 import datetime
 import json
+
+from six import iteritems
 
 import frappe
 import frappe.desk.query_report
@@ -13,7 +18,7 @@ from frappe.model.document import Document
 from frappe.modules import make_boilerplate
 from frappe.modules.export_file import export_to_files
 from frappe.utils import cint, cstr
-from frappe.utils.safe_exec import check_safe_sql_query, safe_exec
+from frappe.utils.safe_exec import safe_exec
 
 
 class Report(Document):
@@ -25,8 +30,7 @@ class Report(Document):
 		if not self.is_standard:
 			self.is_standard = "No"
 			if (
-				frappe.session.user == "Administrator"
-				and getattr(frappe.local.conf, "developer_mode", 0) == 1
+				frappe.session.user == "Administrator" and getattr(frappe.local.conf, "developer_mode", 0) == 1
 			):
 				self.is_standard = "Yes"
 
@@ -58,9 +62,20 @@ class Report(Document):
 		):
 			frappe.throw(_("You are not allowed to delete Standard Report"))
 		delete_custom_role("report", self.name)
+		self.delete_prepared_reports()
+
+	def delete_prepared_reports(self):
+		prepared_reports = frappe.get_all(
+			"Prepared Report", filters={"ref_report_doctype": self.name}, pluck="name"
+		)
+
+		for report in prepared_reports:
+			frappe.delete_doc(
+				"Prepared Report", report, ignore_missing=True, force=True, delete_permanently=True
+			)
 
 	def get_columns(self):
-		return [d.as_dict(no_default_fields=True, no_child_table_fields=True) for d in self.columns]
+		return [d.as_dict(no_default_fields=True) for d in self.columns]
 
 	@frappe.whitelist()
 	def set_doctype_roles(self):
@@ -74,7 +89,9 @@ class Report(Document):
 		"""Returns true if Has Role is not set or the user is allowed."""
 		from frappe.utils import has_common
 
-		allowed = [d.role for d in frappe.get_all("Has Role", fields=["role"], filters={"parent": self.name})]
+		allowed = [
+			d.role for d in frappe.get_all("Has Role", fields=["role"], filters={"parent": self.name})
+		]
 
 		custom_roles = get_custom_allowed_roles("report", self.name)
 
@@ -96,7 +113,9 @@ class Report(Document):
 			return
 
 		if self.is_standard == "Yes" and (frappe.local.conf.get("developer_mode") or 0) == 1:
-			export_to_files(record_list=[["Report", self.name]], record_module=self.module, create_init=True)
+			export_to_files(
+				record_list=[["Report", self.name]], record_module=self.module, create_init=True
+			)
 
 			self.create_report_py()
 
@@ -109,7 +128,8 @@ class Report(Document):
 		if not self.query:
 			frappe.throw(_("Must specify a Query to run"), title=_("Report Document Error"))
 
-		check_safe_sql_query(self.query)
+		if not self.query.lower().startswith("select"):
+			frappe.throw(_("Query must be a SELECT"), title=_("Report Document Error"))
 
 		result = [list(t) for t in frappe.db.sql(self.query, filters)]
 		columns = self.get_columns() or [cstr(c[0]) for c in frappe.db.get_description()]
@@ -243,7 +263,7 @@ class Report(Document):
 	@staticmethod
 	def _format(parts):
 		# sort by is saved as DocType.fieldname, covert it to sql
-		return "`tab{}`.`{}`".format(*parts)
+		return "`tab{0}`.`{1}`".format(*parts)
 
 	def get_standard_report_columns(self, params):
 		if params.get("fields"):
@@ -264,9 +284,9 @@ class Report(Document):
 		_filters = params.get("filters") or []
 
 		if filters:
-			for key, value in filters.items():
+			for key, value in iteritems(filters):
 				condition, _value = "=", value
-				if isinstance(value, list | tuple):
+				if isinstance(value, (list, tuple)):
 					condition, _value = value
 				_filters.append([key, condition, _value])
 
@@ -301,7 +321,7 @@ class Report(Document):
 	def build_standard_report_columns(self, columns, group_by_args):
 		_columns = []
 
-		for fieldname, doctype in columns:
+		for (fieldname, doctype) in columns:
 			meta = frappe.get_meta(doctype)
 
 			if meta.get_field(fieldname):
@@ -325,7 +345,7 @@ class Report(Document):
 	def build_data_dict(self, result, columns):
 		data = []
 		for row in result:
-			if isinstance(row, list | tuple):
+			if isinstance(row, (list, tuple)):
 				_row = frappe._dict()
 				for i, val in enumerate(row):
 					_row[columns[i].get("fieldname")] = val
@@ -344,11 +364,9 @@ class Report(Document):
 		self.db_set("disabled", cint(disable))
 
 
+@frappe.whitelist()
 def is_prepared_report_disabled(report):
-	return (
-		frappe.db.get_value("Report", report, "disable_prepared_report")
-		and not frappe.db.get_value("Report", report, "prepared_report")
-	) or 0
+	return frappe.db.get_value("Report", report, "disable_prepared_report") or 0
 
 
 def get_report_module_dotted_path(module, report_name):
@@ -367,7 +385,9 @@ def get_group_by_field(args, doctype):
 	if args["aggregate_function"] == "count":
 		group_by_field = "count(*) as _aggregate_column"
 	else:
-		group_by_field = f"{args.aggregate_function}({args.aggregate_on}) as _aggregate_column"
+		group_by_field = "{0}({1}) as _aggregate_column".format(
+			args.aggregate_function, args.aggregate_on
+		)
 
 	return group_by_field
 
@@ -378,10 +398,11 @@ def get_group_by_column_label(args, meta):
 	else:
 		sql_fn_map = {"avg": "Average", "sum": "Sum"}
 		aggregate_on_label = meta.get_label(args.aggregate_on)
-		label = _("{0} of {1}").format(_(sql_fn_map[args.aggregate_function]), _(aggregate_on_label))
+		label = _("{function} of {fieldlabel}").format(
+			function=sql_fn_map[args.aggregate_function], fieldlabel=aggregate_on_label
+		)
 	return label
 
 
 def enable_prepared_report(report: str):
 	frappe.db.set_value("Report", report, "prepared_report", 1)
-	frappe.db.set_value("Report", report, "disable_prepared_report", 0)

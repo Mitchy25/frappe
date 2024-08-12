@@ -1,26 +1,18 @@
+from __future__ import unicode_literals
+
 import json
 import re
 
 from bleach_allowlist import bleach_allowlist
+from six import string_types
 
 import frappe
-from frappe.utils.data import escape_html
-
-EMOJI_PATTERN = re.compile(
-	"(\ud83d[\ude00-\ude4f])|"
-	"(\ud83c[\udf00-\uffff])|"
-	"(\ud83d[\u0000-\uddff])|"
-	"(\ud83d[\ude80-\udeff])|"
-	"(\ud83c[\udde0-\uddff])"
-	"+",
-	flags=re.UNICODE,
-)
 
 
 def clean_html(html):
 	import bleach
 
-	if not isinstance(html, str):
+	if not isinstance(html, string_types):
 		return html
 
 	return bleach.clean(
@@ -53,7 +45,7 @@ def clean_html(html):
 def clean_email_html(html):
 	import bleach
 
-	if not isinstance(html, str):
+	if not isinstance(html, string_types):
 		return html
 
 	return bleach.clean(
@@ -148,7 +140,7 @@ def sanitize_html(html, linkify=False):
 	import bleach
 	from bs4 import BeautifulSoup
 
-	if not isinstance(html, str):
+	if not isinstance(html, string_types):
 		return html
 
 	elif is_json(html):
@@ -163,13 +155,7 @@ def sanitize_html(html, linkify=False):
 		+ mathml_elements
 		+ ["html", "head", "meta", "link", "body", "style", "o:p"]
 	)
-
-	def attributes_filter(tag, name, value):
-		if name.startswith("data-"):
-			return True
-		return name in acceptable_attributes
-
-	attributes = {"*": attributes_filter, "svg": svg_attributes}
+	attributes = {"*": acceptable_attributes, "svg": svg_attributes}
 	styles = bleach_allowlist.all_styles
 	strip_comments = False
 
@@ -198,19 +184,28 @@ def is_json(text):
 def get_icon_html(icon, small=False):
 	from frappe.utils import is_image
 
-	icon = icon or ""
+	emoji_pattern = re.compile(
+		"(\ud83d[\ude00-\ude4f])|"
+		"(\ud83c[\udf00-\uffff])|"
+		"(\ud83d[\u0000-\uddff])|"
+		"(\ud83d[\ude80-\udeff])|"
+		"(\ud83c[\udde0-\uddff])"
+		"+",
+		flags=re.UNICODE,
+	)
 
-	if icon and EMOJI_PATTERN.match(icon):
-		return f'<span class="text-muted">{icon}</span>'
+	icon = icon or ""
+	if icon and emoji_pattern.match(icon):
+		return '<span class="text-muted">' + icon + "</span>"
 
 	if is_image(icon):
 		return (
-			f"<img style='width: 16px; height: 16px;' src={escape_html(icon)!r}>"
+			'<img style="width: 16px; height: 16px;" src="{icon}">'.format(icon=icon)
 			if small
-			else f"<img src={escape_html(icon)!r}>"
+			else '<img src="{icon}">'.format(icon=icon)
 		)
 	else:
-		return f"<i class={escape_html(icon)!r}></i>"
+		return "<i class='{icon}'></i>".format(icon=icon)
 
 
 def unescape_html(value):
@@ -624,7 +619,6 @@ svg_attributes = [
 	"color",
 	"color-rendering",
 	"content",
-	"colwidth",
 	"cx",
 	"cy",
 	"d",

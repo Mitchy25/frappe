@@ -13,8 +13,7 @@
 		height: var(--btn-height);
 		padding: 0px;
 		@extend .center-content;
-		&.btn-default,
-		&.btn-secondary {
+		&.btn-default, &.btn-secondary {
 			min-width: 28px;
 		}
 	}
@@ -31,9 +30,7 @@
 	);
 
 	color: $white;
-	&:hover,
-	&:active,
-	&:focus {
+	&:hover, &:active, &:focus {
 		color: $white;
 	}
 	.icon {
@@ -52,8 +49,7 @@
 	);
 
 	color: var(--primary);
-	&:hover,
-	&:active {
+	&:hover, &:active {
 		color: var(--primary);
 	}
 
@@ -65,9 +61,8 @@
 .btn.btn-secondary {
 	background-color: var(--control-bg);
 	color: var(--text-color);
-	&:hover,
-	&:active {
-		background-color: var(--gray-400);
+	&:hover, &:active {
+		background-color: var(--gray-300);
 		color: var(--text-color);
 	}
 }
@@ -75,8 +70,7 @@
 .btn.btn-default {
 	background-color: var(--fg-color);
 	color: var(--text-color);
-	&:hover,
-	&:active {
+	&:hover, &:active {
 		background: var(--fg-hover-color);
 		color: var(--text-color);
 	}

@@ -1,5 +1,9 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# License: See license.txt
+
+from __future__ import unicode_literals
+
+from six import string_types
 
 import frappe
 import frappe.permissions
@@ -22,7 +26,7 @@ def update_feed(doc, method=None):
 		feed = doc.get_feed()
 
 		if feed:
-			if isinstance(feed, str):
+			if isinstance(feed, string_types):
 				feed = {"subject": feed}
 
 			feed = frappe._dict(feed)
@@ -30,11 +34,13 @@ def update_feed(doc, method=None):
 			name = feed.name or doc.name
 
 			# delete earlier feed
-			frappe.db.delete(
-				"Activity Log",
-				{"reference_doctype": doctype, "reference_name": name, "link_doctype": feed.link_doctype},
+			frappe.db.sql(
+				"""delete from `tabActivity Log`
+				where
+					reference_doctype=%s and reference_name=%s
+					and link_doctype=%s""",
+				(doctype, name, feed.link_doctype),
 			)
-
 			frappe.get_doc(
 				{
 					"doctype": "Activity Log",
@@ -74,23 +80,25 @@ def get_feed_match_conditions(user=None, doctype="Comment"):
 	user_permissions = frappe.permissions.get_user_permissions(user)
 	can_read = frappe.get_user().get_can_read()
 
-	can_read_doctypes = [f"'{dt}'" for dt in list(set(can_read) - set(list(user_permissions)))]
+	can_read_doctypes = [
+		"'{}'".format(dt) for dt in list(set(can_read) - set(list(user_permissions)))
+	]
 
 	if can_read_doctypes:
 		conditions += [
 			"""(`tab{doctype}`.reference_doctype is null
 			or `tab{doctype}`.reference_doctype = ''
 			or `tab{doctype}`.reference_doctype
-			in ({values}))""".format(doctype=doctype, values=", ".join(can_read_doctypes))
+			in ({values}))""".format(
+				doctype=doctype, values=", ".join(can_read_doctypes)
+			)
 		]
 
 		if user_permissions:
 			can_read_docs = []
 			for dt, obj in user_permissions.items():
 				for n in obj:
-					can_read_docs.append(
-						"{}|{}".format(frappe.db.escape(dt), frappe.db.escape(n.get("doc", "")))
-					)
+					can_read_docs.append("{}|{}".format(frappe.db.escape(dt), frappe.db.escape(n.get("doc", ""))))
 
 			if can_read_docs:
 				conditions.append(

@@ -1,5 +1,7 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+
+from __future__ import unicode_literals
 
 import frappe
 from frappe.desk.reportview import build_match_conditions
@@ -10,14 +12,15 @@ def sendmail_to_system_managers(subject, content):
 
 
 @frappe.whitelist()
-def get_contact_list(txt, page_length=20) -> list[dict]:
+def get_contact_list(txt, page_length=20):
 	"""Return email ids for a multiselect field."""
 
-	if cached_contacts := get_cached_contacts(txt):
+	cached_contacts = get_cached_contacts(txt)
+	if cached_contacts:
 		return cached_contacts[:page_length]
 
-	reportview_conditions = build_match_conditions("Contact")
-	match_conditions = f"and {reportview_conditions}" if reportview_conditions else ""
+	match_conditions = build_match_conditions("Contact")
+	match_conditions = "and {0}".format(match_conditions) if match_conditions else ""
 
 	# The multiselect field will store the `label` as the selected value.
 	# The `value` is just used as a unique key to distinguish between the options.
@@ -29,7 +32,7 @@ def get_contact_list(txt, page_length=20) -> list[dict]:
 		where (name like %(txt)s or email_id like %(txt)s) and email_id != ''
 		{match_conditions}
 		limit %(page_length)s""",
-		{"txt": f"%{txt}%", "page_length": page_length},
+		{"txt": "%" + txt + "%", "page_length": page_length},
 		as_dict=True,
 	)
 	out = list(filter(None, out))
@@ -74,6 +77,7 @@ def get_communication_doctype(doctype, txt, searchfield, start, page_len, filter
 
 	com_doctypes = []
 	if len(txt) < 2:
+
 		for name in frappe.get_hooks("communication_doctypes"):
 			try:
 				module = load_doctype_module(name, suffix="_dashboard")

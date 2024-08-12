@@ -2,8 +2,7 @@
 # See license.txt
 
 # import frappe
-from frappe.tests.utils import FrappeTestCase
+import unittest
 
-
-class Test{classname}(FrappeTestCase):
+class Test{classname}(unittest.TestCase):
 	pass

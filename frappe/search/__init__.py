@@ -1,5 +1,5 @@
 # Copyright (c) 2020, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
 
 import frappe
 from frappe.search.full_text_search import FullTextSearch

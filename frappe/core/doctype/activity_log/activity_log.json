@@ -13,7 +13,6 @@
   "column_break_5",
   "additional_info",
   "communication_date",
-  "ip_address",
   "column_break_7",
   "operation",
   "status",
@@ -102,7 +101,8 @@
    "fetch_from": "reference_name.owner",
    "fieldname": "reference_owner",
    "fieldtype": "Read Only",
-   "label": "Reference Owner"
+   "label": "Reference Owner",
+   "search_index": 1
   },
   {
    "fieldname": "column_break_14",
@@ -148,17 +148,12 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Full Name"
-  },
-  {
-   "fieldname": "ip_address",
-   "fieldtype": "Data",
-   "label": "IP Address"
   }
  ],
  "icon": "fa fa-comment",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-07-28 13:26:32.281278",
+ "modified": "2021-10-25 11:43:57.504565",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "Activity Log",
@@ -185,7 +180,6 @@
  "search_fields": "subject",
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": [],
  "title_field": "subject",
  "track_seen": 1
 }

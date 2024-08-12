@@ -1,9 +1,11 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
-from frappe.tests.utils import FrappeTestCase
+# MIT License. See license.txt
+from __future__ import unicode_literals
+
+import unittest
 
 
-class TestGeoIP(FrappeTestCase):
+class TestGeoIP(unittest.TestCase):
 	def test_geo_ip(self):
 		return
 		from frappe.sessions import get_geo_ip_country

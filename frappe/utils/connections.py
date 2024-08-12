@@ -1,5 +1,6 @@
 import socket
-from urllib.parse import urlparse
+
+from six.moves.urllib.parse import urlparse
 
 from frappe import get_conf
 
@@ -13,7 +14,7 @@ def is_open(ip, port, timeout=10):
 		s.connect((ip, int(port)))
 		s.shutdown(socket.SHUT_RDWR)
 		return True
-	except OSError:
+	except socket.error:
 		return False
 	finally:
 		s.close()

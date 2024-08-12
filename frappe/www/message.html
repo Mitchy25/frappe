@@ -26,9 +26,7 @@ html, body {
 	</h5>
 	<div class="page-card-body">
 	{% block message_body %}
-		{% if message %}
-		<p>{{ message }}</p>
-		{% endif %}
+		<p>{{ message or "" }}</p>
 		{% if primary_action %}
 		<div><a href='{{ primary_action or "/" }}' class='btn btn-primary btn-sm'>
 			{{ primary_label or _("Home") }}</a></div>

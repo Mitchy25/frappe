@@ -1,12 +1,16 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2019, Frappe Technologies and Contributors
-# License: MIT. See LICENSE
+# See license.txt
+from __future__ import unicode_literals
+
+import unittest
+
 import frappe
 from frappe.core.doctype.user.user import get_system_users
 from frappe.desk.form.assign_to import add as assign_task
-from frappe.tests.utils import FrappeTestCase
 
 
-class TestNotificationLog(FrappeTestCase):
+class TestNotificationLog(unittest.TestCase):
 	def test_assignment(self):
 		todo = get_todo()
 		user = get_user()
@@ -30,12 +34,14 @@ class TestNotificationLog(FrappeTestCase):
 		self.assertEqual(log_type, "Share")
 
 		email = get_last_email_queue()
-		content = f"Subject: {frappe.utils.get_fullname(frappe.session.user)} shared a document ToDo"
+		content = "Subject: {} shared a document ToDo".format(
+			frappe.utils.get_fullname(frappe.session.user)
+		)
 		self.assertTrue(content in email.message)
 
 
 def get_last_email_queue():
-	res = frappe.get_all("Email Queue", fields=["message"], order_by="creation desc", limit=1)
+	res = frappe.db.get_all("Email Queue", fields=["message"], order_by="creation desc", limit=1)
 	return res[0]
 
 

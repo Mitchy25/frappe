@@ -1,5 +1,9 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+
+from __future__ import unicode_literals
+
+from six import iteritems
 
 import frappe
 
@@ -24,7 +28,7 @@ def flush_local_link_count():
 	if not link_count:
 		link_count = {}
 
-		for key, _value in frappe.local.link_count.items():
+		for key, value in frappe.local.link_count.items():
 			if key in link_count:
 				link_count[key] += frappe.local.link_count[key]
 			else:
@@ -38,11 +42,11 @@ def update_link_count():
 	link_count = frappe.cache().get_value("_link_count")
 
 	if link_count:
-		for key, count in link_count.items():
+		for key, count in iteritems(link_count):
 			if key[0] not in ignore_doctypes:
 				try:
 					frappe.db.sql(
-						f"update `tab{key[0]}` set idx = idx + {count} where name=%s",
+						"update `tab{0}` set idx = idx + {1} where name=%s".format(key[0], count),
 						key[1],
 						auto_commit=1,
 					)

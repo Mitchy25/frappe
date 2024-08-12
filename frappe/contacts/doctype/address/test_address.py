@@ -1,13 +1,15 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2015, Frappe Technologies and Contributors
-# License: MIT. See LICENSE
-from functools import partial
+# See license.txt
+from __future__ import unicode_literals
+
+import unittest
 
 import frappe
 from frappe.contacts.doctype.address.address import address_query, get_address_display
-from frappe.tests.utils import FrappeTestCase
 
 
-class TestAddress(FrappeTestCase):
+class TestAddress(unittest.TestCase):
 	def test_template_works(self):
 		if not frappe.db.exists("Address Template", "India"):
 			frappe.get_doc({"doctype": "Address Template", "country": "India", "is_default": 1}).insert()

@@ -1,12 +1,12 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2015, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# For license information, please see license.txt
+
+from __future__ import unicode_literals
 
 import frappe
 from frappe.core.doctype.report.report import is_prepared_report_disabled
 from frappe.model.document import Document
-from frappe.permissions import ALL_USER_ROLE
-from frappe.utils import cint
-
 
 
 class RolePermissionforPageandReport(Document):
@@ -70,9 +70,9 @@ class RolePermissionforPageandReport(Document):
 		if self.report:
 			# intentionally written update query in frappe.db.sql instead of frappe.db.set_value
 			frappe.db.sql(
-				"""update `tabReport` set disable_prepared_report = %s, prepared_report = %s
+				""" update `tabReport` set disable_prepared_report = %s
 				where name = %s""",
-				(self.disable_prepared_report, not self.disable_prepared_report, self.report),
+				(self.disable_prepared_report, self.report),
 			)
 
 	def get_args(self, row=None):
@@ -82,11 +82,11 @@ class RolePermissionforPageandReport(Document):
 		return {check_for_field: name}
 
 	def get_roles(self):
-		return [
-			{"role": data.role, "parenttype": "Custom Role"}
-			for data in self.roles
-			if data.role != ALL_USER_ROLE
-		]
+		roles = []
+		for data in self.roles:
+			if data.role != "All":
+				roles.append({"role": data.role, "parenttype": "Custom Role"})
+		return roles
 
 	def update_status(self):
 		return frappe.render_template

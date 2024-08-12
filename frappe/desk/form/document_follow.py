@@ -1,17 +1,20 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+
+from __future__ import unicode_literals
+
+from itertools import groupby
 
 import frappe
 import frappe.utils
 from frappe import _
 from frappe.model import log_types
-from frappe.query_builder import DocType
 from frappe.utils import get_url_to_form
 
 
 @frappe.whitelist()
 def update_follow(doctype, doc_name, following):
-	if frappe.sbool(following):
+	if following:
 		return follow_document(doctype, doc_name, frappe.session.user)
 	else:
 		return unfollow_document(doctype, doc_name, frappe.session.user)
@@ -103,62 +106,33 @@ def send_document_follow_mails(frequency):
 	call method to send mail
 	"""
 
-	user_list = get_user_list(frequency)
+	users = frappe.get_list("Document Follow", fields=["*"])
 
-	for user in user_list:
-		message, valid_document_follows = get_message_for_user(frequency, user)
-		if message:
-			send_email_alert(user, valid_document_follows, message)
-			# send an email if we have already spent resources creating	the message
-			# nosemgrep
-			frappe.db.commit()
+	sorted_users = sorted(users, key=lambda k: k["user"])
 
+	grouped_by_user = {}
+	for k, v in groupby(sorted_users, key=lambda k: k["user"]):
+		grouped_by_user[k] = list(v)
 
-def get_user_list(frequency):
-	DocumentFollow = DocType("Document Follow")
-	User = DocType("User")
-	return (
-		frappe.qb.from_(DocumentFollow)
-		.join(User)
-		.on(DocumentFollow.user == User.name)
-		.where(User.document_follow_notify == 1)
-		.where(User.document_follow_frequency == frequency)
-		.select(DocumentFollow.user)
-		.groupby(DocumentFollow.user)
-	).run(pluck="user")
+	for user in grouped_by_user:
+		user_frequency = frappe.db.get_value("User", user, "document_follow_frequency")
+		message = []
+		valid_document_follows = []
+		if user_frequency == frequency:
+			for d in grouped_by_user[user]:
+				content = get_message(d.ref_docname, d.ref_doctype, frequency, user)
+				if content:
+					message = message + content
+					valid_document_follows.append(
+						{
+							"reference_docname": d.ref_docname,
+							"reference_doctype": d.ref_doctype,
+							"reference_url": get_url_to_form(d.ref_doctype, d.ref_docname),
+						}
+					)
 
-
-def get_message_for_user(frequency, user):
-	message = []
-	latest_document_follows = get_document_followed_by_user(user)
-	valid_document_follows = []
-
-	for document_follow in latest_document_follows:
-		content = get_message(document_follow.ref_docname, document_follow.ref_doctype, frequency, user)
-		if content:
-			message = message + content
-			valid_document_follows.append(
-				{
-					"reference_docname": document_follow.ref_docname,
-					"reference_doctype": document_follow.ref_doctype,
-					"reference_url": get_url_to_form(
-						document_follow.ref_doctype, document_follow.ref_docname
-					),
-				}
-			)
-	return message, valid_document_follows
-
-
-def get_document_followed_by_user(user):
-	DocumentFollow = DocType("Document Follow")
-	# at max 20 documents are sent for each user
-	return (
-		frappe.qb.from_(DocumentFollow)
-		.where(DocumentFollow.user == user)
-		.select(DocumentFollow.ref_doctype, DocumentFollow.ref_docname)
-		.orderby(DocumentFollow.modified)
-		.limit(20)
-	).run(as_dict=True)
+			if message and frappe.db.get_value("User", user, "document_follow_notify", ignore=True):
+				send_email_alert(user, valid_document_follows, message)
 
 
 def get_version(doctype, doc_name, frequency, user):
@@ -190,7 +164,7 @@ def get_version(doctype, doc_name, frequency, user):
 
 
 def get_comments(doctype, doc_name, frequency, user):
-	from frappe.core.utils import html2text
+	from html2text import html2text
 
 	timeline = []
 	comments = frappe.get_all(
@@ -204,9 +178,9 @@ def get_comments(doctype, doc_name, frequency, user):
 	)
 	for comment in comments:
 		if comment.comment_type == "Like":
-			by = f""" By : <b>{comment.modified_by}<b>"""
+			by = """ By : <b>{0}<b>""".format(comment.modified_by)
 		elif comment.comment_type == "Comment":
-			by = f"""Commented by : <b>{comment.modified_by}<b>"""
+			by = """Commented by : <b>{0}<b>""".format(comment.modified_by)
 		else:
 			by = ""
 
@@ -237,7 +211,7 @@ def get_follow_users(doctype, doc_name):
 
 
 def get_row_changed(row_changed, time, doctype, doc_name, v):
-	from frappe.core.utils import html2text
+	from html2text import html2text
 
 	items = []
 	for d in row_changed:
@@ -281,7 +255,7 @@ def get_added_row(added, time, doctype, doc_name, v):
 
 
 def get_field_changed(changed, time, doctype, doc_name, v):
-	from frappe.core.utils import html2text
+	from html2text import html2text
 
 	items = []
 	for d in changed:

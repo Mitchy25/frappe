@@ -1,5 +1,9 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2019, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# See license.txt
+from __future__ import unicode_literals
+
+import unittest
 from urllib.parse import urljoin
 
 import requests
@@ -8,7 +12,6 @@ import frappe
 from frappe.integrations.doctype.social_login_key.test_social_login_key import (
 	create_or_update_social_login_key,
 )
-from frappe.tests.utils import FrappeTestCase
 
 
 def get_user(usr, pwd):
@@ -48,7 +51,7 @@ def get_oauth_client():
 	return oauth_client
 
 
-class TestConnectedApp(FrappeTestCase):
+class TestConnectedApp(unittest.TestCase):
 	def setUp(self):
 		"""Set up a Connected App that connects to our own oAuth provider.
 

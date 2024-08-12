@@ -1,5 +1,8 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+
+from __future__ import unicode_literals
+
 import email.utils
 import os
 import re
@@ -7,8 +10,10 @@ from email import policy
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
 
+from six import iteritems, string_types, text_type
+
 import frappe
-from frappe.email.doctype.email_account.email_account import EmailAccount
+from frappe.email.smtp import get_outgoing_email_account
 from frappe.utils import (
 	cint,
 	expand_relative_urls,
@@ -22,8 +27,6 @@ from frappe.utils import (
 	to_markdown,
 )
 from frappe.utils.pdf import get_pdf
-
-EMBED_PATTERN = re.compile("""embed=["'](.*?)["']""")
 
 
 def get_email(
@@ -122,7 +125,7 @@ class EMail:
 
 		Charset.add_charset("utf-8", Charset.QP, Charset.QP, "utf-8")
 
-		if isinstance(recipients, str):
+		if isinstance(recipients, string_types):
 			recipients = recipients.replace(";", ",").replace("\n", "")
 			recipients = split_emails(recipients)
 
@@ -135,16 +138,14 @@ class EMail:
 		self.subject = subject
 		self.expose_recipients = expose_recipients
 
-		self.msg_root = MIMEMultipart("mixed", policy=policy.SMTP)
-		self.msg_alternative = MIMEMultipart("alternative", policy=policy.SMTP)
+		self.msg_root = MIMEMultipart("mixed", policy=policy.SMTPUTF8)
+		self.msg_alternative = MIMEMultipart("alternative", policy=policy.SMTPUTF8)
 		self.msg_root.attach(self.msg_alternative)
 		self.cc = cc or []
 		self.bcc = bcc or []
 		self.html_set = False
 
-		self.email_account = email_account or EmailAccount.find_outgoing(
-			match_by_email=sender, _raise_error=True
-		)
+		self.email_account = email_account or get_outgoing_email_account(sender=sender)
 
 	def set_html(
 		self,
@@ -185,22 +186,22 @@ class EMail:
 		"""
 		from email.mime.text import MIMEText
 
-		part = MIMEText(message, "plain", "utf-8", policy=policy.SMTP)
+		part = MIMEText(message, "plain", "utf-8", policy=policy.SMTPUTF8)
 		self.msg_alternative.attach(part)
 
 	def set_part_html(self, message, inline_images):
 		from email.mime.text import MIMEText
 
-		has_inline_images = EMBED_PATTERN.search(message)
+		has_inline_images = re.search("""embed=['"].*?['"]""", message)
 
 		if has_inline_images:
 			# process inline images
 			message, _inline_images = replace_filename_with_cid(message)
 
 			# prepare parts
-			msg_related = MIMEMultipart("related", policy=policy.SMTP)
+			msg_related = MIMEMultipart("related", policy=policy.SMTPUTF8)
 
-			html_part = MIMEText(message, "html", "utf-8", policy=policy.SMTP)
+			html_part = MIMEText(message, "html", "utf-8", policy=policy.SMTPUTF8)
 			msg_related.attach(html_part)
 
 			for image in _inline_images:
@@ -214,18 +215,20 @@ class EMail:
 
 			self.msg_alternative.attach(msg_related)
 		else:
-			self.msg_alternative.attach(MIMEText(message, "html", "utf-8", policy=policy.SMTP))
+			self.msg_alternative.attach(MIMEText(message, "html", "utf-8", policy=policy.SMTPUTF8))
 
 	def set_html_as_text(self, html):
 		"""Set plain text from HTML"""
 		self.set_text(to_markdown(html))
 
-	def set_message(self, message, mime_type="text/html", as_attachment=0, filename="attachment.html"):
+	def set_message(
+		self, message, mime_type="text/html", as_attachment=0, filename="attachment.html"
+	):
 		"""Append the message with MIME content to the root node (as attachment)"""
 		from email.mime.text import MIMEText
 
 		maintype, subtype = mime_type.split("/")
-		part = MIMEText(message, _subtype=subtype, policy=policy.SMTP)
+		part = MIMEText(message, _subtype=subtype, policy=policy.SMTPUTF8)
 
 		if as_attachment:
 			part.add_header("Content-Disposition", "attachment", filename=filename)
@@ -241,7 +244,9 @@ class EMail:
 
 		self.add_attachment(_file.file_name, content)
 
-	def add_attachment(self, fname, fcontent, content_type=None, parent=None, content_id=None, inline=False):
+	def add_attachment(
+		self, fname, fcontent, content_type=None, parent=None, content_id=None, inline=False
+	):
 		"""add attachment"""
 
 		if not parent:
@@ -262,27 +267,28 @@ class EMail:
 		validate_email_address(strip(self.sender), True)
 		self.reply_to = validate_email_address(strip(self.reply_to) or self.sender, True)
 
-		self.set_header("X-Original-From", self.sender)
 		self.replace_sender()
 		self.replace_sender_name()
 
-		self.recipients = [strip(r) for r in self.recipients if r not in frappe.STANDARD_USERS]
-		self.cc = [strip(r) for r in self.cc if r not in frappe.STANDARD_USERS]
-		self.bcc = [strip(r) for r in self.bcc if r not in frappe.STANDARD_USERS]
+		self.recipients = [strip(r) for r in self.recipients]
+		self.cc = [strip(r) for r in self.cc]
+		self.bcc = [strip(r) for r in self.bcc]
 
 		for e in self.recipients + (self.cc or []) + (self.bcc or []):
 			validate_email_address(e, True)
 
 	def replace_sender(self):
 		if cint(self.email_account.always_use_account_email_id_as_sender):
-			sender_name, _ = parse_addr(self.sender)
+			self.set_header("X-Original-From", self.sender)
+			sender_name, sender_email = parse_addr(self.sender)
 			self.sender = email.utils.formataddr(
 				(str(Header(sender_name or self.email_account.name, "utf-8")), self.email_account.email_id)
 			)
 
 	def replace_sender_name(self):
 		if cint(self.email_account.always_use_account_name_as_sender_name):
-			_, sender_email = parse_addr(self.sender)
+			self.set_header("X-Original-From", self.sender)
+			sender_name, sender_email = parse_addr(self.sender)
 			self.sender = email.utils.formataddr(
 				(str(Header(self.email_account.name, "utf-8")), sender_email)
 			)
@@ -316,7 +322,7 @@ class EMail:
 		}
 
 		# reset headers as values may be changed.
-		for key, val in headers.items():
+		for key, val in iteritems(headers):
 			if val:
 				self.set_header(key, val)
 
@@ -337,7 +343,7 @@ class EMail:
 		"""validate, build message and convert to string"""
 		self.validate()
 		self.make()
-		return self.msg_root.as_string(policy=policy.SMTP)
+		return self.msg_root.as_string(policy=policy.SMTPUTF8)
 
 
 def get_formatted_html(
@@ -347,11 +353,12 @@ def get_formatted_html(
 	print_html=None,
 	email_account=None,
 	header=None,
-	unsubscribe_link: frappe._dict | None = None,
+	unsubscribe_link=None,
 	sender=None,
 	with_container=False,
 ):
-	email_account = email_account or EmailAccount.find_outgoing(match_by_email=sender)
+	if not email_account:
+		email_account = get_outgoing_email_account(False, sender=sender)
 
 	rendered_email = frappe.get_template("templates/emails/standard.html").render(
 		{
@@ -370,7 +377,7 @@ def get_formatted_html(
 	html = scrub_urls(rendered_email)
 
 	if unsubscribe_link:
-		html = html.replace("<!--unsubscribe link here-->", unsubscribe_link.html)
+		html = html.replace("<!--unsubscribe_link_here-->", unsubscribe_link.html)
 
 	return inline_style_in_html(html)
 
@@ -391,12 +398,17 @@ def inline_style_in_html(html):
 	"""Convert email.css and html to inline-styled html"""
 	from premailer import Premailer
 
-	from frappe.utils.jinja_globals import bundled_asset
+	apps = frappe.get_installed_apps()
 
-	# get email css files from hooks
-	css_files = frappe.get_hooks("email_css")
-	css_files = [bundled_asset(path) for path in css_files]
-	css_files = [path.lstrip("/") for path in css_files]
+	# add frappe email css file
+	css_files = ["assets/css/email.css"]
+	if "frappe" in apps:
+		apps.remove("frappe")
+
+	for app in apps:
+		path = "assets/{0}/css/email.css".format(app)
+		css_files.append(path)
+
 	css_files = [css_file for css_file in css_files if os.path.exists(os.path.abspath(css_file))]
 
 	p = Premailer(html=html, external_styles=css_files, strip_important=False)
@@ -426,7 +438,7 @@ def add_attachment(fname, fcontent, content_type=None, parent=None, content_id=N
 	maintype, subtype = content_type.split("/", 1)
 	if maintype == "text":
 		# Note: we should handle calculating the charset
-		if isinstance(fcontent, str):
+		if isinstance(fcontent, text_type):
 			fcontent = fcontent.encode("utf-8")
 		part = MIMEText(fcontent, _subtype=subtype, _charset="utf-8")
 	elif maintype == "image":
@@ -444,17 +456,18 @@ def add_attachment(fname, fcontent, content_type=None, parent=None, content_id=N
 	# Set the filename parameter
 	if fname:
 		attachment_type = "inline" if inline else "attachment"
-		part.add_header("Content-Disposition", attachment_type, filename=str(fname))
+		part.add_header("Content-Disposition", attachment_type, filename=text_type(fname))
 	if content_id:
-		part.add_header("Content-ID", f"<{content_id}>")
+		part.add_header("Content-ID", "<{0}>".format(content_id))
 
 	parent.attach(part)
 
 
 def get_message_id():
 	"""Returns Message ID created from doctype and name"""
-	return email.utils.make_msgid(domain=frappe.local.site)
-
+	return "<{unique}@{site}>".format(
+			site=frappe.local.site[8:],
+			unique=email.utils.make_msgid(random_string(10)).split('@')[0].split('<')[1])
 
 def get_signature(email_account):
 	if email_account and email_account.add_signature and email_account.signature:
@@ -494,7 +507,7 @@ def replace_filename_with_cid(message):
 	inline_images = []
 
 	while True:
-		matches = EMBED_PATTERN.search(message)
+		matches = re.search("""embed=["'](.*?)["']""", message)
 		if not matches:
 			break
 		groups = matches.groups()
@@ -510,7 +523,9 @@ def replace_filename_with_cid(message):
 
 		content_id = random_string(10)
 
-		inline_images.append({"filename": filename, "filecontent": filecontent, "content_id": content_id})
+		inline_images.append(
+			{"filename": filename, "filecontent": filecontent, "content_id": content_id}
+		)
 
 		message = re.sub(f"""embed=['"]{re.escape(img_path)}['"]""", f'src="cid:{content_id}"', message)
 
@@ -552,7 +567,7 @@ def get_header(header=None):
 	if not header:
 		return None
 
-	if isinstance(header, str):
+	if isinstance(header, string_types):
 		# header = 'My Title'
 		header = [header, None]
 	if len(header) == 1:

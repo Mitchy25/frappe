@@ -8,16 +8,16 @@
  "engine": "InnoDB",
  "field_order": [
   "enabled",
-  "is_standard",
-  "module",
   "column_break_2",
   "channel",
   "slack_webhook_url",
   "filters",
   "subject",
-  "event",
   "document_type",
+  "is_standard",
+  "module",
   "col_break_1",
+  "event",
   "method",
   "date_changed",
   "days_in_advance",
@@ -36,7 +36,6 @@
   "send_to_all_assignees",
   "recipients",
   "message_sb",
-  "message_type",
   "message",
   "message_examples",
   "view_properties",
@@ -103,8 +102,7 @@
    "default": "0",
    "fieldname": "is_standard",
    "fieldtype": "Check",
-   "label": "Is Standard",
-   "no_copy": 1
+   "label": "Is Standard"
   },
   {
    "depends_on": "is_standard",
@@ -119,6 +117,7 @@
    "fieldtype": "Column Break"
   },
   {
+   "depends_on": "eval: doc.document_type",
    "fieldname": "event",
    "fieldtype": "Select",
    "in_list_view": 1,
@@ -277,24 +276,15 @@
    "fieldname": "send_to_all_assignees",
    "fieldtype": "Check",
    "label": "Send To All Assignees"
-  },
-  {
-   "default": "Markdown",
-   "depends_on": "is_standard",
-   "fieldname": "message_type",
-   "fieldtype": "Select",
-   "label": "Message Type",
-   "options": "Markdown\nHTML\nPlain Text"
   }
  ],
  "icon": "fa fa-envelope",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-07-04 05:50:40.595130",
+ "modified": "2020-11-24 14:25:43.245677",
  "modified_by": "Administrator",
  "module": "Email",
  "name": "Notification",
- "naming_rule": "Set by user",
  "owner": "Administrator",
  "permissions": [
   {
@@ -310,7 +300,6 @@
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": [],
  "title_field": "subject",
  "track_changes": 1
 }

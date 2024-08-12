@@ -32,33 +32,34 @@ export default class KanbanSettings {
 				},
 				{
 					fieldname: "fields_html",
-					fieldtype: "HTML",
+					fieldtype: "HTML"
 				},
 				{
 					fieldname: "fields",
 					fieldtype: "Code",
-					hidden: 1,
-				},
-			],
+					hidden: 1
+				}
+			]
 		});
 		this.dialog.set_values(this.settings);
 		this.dialog.set_primary_action(__("Save"), () => {
 			frappe.show_alert({
 				message: __("Saving"),
-				indicator: "green",
+				indicator: "green"
 			});
 
 			frappe.call({
-				method: "frappe.desk.doctype.kanban_board.kanban_board.save_settings",
+				method:
+					"frappe.desk.doctype.kanban_board.kanban_board.save_settings",
 				args: {
 					board_name: this.settings.name,
-					settings: this.dialog.get_values(),
+					settings: this.dialog.get_values()
 				},
-				callback: (r) => {
+				callback: r => {
 					this.kanbanview.board = r.message;
 					this.kanbanview.render();
 					this.dialog.hide();
-				},
+				}
 			});
 		});
 	}
@@ -111,43 +112,57 @@ export default class KanbanSettings {
 		fields_html.html(`
 			<div class="form-group">
 				<div class="clearfix">
-					<label class="control-label" style="padding-right: 0px;">${__("Fields")}</label>
+					<label class="control-label" style="padding-right: 0px;">Fields</label>
 				</div>
 				<div class="control-input-wrapper">
 				${fields}
 				</div>
 				<p class="help-box small text-muted">
 					<a class="add-new-fields text-muted">
-						${__("+ Add / Remove Fields")}
+						+ Add / Remove Fields
 					</a>
 				</p>
 			</div>
 		`);
 
-		new Sortable(wrapper.getElementsByClassName("control-input-wrapper")[0], {
-			handle: ".sortable-handle",
-			draggable: ".sortable",
-			onUpdate: (params) => {
-				this.fields.splice(params.newIndex, 0, this.fields.splice(params.oldIndex, 1)[0]);
-				this.dialog.set_value("fields", JSON.stringify(this.fields));
-				this.refresh();
-			},
-		});
+		new Sortable(
+			wrapper.getElementsByClassName("control-input-wrapper")[0],
+			{
+				handle: ".sortable-handle",
+				draggable: ".sortable",
+				onUpdate: params => {
+					this.fields.splice(
+						params.newIndex,
+						0,
+						this.fields.splice(params.oldIndex, 1)[0]
+					);
+					this.dialog.set_value(
+						"fields",
+						JSON.stringify(this.fields)
+					);
+					this.refresh();
+				}
+			}
+		);
 	}
 
 	add_new_fields() {
-		let add_new_fields =
-			this.get_dialog_fields_wrapper().getElementsByClassName("add-new-fields")[0];
+		let add_new_fields = this.get_dialog_fields_wrapper().getElementsByClassName(
+			"add-new-fields"
+		)[0];
 		add_new_fields.onclick = () => this.show_column_selector();
 	}
 
 	setup_remove_fields() {
-		let remove_fields =
-			this.get_dialog_fields_wrapper().getElementsByClassName("remove-field");
+		let remove_fields = this.get_dialog_fields_wrapper().getElementsByClassName(
+			"remove-field"
+		);
 
 		for (let idx = 0; idx < remove_fields.length; idx++) {
 			remove_fields.item(idx).onclick = () =>
-				this.remove_fields(remove_fields.item(idx).getAttribute("data-fieldname"));
+				this.remove_fields(
+					remove_fields.item(idx).getAttribute("data-fieldname")
+				);
 		}
 	}
 
@@ -156,7 +171,7 @@ export default class KanbanSettings {
 	}
 
 	remove_fields(fieldname) {
-		this.fields = this.fields.filter((field) => field !== fieldname);
+		this.fields = this.fields.filter(field => field !== fieldname);
 		this.dialog.set_value("fields", JSON.stringify(this.fields));
 		this.refresh();
 	}
@@ -167,7 +182,9 @@ export default class KanbanSettings {
 		this.fields = [];
 
 		for (let idx = 0; idx < fields_order.length; idx++) {
-			this.fields.push(fields_order.item(idx).getAttribute("data-fieldname"));
+			this.fields.push(
+				fields_order.item(idx).getAttribute("data-fieldname")
+			);
 		}
 
 		this.dialog.set_value("fields", JSON.stringify(this.fields));
@@ -182,9 +199,9 @@ export default class KanbanSettings {
 					fieldtype: "MultiCheck",
 					fieldname: "fields",
 					options: this.get_multiselect_fields(),
-					columns: 2,
-				},
-			],
+					columns: 2
+				}
+			]
 		});
 		dialog.set_primary_action(__("Save"), () => {
 			this.fields = dialog.get_values().fields || [];
@@ -197,7 +214,7 @@ export default class KanbanSettings {
 
 	get_fields() {
 		this.fields = this.settings.fields;
-		this.fields.uniqBy((f) => f.fieldname);
+		this.fields.uniqBy(f => f.fieldname);
 	}
 
 	get_docfield(field_name) {
@@ -217,7 +234,7 @@ export default class KanbanSettings {
 			"_liked_by",
 			"_comments",
 			"_assign",
-			this.meta.title_field || "name",
+			this.meta.title_field || "name"
 		];
 
 		const ignore_fieldtypes = [
@@ -226,21 +243,21 @@ export default class KanbanSettings {
 			"HTML Editor",
 			"Code",
 			"Color",
-			...frappe.model.no_value_type,
+			...frappe.model.no_value_type
 		];
 
 		return frappe.model.std_fields
 			.concat(this.kanbanview.get_fields_in_list_view())
 			.filter(
-				(field) =>
+				field =>
 					!ignore_fields.includes(field.fieldname) &&
 					!ignore_fieldtypes.includes(field.fieldtype)
 			)
-			.map((field) => {
+			.map(field => {
 				return {
 					label: __(field.label),
 					value: field.fieldname,
-					checked: this.fields.includes(field.fieldname),
+					checked: this.fields.includes(field.fieldname)
 				};
 			});
 	}

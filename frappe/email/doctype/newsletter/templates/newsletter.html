@@ -1,6 +1,6 @@
 {% extends "templates/web.html" %}
 
-{% block title %} {{ doc.subject }} {% endblock %}
+{% block title %} {{ _("Newsletter") }} {% endblock %}
 
 {% block page_content %}
     <style>
@@ -36,11 +36,11 @@
                 </p>
             </div>
             <div itemprop="articleBody" class="longform blog-text">
-                {{ doc.get_message() }}
+                {{ doc.message }}
             </div>
         </article>
 
-        {% if doc.attachments %}
+        {% if attachments %}
             <div>
                 <div class="row text-muted">
                     <div class="col-sm-12 h6 text-uppercase">
@@ -49,10 +49,10 @@
                 </div>
                 <div class="row">
                     <div class="col-sm-12">
-                        {% for attachment in doc.attachments %}
+                        {% for attachment in attachments %}
                             <p class="small">
-                                <a href="{{ attachment.attachment }}" target="_blank">
-                                    {{ attachment.attachment }}
+                                <a href="{{ attachment.file_url }}" target="blank">
+                                    {{ attachment.file_name }}
                                 </a>
                             </p>
                         {% endfor %}

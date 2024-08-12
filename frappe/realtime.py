@@ -1,5 +1,5 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and contributors
-# License: MIT. See LICENSE
+# For license information, please see license.txt
 
 import os
 from contextlib import suppress
@@ -7,29 +7,36 @@ from contextlib import suppress
 import redis
 
 import frappe
-from frappe.utils.data import cstr
 
 redis_server = None
+
+
+@frappe.whitelist()
+def get_pending_tasks_for_doc(doctype, docname):
+	return frappe.db.sql_list(
+		"select name from `tabAsync Task` where status in ('Queued', 'Running') and reference_doctype=%s and reference_name=%s",
+		(doctype, docname),
+	)
 
 
 def publish_progress(percent, title=None, doctype=None, docname=None, description=None):
 	publish_realtime(
 		"progress",
 		{"percent": percent, "title": title, "description": description},
-		user=None if doctype and docname else frappe.session.user,
+		user=frappe.session.user,
 		doctype=doctype,
 		docname=docname,
 	)
 
 
 def publish_realtime(
-	event: str | None = None,
-	message: dict | None = None,
-	room: str | None = None,
-	user: str | None = None,
-	doctype: str | None = None,
-	docname: str | None = None,
-	task_id: str | None = None,
+	event: str = None,
+	message: dict = None,
+	room: str = None,
+	user: str = None,
+	doctype: str = None,
+	docname: str = None,
+	task_id: str = None,
 	after_commit: bool = False,
 ):
 	"""Publish real-time updates
@@ -74,7 +81,7 @@ def publish_realtime(
 
 	if after_commit:
 		params = [event, message, room]
-		if params not in frappe.local.realtime_log:
+		if not params in frappe.local.realtime_log:
 			frappe.local.realtime_log.append(params)
 	else:
 		emit_via_redis(event, message, room)
@@ -108,8 +115,10 @@ def can_subscribe_doc(doctype, docname):
 		return True
 
 	from frappe.exceptions import PermissionError
+	from frappe.sessions import Session
 
-	if not frappe.has_permission(doctype=doctype, doc=docname, ptype="read"):
+	session = Session(None, resume=True).get_session_data()
+	if not frappe.has_permission(user=session.user, doctype=doctype, doc=docname, ptype="read"):
 		raise PermissionError()
 
 	return True
@@ -119,7 +128,7 @@ def can_subscribe_doc(doctype, docname):
 def can_subscribe_doctype(doctype: str) -> bool:
 	from frappe.exceptions import PermissionError
 
-	if not frappe.has_permission(doctype=doctype, ptype="read"):
+	if not frappe.has_permission(user=frappe.session.user, doctype=doctype, ptype="read"):
 		raise PermissionError()
 
 	return True
@@ -127,9 +136,13 @@ def can_subscribe_doctype(doctype: str) -> bool:
 
 @frappe.whitelist(allow_guest=True)
 def get_user_info():
+	from frappe.sessions import Session
+
+	session = Session(None, resume=True).get_session_data()
+
 	return {
-		"user": frappe.session.user,
-		"user_type": frappe.session.data.user_type,
+		"user": session.user,
+		"user_type": session.user_type,
 	}
 
 
@@ -138,7 +151,7 @@ def get_doctype_room(doctype):
 
 
 def get_doc_room(doctype, docname):
-	return f"{frappe.local.site}:doc:{doctype}/{cstr(docname)}"
+	return f"{frappe.local.site}:doc:{doctype}/{docname}"
 
 
 def get_user_room(user):

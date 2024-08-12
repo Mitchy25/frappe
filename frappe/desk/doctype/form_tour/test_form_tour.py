@@ -1,9 +1,9 @@
 # Copyright (c) 2021, Frappe Technologies and Contributors
-# License: MIT. See LICENSE
+# See license.txt
 
 # import frappe
-from frappe.tests.utils import FrappeTestCase
+import unittest
 
 
-class TestFormTour(FrappeTestCase):
+class TestFormTour(unittest.TestCase):
 	pass

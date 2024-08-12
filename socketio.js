@@ -1,17 +1,18 @@
-const cookie = require("cookie");
-const request = require("superagent");
+var app = require('express')();
+var server = require('http').Server(app);
+var io = require('socket.io')(server);
+var cookie = require('cookie');
+var request = require('superagent');
+var { get_conf, get_redis_subscriber } = require('./node_utils');
 
-const { get_conf, get_redis_subscriber } = require("./node_utils");
-const conf = get_conf();
 const log = console.log; // eslint-disable-line
-const subscriber = get_redis_subscriber();
 
-const io = require("socket.io")(conf.socketio_port, {
-	cors: {
-		// Should be fine since we are ensuring whether hostname and origin are same before adding setting listeners for s socket
-		origin: true,
-		credentials: true,
-	},
+var conf = get_conf();
+var subscriber = get_redis_subscriber();
+
+// serve socketio
+server.listen(conf.socketio_port, function () {
+	log('listening on *:', conf.socketio_port); //eslint-disable-line
 });
 
 io.use((socket, next) => {
@@ -68,27 +69,20 @@ io.on("connection", function (socket) {
 		});
 	});
 
-	socket.on("doctype_unsubscribe", function (doctype) {
-		socket.leave(get_doctype_room(socket, doctype));
-	});
-
-	socket.on("ping", () => {
-		socket.emit("pong");
-	});
-
 	socket.on("task_subscribe", function (task_id) {
 		var room = get_task_room(socket, task_id);
 		socket.join(room);
 	});
 
-	socket.on("task_unsubscribe", function (task_id) {
+	socket.on('task_unsubscribe', function (task_id) {
 		var room = get_task_room(socket, task_id);
 		socket.leave(room);
 	});
 
-	socket.on("progress_subscribe", function (task_id) {
+	socket.on('progress_subscribe', function (task_id) {
 		var room = get_task_room(socket, task_id);
 		socket.join(room);
+		send_existing_lines(task_id, socket);
 	});
 
 	socket.on("doc_subscribe", function (doctype, docname) {
@@ -99,16 +93,21 @@ io.on("connection", function (socket) {
 			callback: () => {
 				var room = get_doc_room(socket, doctype, docname);
 				socket.join(room);
-			},
+			}
 		});
 	});
 
-	socket.on("doc_unsubscribe", function (doctype, docname) {
+	socket.on('doc_unsubscribe', function (doctype, docname) {
 		var room = get_doc_room(socket, doctype, docname);
 		socket.leave(room);
 	});
 
-	socket.on("doc_open", function (doctype, docname) {
+	socket.on('task_unsubscribe', function (task_id) {
+		var room = 'task:' + task_id;
+		socket.leave(room);
+	});
+
+	socket.on('doc_open', function (doctype, docname) {
 		can_subscribe_doc({
 			socket,
 			doctype,
@@ -124,7 +123,7 @@ io.on("connection", function (socket) {
 						doctype: doctype,
 						docname: docname,
 					},
-					"view"
+					'view'
 				);
 
 				// show who is currently typing on the form
@@ -134,13 +133,13 @@ io.on("connection", function (socket) {
 						doctype: doctype,
 						docname: docname,
 					},
-					"type"
+					'type'
 				);
-			},
+			}
 		});
 	});
 
-	socket.on("doc_close", function (doctype, docname) {
+	socket.on('doc_close', function (doctype, docname) {
 		// remove this user from the list of 'who is currently viewing the form'
 		var room = get_open_doc_room(socket, doctype, docname);
 		socket.leave(room);
@@ -150,11 +149,11 @@ io.on("connection", function (socket) {
 				doctype: doctype,
 				docname: docname,
 			},
-			"view"
+			'view'
 		);
 	});
 
-	socket.on("doc_typing", function (doctype, docname) {
+	socket.on('doc_typing', function (doctype, docname) {
 		// show users that are currently typing on the form
 		const room = get_typing_room(socket, doctype, docname);
 		socket.join(room);
@@ -165,11 +164,11 @@ io.on("connection", function (socket) {
 				doctype: doctype,
 				docname: docname,
 			},
-			"type"
+			'type'
 		);
 	});
 
-	socket.on("doc_typing_stopped", function (doctype, docname) {
+	socket.on('doc_typing_stopped', function (doctype, docname) {
 		// remove this user from the list of users currently typing on the form'
 		const room = get_typing_room(socket, doctype, docname);
 		socket.leave(room);
@@ -180,13 +179,8 @@ io.on("connection", function (socket) {
 				doctype: doctype,
 				docname: docname,
 			},
-			"type"
+			'type'
 		);
-	});
-
-	socket.on("open_in_editor", (data) => {
-		let s = get_redis_subscriber("redis_socketio");
-		s.publish("open_in_editor", JSON.stringify(data));
 	});
 });
 
@@ -200,18 +194,31 @@ subscriber.on("message", function (_channel, message) {
 	}
 });
 
+
 subscriber.subscribe("events");
 
+function send_existing_lines(task_id, socket) {
+	var room = get_task_room(socket, task_id);
+	subscriber.hgetall('task_log:' + task_id, function (_err, lines) {
+		io.to(room).emit('task_progress', {
+			"task_id": task_id,
+			"message": {
+				"lines": lines
+			}
+		});
+	});
+}
+
 function get_doc_room(socket, doctype, docname) {
-	return get_site_name(socket) + ":doc:" + doctype + "/" + docname;
+	return get_site_name(socket) + ':doc:' + doctype + '/' + docname;
 }
 
 function get_open_doc_room(socket, doctype, docname) {
-	return get_site_name(socket) + ":open_doc:" + doctype + "/" + docname;
+	return get_site_name(socket) + ':open_doc:' + doctype + '/' + docname;
 }
 
 function get_typing_room(socket, doctype, docname) {
-	return get_site_name(socket) + ":typing:" + doctype + "/" + docname;
+	return get_site_name(socket) + ':typing:' + doctype + '/' + docname;
 }
 
 function get_user_room(socket, user) {
@@ -219,7 +226,7 @@ function get_user_room(socket, user) {
 }
 
 function get_site_room(socket) {
-	return get_site_name(socket) + ":all";
+	return get_site_name(socket) + ':all';
 }
 
 function get_website_room(socket) {
@@ -256,14 +263,14 @@ function get_site_name(socket) {
 function get_hostname(url) {
 	if (!url) return undefined;
 	if (url.indexOf("://") > -1) {
-		url = url.split("/")[2];
+		url = url.split('/')[2];
 	}
-	return url.match(/:/g) ? url.slice(0, url.indexOf(":")) : url;
+	return (url.match(/:/g)) ? url.slice(0, url.indexOf(":")) : url
 }
 
 function get_url(socket, path) {
 	if (!path) {
-		path = "";
+		path = '';
 	}
 	return socket.request.headers.origin + path;
 }
@@ -271,23 +278,26 @@ function get_url(socket, path) {
 function can_subscribe_doc(args) {
 	if (!args) return;
 	if (!args.doctype || !args.docname) return;
-	request
-		.get(get_url(args.socket, "/api/method/frappe.realtime.can_subscribe_doc"))
-		.type("form")
+	request.get(get_url(args.socket, '/api/method/frappe.realtime.can_subscribe_doc'))
+		.type('form')
 		.query({
 			sid: args.socket.sid,
 			doctype: args.doctype,
-			docname: args.docname,
+			docname: args.docname
 		})
 		.end(function (err, res) {
 			if (!res) {
 				log("No response for doc_subscribe");
+
 			} else if (res.status == 403) {
 				return;
+
 			} else if (err) {
 				log(err);
+
 			} else if (res.status == 200) {
 				args.callback(err, res);
+
 			} else {
 				log("Something went wrong", err, res);
 			}
@@ -311,7 +321,7 @@ function can_subscribe_doctype(args) {
 				}
 				return false;
 			} else if (res.status == 200) {
-				args.callback && args.callback(err, res);
+				args.callback(err, res);
 				return true;
 			}
 			log("ERROR (can_subscribe_doctype): ", err, res);
@@ -325,26 +335,30 @@ function send_users(args, action) {
 
 	const open_doc_room = get_open_doc_room(args.socket, args.doctype, args.docname);
 
-	const room =
-		action == "view"
-			? open_doc_room
-			: get_typing_room(args.socket, args.doctype, args.docname);
+	const room = action == 'view' ? open_doc_room: get_typing_room(args.socket, args.doctype, args.docname);
 
-	const clients = Array.from(io.sockets.adapter.rooms.get(room) || []);
+	const socketio_room = io.sockets.adapter.rooms[room] || {};
+	// for compatibility with both v1.3.7 and 1.4.4
+	const clients_dict = ('sockets' in socketio_room) ? socketio_room.sockets : socketio_room;
+
+	// socket ids connected to this room
+	const clients = Object.keys(clients_dict || {});
 
 	let users = [];
-	io.sockets.sockets.forEach((sock) => {
-		if (clients.includes(sock.id)) {
-			users.push(sock.user);
+	for (let i in io.sockets.sockets) {
+		const s = io.sockets.sockets[i];
+		if (clients.indexOf(s.id) !== -1) {
+			// this socket is connected to the room
+			users.push(s.user);
 		}
-	});
+	}
 
-	const emit_event = action == "view" ? "doc_viewers" : "doc_typers";
+	const emit_event = action == 'view' ? 'doc_viewers' : 'doc_typers';
 
 	// notify
 	io.to(open_doc_room).emit(emit_event, {
 		doctype: args.doctype,
 		docname: args.docname,
-		users: Array.from(new Set(users)),
+		users: Array.from(new Set(users))
 	});
 }

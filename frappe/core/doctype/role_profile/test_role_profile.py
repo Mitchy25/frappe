@@ -1,12 +1,16 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2017, Frappe Technologies and Contributors
-# License: MIT. See LICENSE
+# See license.txt
+from __future__ import unicode_literals
+
+import unittest
+
 import frappe
-from frappe.tests.utils import FrappeTestCase
 
 test_dependencies = ["Role"]
 
 
-class TestRoleProfile(FrappeTestCase):
+class TestRoleProfile(unittest.TestCase):
 	def test_make_new_role_profile(self):
 		frappe.delete_doc_if_exists("Role Profile", "Test 1", force=1)
 		new_role_profile = frappe.get_doc(dict(doctype="Role Profile", role_profile="Test 1")).insert()

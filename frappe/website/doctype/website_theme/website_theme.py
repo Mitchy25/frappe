@@ -1,10 +1,12 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and contributors
-# License: MIT. See LICENSE
+# For license information, please see license.txt
 
-from os.path import abspath, splitext
+from __future__ import unicode_literals
+
+from os.path import abspath
 from os.path import exists as path_exists
 from os.path import join as join_path
-from typing import Optional
+from os.path import splitext
 
 import frappe
 from frappe import _
@@ -23,6 +25,7 @@ class WebsiteTheme(Document):
 			and frappe.local.conf.get("developer_mode")
 			and not (frappe.flags.in_import or frappe.flags.in_test)
 		):
+
 			self.export_doc()
 
 		self.clear_cache_if_current_theme()
@@ -36,7 +39,9 @@ class WebsiteTheme(Document):
 
 	def on_trash(self):
 		if self.is_standard_and_not_valid_user():
-			frappe.throw(_("You are not allowed to delete a standard Website Theme"), frappe.PermissionError)
+			frappe.throw(
+				_("You are not allowed to delete a standard Website Theme"), frappe.PermissionError
+			)
 
 	def validate_if_customizable(self):
 		if self.is_standard_and_not_valid_user():
@@ -71,7 +76,7 @@ class WebsiteTheme(Document):
 			self.delete_old_theme_files(folder_path)
 
 		# add a random suffix
-		suffix = frappe.generate_hash(length=8) if self.custom else "style"
+		suffix = frappe.generate_hash("Website Theme", 8) if self.custom else "style"
 		file_name = frappe.scrub(self.name) + "_" + suffix + ".css"
 		output_path = join_path(folder_path, file_name)
 
@@ -86,7 +91,7 @@ class WebsiteTheme(Document):
 		if stderr:
 			stderr = frappe.safe_decode(stderr)
 			stderr = stderr.replace("\n", "<br>")
-			frappe.throw(f'<div style="font-family: monospace;">{stderr}</div>')
+			frappe.throw('<div style="font-family: monospace;">{stderr}</div>'.format(stderr=stderr))
 		else:
 			self.theme_url = "/files/website_theme/" + file_name
 
@@ -118,10 +123,19 @@ class WebsiteTheme(Document):
 		return out
 
 
-def get_active_theme() -> Optional["WebsiteTheme"]:
-	if website_theme := frappe.get_website_settings("website_theme"):
+def add_website_theme(context):
+	context.theme = frappe._dict()
+
+	if not context.disable_website_theme:
+		website_theme = get_active_theme()
+		context.theme = website_theme or frappe._dict()
+
+
+def get_active_theme():
+	website_theme = frappe.db.get_single_value("Website Settings", "website_theme")
+	if website_theme:
 		try:
-			return frappe.get_cached_doc("Website Theme", website_theme)
+			return frappe.get_doc("Website Theme", website_theme)
 		except frappe.DoesNotExistError:
 			frappe.clear_last_message()
 			pass
@@ -139,27 +153,27 @@ def get_scss(website_theme):
 	imports_to_include = [d for d in available_imports if not d.startswith(apps_to_ignore)]
 	context = website_theme.as_dict()
 	context["website_theme_scss"] = imports_to_include
-	return frappe.render_template("frappe/website/doctype/website_theme/website_theme_template.scss", context)
+	return frappe.render_template(
+		"frappe/website/doctype/website_theme/website_theme_template.scss", context
+	)
 
 
 def get_scss_paths():
 	"""
 	Return a set of SCSS import paths from all apps that provide `website.scss`.
 
-	If `$BENCH_PATH/apps/frappe/frappe/public/scss/website[.bundle].scss` exists, the
-	returned set will contain 'frappe/public/scss/website[.bundle]'.
+	If `$BENCH_PATH/apps/frappe/frappe/public/scss/website.scss` exists, the
+	returned set will contain 'frappe/public/scss/website'.
 	"""
 	import_path_list = []
 	bench_path = frappe.utils.get_bench_path()
 
-	scss_files = ["public/scss/website.scss", "public/scss/website.bundle.scss"]
 	for app in frappe.get_installed_apps():
-		for scss_file in scss_files:
-			relative_path = join_path(app, scss_file)
-			full_path = get_path("apps", app, relative_path, base=bench_path)
-			if path_exists(full_path):
-				import_path = splitext(relative_path)[0]
-				import_path_list.append(import_path)
+		relative_path = join_path(app, "public/scss/website.scss")
+		full_path = get_path("apps", app, relative_path, base=bench_path)
+		if path_exists(full_path):
+			import_path = splitext(relative_path)[0]
+			import_path_list.append(import_path)
 
 	return import_path_list
 

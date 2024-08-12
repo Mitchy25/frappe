@@ -1,7 +1,12 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2019, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# For license information, please see license.txt
 
+from __future__ import unicode_literals
+
+import ast
 from types import FunctionType, MethodType, ModuleType
+from typing import Dict, List
 
 import frappe
 from frappe import _
@@ -14,25 +19,18 @@ class ServerScript(Document):
 		frappe.only_for("Script Manager", True)
 		self.sync_scheduled_jobs()
 		self.clear_scheduled_events()
-		self.check_if_compilable_in_restricted_context()
 
 	def on_update(self):
-		self.sync_scheduler_events()
-
-	def clear_cache(self):
 		frappe.cache().delete_value("server_script_map")
-		return super().clear_cache()
+		self.sync_scheduler_events()
 
 	def on_trash(self):
 		if self.script_type == "Scheduler Event":
 			for job in self.scheduled_jobs:
 				frappe.delete_doc("Scheduled Job Type", job.name)
 
-	def get_code_fields(self):
-		return {"script": "py"}
-
 	@property
-	def scheduled_jobs(self) -> list[dict[str, str]]:
+	def scheduled_jobs(self) -> List[Dict[str, str]]:
 		return frappe.get_all(
 			"Scheduled Job Type",
 			filters={"server_script": self.name},
@@ -53,30 +51,15 @@ class ServerScript(Document):
 	def sync_scheduler_events(self):
 		"""Create or update Scheduled Job Type documents for Scheduler Event Server Scripts"""
 		if not self.disabled and self.event_frequency and self.script_type == "Scheduler Event":
-			cron_format = self.cron_format if self.event_frequency == "Cron" else None
-			setup_scheduler_events(
-				script_name=self.name, frequency=self.event_frequency, cron_format=cron_format
-			)
+			setup_scheduler_events(script_name=self.name, frequency=self.event_frequency)
 
 	def clear_scheduled_events(self):
-		"""Deletes existing scheduled jobs by Server Script if self.event_frequency or self.cron_format has changed"""
-		if (
-			self.script_type == "Scheduler Event"
-			and (self.has_value_changed("event_frequency") or self.has_value_changed("cron_format"))
-		) or (self.has_value_changed("script_type") and self.script_type != "Scheduler Event"):
+		"""Deletes existing scheduled jobs by Server Script if self.event_frequency has changed"""
+		if self.script_type == "Scheduler Event" and self.has_value_changed("event_frequency"):
 			for scheduled_job in self.scheduled_jobs:
-				frappe.delete_doc("Scheduled Job Type", scheduled_job.name, delete_permanently=1)
+				frappe.delete_doc("Scheduled Job Type", scheduled_job.name)
 
-	def check_if_compilable_in_restricted_context(self):
-		"""Check compilation errors and send them back as warnings."""
-		from RestrictedPython import compile_restricted
-
-		try:
-			compile_restricted(self.script)
-		except Exception as e:
-			frappe.msgprint(str(e), title=_("Compilation warning"))
-
-	def execute_method(self) -> dict:
+	def execute_method(self) -> Dict:
 		"""Specific to API endpoint Server Scripts
 
 		Raises:
@@ -117,7 +100,7 @@ class ServerScript(Document):
 
 		safe_exec(self.script)
 
-	def get_permission_query_conditions(self, user: str) -> list[str]:
+	def get_permission_query_conditions(self, user: str) -> List[str]:
 		"""Specific to Permission Query Server Scripts
 
 		Args:
@@ -138,7 +121,7 @@ class ServerScript(Document):
 
 		Returns:
 		        list: Returns list of autocompletion items.
-		        For e.g., ["frappe.utils.cint", "frappe.get_all", ...]
+		        For e.g., ["frappe.utils.cint", "frappe.db.get_all", ...]
 		"""
 
 		def get_keys(obj):
@@ -147,7 +130,7 @@ class ServerScript(Document):
 				if key.startswith("_"):
 					continue
 				value = obj[key]
-				if isinstance(value, NamespaceDict | dict) and value:
+				if isinstance(value, (NamespaceDict, dict)) and value:
 					if key == "form_dict":
 						out.append(["form_dict", 7])
 						continue
@@ -159,7 +142,7 @@ class ServerScript(Document):
 						score = 0
 					elif isinstance(value, ModuleType):
 						score = 10
-					elif isinstance(value, FunctionType | MethodType):
+					elif isinstance(value, (FunctionType, MethodType)):
 						score = 9
 					elif isinstance(value, type):
 						score = 8
@@ -178,7 +161,7 @@ class ServerScript(Document):
 		return items
 
 
-def setup_scheduler_events(script_name: str, frequency: str, cron_format: str | None = None):
+def setup_scheduler_events(script_name, frequency):
 	"""Creates or Updates Scheduled Job Type documents based on the specified script name and frequency
 
 	Args:
@@ -195,7 +178,6 @@ def setup_scheduler_events(script_name: str, frequency: str, cron_format: str | 
 				"method": method,
 				"frequency": frequency,
 				"server_script": script_name,
-				"cron_format": cron_format,
 			}
 		).insert()
 
@@ -208,7 +190,6 @@ def setup_scheduler_events(script_name: str, frequency: str, cron_format: str | 
 			return
 
 		doc.frequency = frequency
-		doc.cron_format = cron_format
 		doc.save()
 
 		frappe.msgprint(_("Scheduled execution for script {0} has updated").format(script_name))

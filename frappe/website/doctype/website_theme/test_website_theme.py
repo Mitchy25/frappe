@@ -1,10 +1,10 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# See license.txt
 
+import unittest
 from contextlib import contextmanager
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
 from frappe.website.doctype.website_theme.website_theme import (
 	after_migrate,
 	get_active_theme,
@@ -24,12 +24,13 @@ def website_theme_fixture(**theme):
 	theme.delete()
 
 
-class TestWebsiteTheme(FrappeTestCase):
+class TestWebsiteTheme(unittest.TestCase):
 	def test_website_theme(self):
 		with website_theme_fixture(
 			google_font="Inter",
 			custom_scss="body { font-size: 16.5px; }",  # this will get minified!
 		) as theme:
+
 			theme_path = frappe.get_site_path("public", theme.theme_url[1:])
 			with open(theme_path) as theme_file:
 				css = theme_file.read()
@@ -38,7 +39,7 @@ class TestWebsiteTheme(FrappeTestCase):
 			self.assertTrue("fonts.googleapis.com" in css)
 
 	def test_get_scss_paths(self):
-		self.assertIn("frappe/public/scss/website.bundle", get_scss_paths())
+		self.assertIn("frappe/public/scss/website", get_scss_paths())
 
 	def test_imports_to_ignore(self):
 		with website_theme_fixture(ignored_apps=[{"app": "frappe"}]) as theme:

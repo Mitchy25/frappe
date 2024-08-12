@@ -1,29 +1,13 @@
 import json
-from typing import TYPE_CHECKING, Union
-
-import redis
 
 import frappe
 from frappe.utils import cstr
 
-if TYPE_CHECKING:
-	from frappe.model.document import Document
-
 queue_prefix = "insert_queue_for_"
 
 
-def deferred_insert(doctype: str, records: list[Union[dict, "Document"]] | str):
-	if isinstance(records, dict | list):
-		_records = json.dumps(records)
-	else:
-		_records = records
-
-	try:
-		frappe.cache().rpush(f"{queue_prefix}{doctype}", _records)
-	except redis.exceptions.ConnectionError:
-		for record in records:
-			insert_record(record, doctype)
-
+def deferred_insert(doctype, records):
+	frappe.cache().rpush(queue_prefix + doctype, records)
 
 
 def save_to_db():
@@ -43,18 +27,22 @@ def save_to_db():
 				record_count += 1
 				insert_record(record, doctype)
 
+	frappe.db.commit()
 
-def insert_record(record: Union[dict, "Document"], doctype: str):
+
+def insert_record(record, doctype):
+	if not record.get("doctype"):
+		record["doctype"] = doctype
 	try:
-		record.update({"doctype": doctype})
-		frappe.get_doc(record).insert()
+		doc = frappe.get_doc(record)
+		doc.insert()
 	except Exception as e:
-		frappe.logger().error(f"Error while inserting deferred {doctype} record: {e}")
+		print(e, doctype)
 
 
-def get_key_name(key: str) -> str:
+def get_key_name(key):
 	return cstr(key).split("|")[1]
 
 
-def get_doctype_name(key: str) -> str:
+def get_doctype_name(key):
 	return cstr(key).split(queue_prefix)[1]

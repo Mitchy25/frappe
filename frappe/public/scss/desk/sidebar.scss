@@ -104,7 +104,9 @@ body[data-route^="Module"] .main-menu {
 	}
 
 	.sidebar-image-section {
-		width: min(100%, 170px);
+		// capital M to avoid libsass issue
+		// (https://github.com/sass/node-sass/issues/2815#issuecomment-1034454369)
+		width: Min(100%, 170px);
 		cursor: pointer;
 
 		.sidebar-image {
@@ -160,10 +162,6 @@ body[data-route^="Module"] .main-menu {
 .layout-side-section {
 	font-size: var(--text-md);
 	padding-right: 30px;
-
-	&.hide-sidebar {
-		display: none;
-	}
 
 	> .divider {
 		display: none !important;
@@ -233,6 +231,7 @@ body[data-route^="Module"] .main-menu {
 				background-color: var(--border-color);
 				opacity: 0.7;
 			}
+
 		}
 
 		@media (max-width: 767px) {
@@ -359,7 +358,7 @@ body[data-route^="Module"] .main-menu {
 			display: none;
 		}
 
-		input:not([data-fieldtype="Check"]) {
+		input:not([data-fieldtype='Check']) {
 			background: var(--control-bg-on-gray);
 		}
 
@@ -379,8 +378,7 @@ body[data-route^="Module"] .main-menu {
 	margin-bottom: 10px;
 }
 
-.attachment-row,
-.form-tag-row {
+.attachment-row, .form-tag-row {
 	margin-bottom: var(--margin-sm);
 	max-width: 100%;
 	.data-pill {
@@ -394,22 +392,7 @@ body[data-route^="Module"] .main-menu {
 	display: inline-flex;
 }
 
-.attachments-actions {
-	display: flex;
-	gap: 5px;
-	max-width: 100%;
-}
-
-.explore-full-btn,
-.attachments-actions {
-	margin-bottom: var(--margin-md);
-}
-
-.show-all-btn {
-	margin-top: var(--margin-md);
-	text-align: center;
-}
-
+.add-attachment-btn,
 .shares,
 .followed-by {
 	max-width: 100%;

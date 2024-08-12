@@ -1,5 +1,7 @@
 # Copyright (c) 2013, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# For license information, please see license.txt
+
+from __future__ import unicode_literals
 
 from datetime import datetime
 
@@ -13,7 +15,7 @@ def execute(filters=None):
 	return WebsiteAnalytics(filters).run()
 
 
-class WebsiteAnalytics:
+class WebsiteAnalytics(object):
 	def __init__(self, filters=None):
 		self.filters = frappe._dict(filters or {})
 
@@ -71,16 +73,18 @@ class WebsiteAnalytics:
 		elif filters_range == "Monthly":
 			date_format = "%Y-%m-01"
 
-		query = f"""
+		query = """
 				SELECT
-					DATE_FORMAT({field}, %s) as date,
+					DATE_FORMAT({0}, %s) as date,
 					COUNT(*) as count,
 					COUNT(CASE WHEN is_unique = 1 THEN 1 END) as unique_count
 				FROM `tabWeb Page View`
 				WHERE creation BETWEEN %s AND %s
-				GROUP BY DATE_FORMAT({field}, %s)
+				GROUP BY DATE_FORMAT({0}, %s)
 				ORDER BY creation
-			"""
+			""".format(
+			field
+		)
 
 		values = (date_format, self.filters.from_date, self.filters.to_date, date_format)
 
@@ -97,16 +101,18 @@ class WebsiteAnalytics:
 		elif filters_range == "Monthly":
 			granularity = "day"
 
-		query = f"""
+		query = """
 				SELECT
-					DATE_TRUNC(%s, {field}) as date,
+					DATE_TRUNC(%s, {0}) as date,
 					COUNT(*) as count,
 					COUNT(CASE WHEN CAST(is_unique as Integer) = 1 THEN 1 END) as unique_count
 				FROM "tabWeb Page View"
-				WHERE  coalesce("tabWeb Page View".{field}, '0001-01-01') BETWEEN %s AND %s
-				GROUP BY date_trunc(%s, {field})
+				WHERE  coalesce("tabWeb Page View".{0}, '0001-01-01') BETWEEN %s AND %s
+				GROUP BY date_trunc(%s, {0})
 				ORDER BY date
-			"""
+			""".format(
+			field
+		)
 
 		values = (granularity, self.filters.from_date, self.filters.to_date, granularity)
 

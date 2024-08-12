@@ -31,7 +31,10 @@ const check_button_count = (label, group = "TestGroup") => {
 		.should("be.visible");
 
 	//reset viewport
-	cy.viewport(Cypress.config("viewportWidth"), Cypress.config("viewportHeight"));
+	cy.viewport(
+		Cypress.config("viewportWidth"),
+		Cypress.config("viewportHeight")
+	);
 };
 
 describe(

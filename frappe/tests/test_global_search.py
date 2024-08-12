@@ -1,36 +1,41 @@
-# Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
+# MIT License. See license.txt
+
+from __future__ import unicode_literals
+
+import unittest
 
 import frappe
-from frappe.custom.doctype.property_setter.property_setter import make_property_setter
+import frappe.utils
 from frappe.desk.page.setup_wizard.install_fixtures import update_global_search_doctypes
 from frappe.test_runner import make_test_objects
-from frappe.tests.utils import FrappeTestCase
-from frappe.utils import global_search, now_datetime
+from frappe.utils import global_search
 
 
-class TestGlobalSearch(FrappeTestCase):
+class TestGlobalSearch(unittest.TestCase):
 	def setUp(self):
 		update_global_search_doctypes()
 		global_search.setup_global_search_table()
 		self.assertTrue("__global_search" in frappe.db.get_tables())
 		doctype = "Event"
 		global_search.reset()
+		from frappe.custom.doctype.property_setter.property_setter import make_property_setter
+
 		make_property_setter(doctype, "subject", "in_global_search", 1, "Int")
 		make_property_setter(doctype, "event_type", "in_global_search", 1, "Int")
 		make_property_setter(doctype, "roles", "in_global_search", 1, "Int")
 		make_property_setter(doctype, "repeat_on", "in_global_search", 0, "Int")
 
 	def tearDown(self):
-		frappe.db.delete("Property Setter", {"doc_type": "Event"})
+		frappe.db.sql("DELETE FROM `tabProperty Setter` WHERE `doc_type`='Event'")
 		frappe.clear_cache(doctype="Event")
-		frappe.db.delete("Event")
-		frappe.db.delete("__global_search")
+		frappe.db.sql("DELETE FROM `tabEvent`")
+		frappe.db.sql("DELETE FROM `__global_search`")
 		make_test_objects("Event")
 		frappe.db.commit()
 
 	def insert_test_events(self):
-		frappe.db.delete("Event")
+		frappe.db.sql("DELETE FROM `tabEvent`")
 		phrases = [
 			'"The Sixth Extinction II: Amor Fati" is the second episode of the seventh season of the American science fiction.',
 			"After Mulder awakens from his coma, he realizes his duty to prevent alien colonization. ",
@@ -39,7 +44,7 @@ class TestGlobalSearch(FrappeTestCase):
 
 		for text in phrases:
 			frappe.get_doc(
-				dict(doctype="Event", subject=text, repeat_on="Monthly", starts_on=now_datetime())
+				dict(doctype="Event", subject=text, repeat_on="Monthly", starts_on=frappe.utils.now_datetime())
 			).insert()
 
 		global_search.sync_global_search()
@@ -81,6 +86,8 @@ class TestGlobalSearch(FrappeTestCase):
 		results = global_search.search("Monthly")
 		self.assertEqual(len(results), 0)
 		doctype = "Event"
+		from frappe.custom.doctype.property_setter.property_setter import make_property_setter
+
 		make_property_setter(doctype, "repeat_on", "in_global_search", 1, "Int")
 		global_search.rebuild_for_doctype(doctype)
 		results = global_search.search("Monthly")
@@ -88,6 +95,7 @@ class TestGlobalSearch(FrappeTestCase):
 
 	def test_delete_doc(self):
 		self.insert_test_events()
+
 		event_name = frappe.get_all("Event")[0].name
 		event = frappe.get_doc("Event", event_name)
 		test_subject = event.subject
@@ -98,7 +106,6 @@ class TestGlobalSearch(FrappeTestCase):
 
 		frappe.delete_doc("Event", event_name)
 		global_search.sync_global_search()
-		frappe.db.commit()
 
 		results = global_search.search(test_subject)
 		self.assertTrue(
@@ -107,7 +114,7 @@ class TestGlobalSearch(FrappeTestCase):
 		)
 
 	def test_insert_child_table(self):
-		frappe.db.delete("Event")
+		frappe.db.sql("delete from tabEvent")
 		phrases = [
 			"Hydrus is a small constellation in the deep southern sky. ",
 			"It was first depicted on a celestial atlas by Johann Bayer in his 1603 Uranometria. ",
@@ -121,7 +128,9 @@ class TestGlobalSearch(FrappeTestCase):
 		]
 
 		for text in phrases:
-			doc = frappe.get_doc({"doctype": "Event", "subject": text, "starts_on": now_datetime()})
+			doc = frappe.get_doc(
+				{"doctype": "Event", "subject": text, "starts_on": frappe.utils.now_datetime()}
+			)
 			doc.insert()
 
 		global_search.sync_global_search()
@@ -183,7 +192,7 @@ class TestGlobalSearch(FrappeTestCase):
 				{
 					"doctype": "Event",
 					"subject": "Lorem Ipsum",
-					"starts_on": now_datetime(),
+					"starts_on": frappe.utils.now_datetime(),
 					"description": case["data"],
 				}
 			)

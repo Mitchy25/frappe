@@ -1,5 +1,7 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+
+from __future__ import unicode_literals
 
 import os
 
@@ -13,7 +15,7 @@ from frappe.utils import cstr, get_site_name
 class StaticDataMiddleware(SharedDataMiddleware):
 	def __call__(self, environ, start_response):
 		self.environ = environ
-		return super().__call__(environ, start_response)
+		return super(StaticDataMiddleware, self).__call__(environ, start_response)
 
 	def get_directory_loader(self, directory):
 		def loader(path):

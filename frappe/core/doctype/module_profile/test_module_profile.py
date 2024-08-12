@@ -1,10 +1,14 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2020, Frappe Technologies and Contributors
-# License: MIT. See LICENSE
+# See license.txt
+from __future__ import unicode_literals
+
+import unittest
+
 import frappe
-from frappe.tests.utils import FrappeTestCase
 
 
-class TestModuleProfile(FrappeTestCase):
+class TestModuleProfile(unittest.TestCase):
 	def test_make_new_module_profile(self):
 		if not frappe.db.get_value("Module Profile", "_Test Module Profile"):
 			frappe.get_doc(

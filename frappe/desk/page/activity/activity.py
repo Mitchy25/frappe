@@ -1,5 +1,7 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# License: See license.txt
+
+from __future__ import unicode_literals
 
 import frappe
 from frappe.core.doctype.activity_log.feed import get_feed_match_conditions
@@ -13,7 +15,7 @@ def get_feed(start, page_length):
 	match_conditions_comment = get_feed_match_conditions(frappe.session.user, "Comment")
 
 	result = frappe.db.sql(
-		f"""select X.*
+		"""select X.*
 		from (select name, owner, modified, creation, seen, comment_type,
 				reference_doctype, reference_name, '' as link_doctype, '' as link_name, subject,
 				communication_type, communication_medium, content
@@ -31,7 +33,7 @@ def get_feed(start, page_length):
 				`tabActivity Log`
 		UNION
 			select name, owner, modified, creation, '0', comment_type,
-				reference_doctype, reference_name, '' as link_doctype, '' as link_name, '',
+				reference_doctype, reference_name, link_doctype, link_name, '',
 				'Comment', '', content
 			from
 				`tabComment`
@@ -40,7 +42,10 @@ def get_feed(start, page_length):
 		) X
 		order by X.creation DESC
 		LIMIT %(page_length)s
-		OFFSET %(start)s""",
+		OFFSET %(start)s""".format(
+			match_conditions_comment=match_conditions_comment,
+			match_conditions_communication=match_conditions_communication,
+		),
 		{"user": frappe.session.user, "start": cint(start), "page_length": cint(page_length)},
 		as_dict=True,
 	)

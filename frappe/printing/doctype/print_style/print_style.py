@@ -1,5 +1,8 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2017, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# For license information, please see license.txt
+
+from __future__ import unicode_literals
 
 import frappe
 from frappe.model.document import Document
@@ -12,6 +15,7 @@ class PrintStyle(Document):
 			and not frappe.local.conf.get("developer_mode")
 			and not (frappe.flags.in_import or frappe.flags.in_test)
 		):
+
 			frappe.throw(frappe._("Standard Print Style cannot be changed. Please duplicate to edit."))
 
 	def on_update(self):

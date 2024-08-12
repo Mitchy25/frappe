@@ -1,5 +1,8 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2020, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# For license information, please see license.txt
+
+from __future__ import unicode_literals
 
 import frappe
 from frappe import _
@@ -22,7 +25,9 @@ class NavbarSettings(Document):
 			if item.is_standard
 		]
 
-		after_save_items = [item for item in self.help_dropdown + self.settings_dropdown if item.is_standard]
+		after_save_items = [
+			item for item in self.help_dropdown + self.settings_dropdown if item.is_standard
+		]
 
 		if not frappe.flags.in_patch and (len(before_save_items) > len(after_save_items)):
 			frappe.throw(_("Please hide the standard navbar items instead of deleting them"))

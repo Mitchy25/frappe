@@ -17,6 +17,7 @@ def fix_communications():
 		""",
 		as_dict=1,
 	):
+
 		communication["recipients"] = format_email_id(communication.recipients)
 		communication["cc"] = format_email_id(communication.cc)
 		communication["bcc"] = format_email_id(communication.bcc)
@@ -34,7 +35,10 @@ def fix_show_as_cc_email_queue():
 		{"creation": [">", "2020-06-01"], "status": "Not Sent", "show_as_cc": ["like", "%&lt;%"]},
 		["name", "show_as_cc"],
 	):
-		frappe.db.set_value("Email Queue", queue["name"], "show_as_cc", format_email_id(queue["show_as_cc"]))
+
+		frappe.db.set_value(
+			"Email Queue", queue["name"], "show_as_cc", format_email_id(queue["show_as_cc"])
+		)
 
 
 def fix_email_queue_recipients():
@@ -44,6 +48,7 @@ def fix_email_queue_recipients():
 			and status='Not Sent' and creation > '2020-06-01' """,
 		as_dict=1,
 	):
+
 		frappe.db.set_value(
 			"Email Queue Recipient", recipient["name"], "recipient", format_email_id(recipient["recipient"])
 		)

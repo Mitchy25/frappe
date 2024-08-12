@@ -1,9 +1,7 @@
-# Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
+# MIT License. See license.txt
 
-import os
-from mimetypes import guess_type
-from typing import TYPE_CHECKING
+from __future__ import unicode_literals
 
 from werkzeug.wrappers import Response
 
@@ -12,15 +10,9 @@ import frappe.sessions
 import frappe.utils
 from frappe import _, is_whitelisted
 from frappe.core.doctype.server_script.server_script_utils import get_server_script_map
-from frappe.monitor import add_data_to_monitor
 from frappe.utils import cint
 from frappe.utils.csvutils import build_csv_response
-from frappe.utils.image import optimize_image
 from frappe.utils.response import build_response
-
-if TYPE_CHECKING:
-	from frappe.core.doctype.file.file import File
-	from frappe.core.doctype.user.user import User
 
 ALLOWED_MIMETYPES = (
 	"image/png",
@@ -33,8 +25,6 @@ ALLOWED_MIMETYPES = (
 	"application/vnd.oasis.opendocument.text",
 	"application/vnd.oasis.opendocument.spreadsheet",
 	"text/plain",
-	"video/quicktime",
-	"video/mp4",
 )
 
 
@@ -108,6 +98,9 @@ def is_valid_http_method(method):
 def throw_permission_error():
 	frappe.throw(_("Not permitted"), frappe.PermissionError)
 
+@frappe.whitelist(allow_guest=True)
+def version():
+	return frappe.__version__
 
 
 @frappe.whitelist(allow_guest=True)
@@ -170,9 +163,9 @@ def upload_file():
 		if frappe.get_system_settings("allow_guests_to_upload_files"):
 			ignore_permissions = True
 		else:
-			raise frappe.PermissionError
+			return
 	else:
-		user: "User" = frappe.get_doc("User", frappe.session.user)
+		user = frappe.get_doc("User", frappe.session.user)
 		ignore_permissions = False
 
 	files = frappe.request.files
@@ -184,40 +177,22 @@ def upload_file():
 	folder = frappe.form_dict.folder or "Home"
 	method = frappe.form_dict.method
 	filename = frappe.form_dict.file_name
-	optimize = frappe.form_dict.optimize
 	content = None
-
-	if library_file := frappe.form_dict.get("library_file_name"):
-		frappe.has_permission("File", doc=library_file, throw=True)
-		doc = frappe.get_value(
-			"File",
-			frappe.form_dict.library_file_name,
-			["is_private", "file_url", "file_name"],
-			as_dict=True,
-		)
-		is_private = doc.is_private
-		file_url = doc.file_url
-		filename = doc.file_name
 
 	if "file" in files:
 		file = files["file"]
 		content = file.stream.read()
 		filename = file.filename
 
-		content_type = guess_type(filename)[0]
-		if optimize and content_type and content_type.startswith("image/"):
-			args = {"content": content, "content_type": content_type}
-			if frappe.form_dict.max_width:
-				args["max_width"] = int(frappe.form_dict.max_width)
-			if frappe.form_dict.max_height:
-				args["max_height"] = int(frappe.form_dict.max_height)
-			content = optimize_image(**args)
-
 	frappe.local.uploaded_file = content
 	frappe.local.uploaded_filename = filename
 
-	if content is not None and (frappe.session.user == "Guest" or (user and not user.has_desk_access())):
-		filetype = guess_type(filename)[0]
+	if content is not None and (
+		frappe.session.user == "Guest" or (user and not user.has_desk_access())
+	):
+		import mimetypes
+
+		filetype = mimetypes.guess_type(filename)[0]
 		if filetype not in ALLOWED_MIMETYPES:
 			frappe.throw(_("You can only upload JPG, PNG, PDF, TXT or Microsoft documents."))
 
@@ -226,7 +201,7 @@ def upload_file():
 		is_whitelisted(method)
 		return method()
 	else:
-		return frappe.get_doc(
+		ret = frappe.get_doc(
 			{
 				"doctype": "File",
 				"attached_to_doctype": doctype,
@@ -238,26 +213,9 @@ def upload_file():
 				"is_private": cint(is_private),
 				"content": content,
 			}
-		).save(ignore_permissions=ignore_permissions)
-
-
-@frappe.whitelist(allow_guest=True)
-def download_file(file_url: str):
-	"""
-	Download file using token and REST API. Valid session or
-	token is required to download private files.
-
-	Method : GET
-	Endpoints : download_file, frappe.core.doctype.file.file.download_file
-	URL Params : file_name = /path/to/file relative to site path
-	"""
-	file: "File" = frappe.get_doc("File", {"file_url": file_url})
-	if not file.is_downloadable():
-		raise frappe.PermissionError
-
-	frappe.local.response.filename = os.path.basename(file_url)
-	frappe.local.response.filecontent = file.get_content()
-	frappe.local.response.type = "download"
+		)
+		ret.save(ignore_permissions=ignore_permissions)
+		return ret
 
 
 def get_attr(cmd):
@@ -277,10 +235,11 @@ def ping():
 
 def run_doc_method(method, docs=None, dt=None, dn=None, arg=None, args=None):
 	"""run a whitelisted controller method"""
-	from inspect import getfullargspec
+	import inspect
+	import json
 
-	if not args and arg:
-		args = arg
+	if not args:
+		args = arg or ""
 
 	if dt:  # not called from a doctype (from a page)
 		if not dn:
@@ -288,7 +247,9 @@ def run_doc_method(method, docs=None, dt=None, dn=None, arg=None, args=None):
 		doc = frappe.get_doc(dt, dn)
 
 	else:
-		docs = frappe.parse_json(docs)
+		if isinstance(docs, str):
+			docs = json.loads(docs)
+
 		doc = frappe.get_doc(docs)
 		doc._original_modified = doc.modified
 		doc.check_if_latest()
@@ -297,16 +258,16 @@ def run_doc_method(method, docs=None, dt=None, dn=None, arg=None, args=None):
 		throw_permission_error()
 
 	try:
-		args = frappe.parse_json(args)
+		args = json.loads(args)
 	except ValueError:
-		pass
+		args = args
 
 	method_obj = getattr(doc, method)
 	fn = getattr(method_obj, "__func__", method_obj)
 	is_whitelisted(fn)
 	is_valid_http_method(fn)
 
-	fnargs = getfullargspec(method_obj).args
+	fnargs = inspect.getfullargspec(method_obj).args
 
 	if not fnargs or (len(fnargs) == 1 and fnargs[0] == "self"):
 		response = doc.run_method(method)
@@ -318,7 +279,7 @@ def run_doc_method(method, docs=None, dt=None, dn=None, arg=None, args=None):
 		response = doc.run_method(method, **args)
 
 	frappe.response.docs.append(doc)
-	if response is None:
+	if not response:
 		return
 
 	# build output as csv
@@ -327,8 +288,6 @@ def run_doc_method(method, docs=None, dt=None, dn=None, arg=None, args=None):
 		return
 
 	frappe.response["message"] = response
-
-	add_data_to_monitor(methodname=method)
 
 
 # for backwards compatibility

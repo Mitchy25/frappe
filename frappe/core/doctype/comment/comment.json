@@ -14,10 +14,12 @@
   "column_break_5",
   "reference_doctype",
   "reference_name",
+  "link_doctype",
+  "link_name",
   "reference_owner",
   "section_break_10",
   "content",
-  "ip_address"
+  "notify_on_load"
  ],
  "fields": [
   {
@@ -75,6 +77,18 @@
    "options": "reference_doctype"
   },
   {
+   "fieldname": "link_doctype",
+   "fieldtype": "Link",
+   "label": "Link DocType",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "link_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Link Name",
+   "options": "link_doctype"
+  },
+  {
    "fieldname": "reference_owner",
    "fieldtype": "Data",
    "label": "Reference Owner",
@@ -92,14 +106,14 @@
    "label": "Content"
   },
   {
-   "fieldname": "ip_address",
-   "fieldtype": "Data",
-   "hidden": 1,
-   "label": "IP Address"
+   "default": "0",
+   "fieldname": "notify_on_load",
+   "fieldtype": "Check",
+   "label": "Notify on Load"
   }
  ],
  "links": [],
- "modified": "2023-07-24 13:52:55.651462",
+ "modified": "2024-05-09 10:53:06.724109",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "Comment",
@@ -133,7 +147,6 @@
  "quick_entry": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": [],
  "title_field": "comment_type",
  "track_changes": 1
 }

@@ -1,5 +1,8 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2019, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# For license information, please see license.txt
+
+from __future__ import unicode_literals
 
 import datetime
 import json
@@ -37,7 +40,9 @@ def get_permission_query_conditions(user):
 	report_condition = False
 	module_condition = False
 
-	allowed_doctypes = [frappe.db.escape(doctype) for doctype in frappe.permissions.get_doctypes_with_read()]
+	allowed_doctypes = [
+		frappe.db.escape(doctype) for doctype in frappe.permissions.get_doctypes_with_read()
+	]
 	allowed_reports = [frappe.db.escape(report) for report in get_allowed_report_names()]
 	allowed_modules = [
 		frappe.db.escape(module.get("module_name")) for module in get_modules_from_all_apps_for_user()
@@ -53,9 +58,11 @@ def get_permission_query_conditions(user):
 		)
 	if allowed_modules:
 		module_condition = """`tabDashboard Chart`.`module` in ({allowed_modules})
-			or `tabDashboard Chart`.`module` is NULL""".format(allowed_modules=",".join(allowed_modules))
+			or `tabDashboard Chart`.`module` is NULL""".format(
+			allowed_modules=",".join(allowed_modules)
+		)
 
-	return f"""
+	return """
 		((`tabDashboard Chart`.`chart_type` in ('Count', 'Sum', 'Average')
 		and {doctype_condition})
 		or
@@ -63,7 +70,11 @@ def get_permission_query_conditions(user):
 		and {report_condition}))
 		and
 		({module_condition})
-	"""
+	""".format(
+		doctype_condition=doctype_condition,
+		report_condition=report_condition,
+		module_condition=module_condition,
+	)
 
 
 def has_permission(doc, ptype, user):
@@ -71,16 +82,17 @@ def has_permission(doc, ptype, user):
 	if "System Manager" in roles:
 		return True
 
-	if doc.roles:
-		allowed = [d.role for d in doc.roles]
-		if has_common(roles, allowed):
-			return True
-	elif doc.chart_type == "Report":
+	if doc.chart_type == "Report":
 		if doc.report_name in get_allowed_report_names():
 			return True
 	else:
 		allowed_doctypes = frappe.permissions.get_doctypes_with_read()
-		if doc.document_type in allowed_doctypes:
+		if doc.doctype in allowed_doctypes:
+			return True
+
+	if doc.roles:
+		allowed = [d.role for d in doc.roles]
+		if has_common(roles, allowed):
 			return True
 
 	return False
@@ -101,7 +113,7 @@ def get(
 	refresh=None,
 ):
 	if chart_name:
-		chart: DashboardChart = frappe.get_doc("Dashboard Chart", chart_name)
+		chart = frappe.get_doc("Dashboard Chart", chart_name)
 	else:
 		chart = frappe._dict(frappe.parse_json(chart))
 
@@ -199,14 +211,13 @@ def get_chart_config(chart, filters, timespan, timegrain, from_date, to_date):
 	filters.append([doctype, datefield, ">=", from_date, False])
 	filters.append([doctype, datefield, "<=", to_date, False])
 
-	data = frappe.get_list(
+	data = frappe.db.get_list(
 		doctype,
-		fields=[f"{datefield} as _unit", f"SUM({value_field})", "COUNT(*)"],
+		fields=["{} as _unit".format(datefield), "SUM({})".format(value_field), "COUNT(*)"],
 		filters=filters,
 		group_by="_unit",
 		order_by="_unit asc",
 		as_list=True,
-		parent_doctype=chart.parent_document_type,
 	)
 
 	result = get_result(data, timegrain, from_date, to_date, chart.chart_type)
@@ -231,25 +242,27 @@ def get_heatmap_chart_config(chart, filters, heatmap_year):
 	year_start_date = datetime.date(year, 1, 1).strftime("%Y-%m-%d")
 	next_year_start_date = datetime.date(year + 1, 1, 1).strftime("%Y-%m-%d")
 
-	filters.append([doctype, datefield, ">", f"{year_start_date}", False])
-	filters.append([doctype, datefield, "<", f"{next_year_start_date}", False])
+	filters.append([doctype, datefield, ">", "{date}".format(date=year_start_date), False])
+	filters.append([doctype, datefield, "<", "{date}".format(date=next_year_start_date), False])
 
 	if frappe.db.db_type == "mariadb":
-		timestamp_field = f"unix_timestamp({datefield})"
+		timestamp_field = "unix_timestamp({datefield})".format(datefield=datefield)
 	else:
-		timestamp_field = f"extract(epoch from timestamp {datefield})"
+		timestamp_field = "extract(epoch from timestamp {datefield})".format(datefield=datefield)
 
 	data = dict(
-		frappe.get_all(
+		frappe.db.get_all(
 			doctype,
 			fields=[
 				timestamp_field,
-				f"{aggregate_function}({value_field})",
+				"{aggregate_function}({value_field})".format(
+					aggregate_function=aggregate_function, value_field=value_field
+				),
 			],
 			filters=filters,
-			group_by=f"date({datefield})",
+			group_by="date({datefield})".format(datefield=datefield),
 			as_list=1,
-			order_by=f"{datefield} asc",
+			order_by="{datefield} asc".format(datefield=datefield),
 			ignore_ifnull=True,
 		)
 	)
@@ -262,19 +275,21 @@ def get_heatmap_chart_config(chart, filters, heatmap_year):
 
 
 def get_group_by_chart_config(chart, filters):
+
 	aggregate_function = get_aggregate_function(chart.group_by_type)
 	value_field = chart.aggregate_function_based_on or "1"
 	group_by_field = chart.group_by_based_on
 	doctype = chart.document_type
 
-	data = frappe.get_list(
+	data = frappe.db.get_list(
 		doctype,
 		fields=[
-			f"{group_by_field} as name",
-			f"{aggregate_function}({value_field}) as count",
+			"{} as name".format(group_by_field),
+			"{aggregate_function}({value_field}) as count".format(
+				aggregate_function=aggregate_function, value_field=value_field
+			),
 		],
 		filters=filters,
-		parent_doctype=chart.parent_document_type,
 		group_by=group_by_field,
 		order_by="count desc",
 		ignore_ifnull=True,
@@ -304,7 +319,7 @@ def get_result(data, timegrain, from_date, to_date, chart_type):
 	result = [[date, 0] for date in dates]
 	data_index = 0
 	if data:
-		for _i, d in enumerate(result):
+		for i, d in enumerate(result):
 			count = 0
 			while data_index < len(data) and getdate(data[data_index][0]) <= d[0]:
 				d[1] += data[data_index][1]
@@ -329,7 +344,7 @@ def get_charts_for_user(doctype, txt, searchfield, start, page_len, filters):
 
 class DashboardChart(Document):
 	def on_update(self):
-		frappe.cache().delete_key(f"chart-data:{self.name}")
+		frappe.cache().delete_key("chart-data:{}".format(self.name))
 		if frappe.conf.developer_mode and self.is_standard:
 			export_to_files(record_list=[["Dashboard Chart", self.name]], record_module=self.module)
 
@@ -372,25 +387,3 @@ class DashboardChart(Document):
 				json.loads(self.custom_options)
 			except ValueError as error:
 				frappe.throw(_("Invalid json added in the custom options: {0}").format(error))
-
-
-@frappe.whitelist()
-def get_parent_doctypes(child_type: str) -> list[str]:
-	"""Get all parent doctypes that have the child doctype."""
-	assert isinstance(child_type, str)
-
-	standard = frappe.get_all(
-		"DocField",
-		fields="parent",
-		filters={"fieldtype": "Table", "options": child_type},
-		pluck="parent",
-	)
-
-	custom = frappe.get_all(
-		"Custom Field",
-		fields="dt",
-		filters={"fieldtype": "Table", "options": child_type},
-		pluck="dt",
-	)
-
-	return standard + custom

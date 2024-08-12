@@ -1,9 +1,12 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
-import pickle
+# MIT License. See license.txt
+from __future__ import unicode_literals
+
 import re
 
 import redis
+from six import iteritems
+from six.moves import cPickle as pickle
 
 import frappe
 from frappe.utils import cstr
@@ -23,14 +26,14 @@ class RedisWrapper(redis.Redis):
 		if shared:
 			return key
 		if user:
-			if user is True:
+			if user == True:
 				user = frappe.session.user
 
-			key = f"user:{user}:{key}"
+			key = "user:{0}:{1}".format(user, key)
 
-		return f"{frappe.conf.db_name}|{key}".encode()
+		return "{0}|{1}".format(frappe.conf.db_name, key).encode("utf-8")
 
-	def set_value(self, key, val, user=None, expires_in_sec=None, shared=False, cache_locally=True):
+	def set_value(self, key, val, user=None, expires_in_sec=None):
 		"""Sets cache value.
 
 		:param key: Cache key
@@ -38,9 +41,9 @@ class RedisWrapper(redis.Redis):
 		:param user: Prepends key with User
 		:param expires_in_sec: Expire value of this key in X seconds
 		"""
-		key = self.make_key(key, user, shared)
+		key = self.make_key(key, user)
 
-		if not expires_in_sec and cache_locally:
+		if not expires_in_sec:
 			frappe.local.cache[key] = val
 
 		try:
@@ -52,7 +55,7 @@ class RedisWrapper(redis.Redis):
 		except redis.exceptions.ConnectionError:
 			return None
 
-	def get_value(self, key, generator=None, user=None, expires=False, shared=False):
+	def get_value(self, key, generator=None, user=None, expires=False):
 		"""Returns cache value. If not found and generator function is
 		        given, it will call the generator.
 
@@ -61,7 +64,7 @@ class RedisWrapper(redis.Redis):
 		:param expires: If the key is supposed to be with an expiry, don't store it in frappe.local
 		"""
 		original_key = key
-		key = self.make_key(key, user, shared)
+		key = self.make_key(key, user)
 
 		if key in frappe.local.cache:
 			val = frappe.local.cache[key]
@@ -105,14 +108,17 @@ class RedisWrapper(redis.Redis):
 
 	def delete_keys(self, key):
 		"""Delete keys with wildcard `*`."""
-		self.delete_value(self.get_keys(key), make_keys=False)
+		try:
+			self.delete_value(self.get_keys(key), make_keys=False)
+		except redis.exceptions.ConnectionError:
+			pass
 
 	def delete_key(self, *args, **kwargs):
 		self.delete_value(*args, **kwargs)
 
 	def delete_value(self, keys, user=None, make_keys=True, shared=False):
 		"""Delete value, list of values."""
-		if not isinstance(keys, list | tuple):
+		if not isinstance(keys, (list, tuple)):
 			keys = (keys,)
 
 		for key in keys:
@@ -128,39 +134,40 @@ class RedisWrapper(redis.Redis):
 				pass
 
 	def lpush(self, key, value):
-		return super().lpush(self.make_key(key), value)
+		super(RedisWrapper, self).lpush(self.make_key(key), value)
 
 	def rpush(self, key, value):
-		return super().rpush(self.make_key(key), value)
+		super(RedisWrapper, self).rpush(self.make_key(key), value)
 
 	def lpop(self, key):
-		return super().lpop(self.make_key(key))
+		return super(RedisWrapper, self).lpop(self.make_key(key))
 
 	def rpop(self, key):
-		return super().rpop(self.make_key(key))
+		return super(RedisWrapper, self).rpop(self.make_key(key))
 
 	def llen(self, key):
-		return super().llen(self.make_key(key))
+		return super(RedisWrapper, self).llen(self.make_key(key))
 
 	def lrange(self, key, start, stop):
-		return super().lrange(self.make_key(key), start, stop)
+		return super(RedisWrapper, self).lrange(self.make_key(key), start, stop)
 
 	def ltrim(self, key, start, stop):
-		return super().ltrim(self.make_key(key), start, stop)
+		return super(RedisWrapper, self).ltrim(self.make_key(key), start, stop)
 
-	def hset(self, name: str, key: str, value, shared: bool = False, cache_locally: bool = True):
+	def hset(self, name, key, value, shared=False):
 		if key is None:
 			return
 
 		_name = self.make_key(name, shared=shared)
 
 		# set in local
-		if cache_locally:
-			frappe.local.cache.setdefault(_name, {})[key] = value
+		if not _name in frappe.local.cache:
+			frappe.local.cache[_name] = {}
+		frappe.local.cache[_name][key] = value
 
 		# set in redis
 		try:
-			super().hset(_name, key, pickle.dumps(value))
+			super(RedisWrapper, self).hset(_name, key, pickle.dumps(value))
 		except redis.exceptions.ConnectionError:
 			pass
 
@@ -169,24 +176,19 @@ class RedisWrapper(redis.Redis):
 			return False
 		_name = self.make_key(name, shared=shared)
 		try:
-			return super().hexists(_name, key)
+			return super(RedisWrapper, self).hexists(_name, key)
 		except redis.exceptions.ConnectionError:
 			return False
 
-	def exists(self, *names: str, user=None, shared=None) -> int:
-		names = [self.make_key(n, user=user, shared=shared) for n in names]
-		try:
-			return super().exists(*names)
-		except redis.exceptions.ConnectionError:
-			return 0
-
 	def hgetall(self, name):
-		value = super().hgetall(self.make_key(name))
-		return {key: pickle.loads(value) for key, value in value.items()}
+		return {
+			key: pickle.loads(value)
+			for key, value in iteritems(super(RedisWrapper, self).hgetall(self.make_key(name)))
+		}
 
 	def hget(self, name, key, generator=None, shared=False):
 		_name = self.make_key(name, shared=shared)
-		if _name not in frappe.local.cache:
+		if not _name in frappe.local.cache:
 			frappe.local.cache[_name] = {}
 
 		if not key:
@@ -197,16 +199,20 @@ class RedisWrapper(redis.Redis):
 
 		value = None
 		try:
-			value = super().hget(_name, key)
+			value = super(RedisWrapper, self).hget(_name, key)
 		except redis.exceptions.ConnectionError:
 			pass
 
-		if value is not None:
+		if value:
 			value = pickle.loads(value)
 			frappe.local.cache[_name][key] = value
 		elif generator:
 			value = generator()
-			self.hset(name, key, value, shared=shared)
+			try:
+				self.hset(name, key, value, shared=shared)
+			except redis.exceptions.ConnectionError:
+				pass
+
 		return value
 
 	def hdel(self, name, key, shared=False):
@@ -216,7 +222,7 @@ class RedisWrapper(redis.Redis):
 			if key in frappe.local.cache[_name]:
 				del frappe.local.cache[_name][key]
 		try:
-			super().hdel(_name, key)
+			super(RedisWrapper, self).hdel(_name, key)
 		except redis.exceptions.ConnectionError:
 			pass
 
@@ -228,72 +234,30 @@ class RedisWrapper(redis.Redis):
 
 	def hkeys(self, name):
 		try:
-			return super().hkeys(self.make_key(name))
+			return super(RedisWrapper, self).hkeys(self.make_key(name))
 		except redis.exceptions.ConnectionError:
 			return []
 
 	def sadd(self, name, *values):
 		"""Add a member/members to a given set"""
-		super().sadd(self.make_key(name), *values)
+		super(RedisWrapper, self).sadd(self.make_key(name), *values)
 
 	def srem(self, name, *values):
 		"""Remove a specific member/list of members from the set"""
-		super().srem(self.make_key(name), *values)
+		super(RedisWrapper, self).srem(self.make_key(name), *values)
 
 	def sismember(self, name, value):
 		"""Returns True or False based on if a given value is present in the set"""
-		return super().sismember(self.make_key(name), value)
+		return super(RedisWrapper, self).sismember(self.make_key(name), value)
 
 	def spop(self, name):
 		"""Removes and returns a random member from the set"""
-		return super().spop(self.make_key(name))
+		return super(RedisWrapper, self).spop(self.make_key(name))
 
 	def srandmember(self, name, count=None):
 		"""Returns a random member from the set"""
-		return super().srandmember(self.make_key(name))
+		return super(RedisWrapper, self).srandmember(self.make_key(name))
 
 	def smembers(self, name):
 		"""Return all members of the set"""
-		return super().smembers(self.make_key(name))
-
-
-def setup_cache():
-	if frappe.conf.redis_cache_sentinel_enabled:
-		sentinels = [tuple(node.split(":")) for node in frappe.conf.get("redis_cache_sentinels", [])]
-		sentinel = get_sentinel_connection(
-			sentinels=sentinels,
-			sentinel_username=frappe.conf.get("redis_cache_sentinel_username"),
-			sentinel_password=frappe.conf.get("redis_cache_sentinel_password"),
-			master_username=frappe.conf.get("redis_cache_master_username"),
-			master_password=frappe.conf.get("redis_cache_master_password"),
-		)
-		return sentinel.master_for(
-			frappe.conf.get("redis_cache_master_service"),
-			redis_class=RedisWrapper,
-		)
-
-	return RedisWrapper.from_url(frappe.conf.get("redis_cache"))
-
-
-def get_sentinel_connection(
-	sentinels: list[tuple[str, int]],
-	sentinel_username=None,
-	sentinel_password=None,
-	master_username=None,
-	master_password=None,
-):
-	from redis.sentinel import Sentinel
-
-	sentinel_kwargs = {}
-	if sentinel_username:
-		sentinel_kwargs["username"] = sentinel_username
-
-	if sentinel_password:
-		sentinel_kwargs["password"] = sentinel_password
-
-	return Sentinel(
-		sentinels=sentinels,
-		sentinel_kwargs=sentinel_kwargs,
-		username=master_username,
-		password=master_password,
-	)
+		return super(RedisWrapper, self).smembers(self.make_key(name))

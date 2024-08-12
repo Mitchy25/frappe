@@ -11,7 +11,7 @@
 		width: 100%;
 
 		.modal-actions {
-			z-index: 6;
+			z-index: 4;
 			top: 7px;
 		}
 
@@ -31,7 +31,7 @@
 		.search-icon {
 			position: absolute;
 			top: 15px;
-			z-index: 6;
+			z-index: 4;
 		}
 	}
 	.search-results {
@@ -101,9 +101,7 @@
 				}
 			}
 
-			.list-more,
-			.section-more,
-			.results-status {
+			.list-more, .section-more, .results-status {
 				padding: var(--padding-sm) 0;
 				color: var(--primary);
 				font-size: var(--text-sm);

@@ -1,7 +1,12 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2015, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# For license information, please see license.txt
+
+from __future__ import unicode_literals
 
 import json
+
+from six import string_types
 
 import frappe
 from frappe.integrations.utils import json_handler
@@ -12,13 +17,6 @@ class IntegrationRequest(Document):
 	def autoname(self):
 		if self.flags._name:
 			self.name = self.flags._name
-
-	def clear_old_logs(days=30):
-		from frappe.query_builder import Interval
-		from frappe.query_builder.functions import Now
-
-		table = frappe.qb.DocType("Integration Request")
-		frappe.db.delete(table, filters=(table.modified < (Now() - Interval(days=days))))
 
 	def update_status(self, params, status):
 		data = json.loads(self.data)
@@ -31,14 +29,14 @@ class IntegrationRequest(Document):
 
 	def handle_success(self, response):
 		"""update the output field with the response along with the relevant status"""
-		if isinstance(response, str):
+		if isinstance(response, string_types):
 			response = json.loads(response)
 		self.db_set("status", "Completed")
 		self.db_set("output", json.dumps(response, default=json_handler))
 
 	def handle_failure(self, response):
 		"""update the error field with the response along with the relevant status"""
-		if isinstance(response, str):
+		if isinstance(response, string_types):
 			response = json.loads(response)
 		self.db_set("status", "Failed")
 		self.db_set("error", json.dumps(response, default=json_handler))

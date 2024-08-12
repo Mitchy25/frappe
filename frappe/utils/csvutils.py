@@ -1,14 +1,18 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+
+from __future__ import unicode_literals
+
 import csv
 import json
-from io import StringIO
 
 import requests
+import six
+from six import StringIO, string_types, text_type
 
 import frappe
 from frappe import _, msgprint
-from frappe.utils import cint, comma_or, cstr, flt
+from frappe.utils import cint, comma_or, cstr, encode, flt
 
 
 def read_csv_content_from_attached_file(doc):
@@ -29,19 +33,21 @@ def read_csv_content_from_attached_file(doc):
 	try:
 		_file = frappe.get_doc("File", fileid)
 		fcontent = _file.get_content()
-		return read_csv_content(fcontent)
+		return read_csv_content(fcontent, frappe.form_dict.get("ignore_encoding_errors"))
 	except Exception:
 		frappe.throw(
 			_("Unable to open attached file. Did you export it as CSV?"), title=_("Invalid CSV Format")
 		)
 
 
-def read_csv_content(fcontent):
-	if not isinstance(fcontent, str):
+def read_csv_content(fcontent, ignore_encoding=False):
+	rows = []
+
+	if not isinstance(fcontent, text_type):
 		decoded = False
 		for encoding in ["utf-8", "windows-1250", "windows-1252"]:
 			try:
-				fcontent = str(fcontent, encoding)
+				fcontent = text_type(fcontent, encoding)
 				decoded = True
 				break
 			except UnicodeDecodeError:
@@ -55,7 +61,10 @@ def read_csv_content(fcontent):
 	fcontent = fcontent.encode("utf-8")
 	content = []
 	for line in fcontent.splitlines(True):
-		content.append(frappe.safe_decode(line))
+		if six.PY2:
+			content.append(line)
+		else:
+			content.append(frappe.safe_decode(line))
 
 	try:
 		rows = []
@@ -82,7 +91,7 @@ def read_csv_content(fcontent):
 
 @frappe.whitelist()
 def send_csv_to_client(args):
-	if isinstance(args, str):
+	if isinstance(args, string_types):
 		args = json.loads(args)
 
 	args = frappe._dict(args)
@@ -113,6 +122,8 @@ class UnicodeWriter:
 		self.writer = csv.writer(self.queue, quoting=quoting)
 
 	def writerow(self, row):
+		if six.PY2:
+			row = encode(row, self.encoding)
 		self.writer.writerow(row)
 
 	def getvalue(self):
@@ -129,15 +140,13 @@ def check_record(d):
 		docfield = doc.meta.get_field(key)
 		val = d[key]
 		if docfield:
-			if docfield.reqd and (val == "" or val is None):
+			if docfield.reqd and (val == "" or val == None):
 				frappe.msgprint(_("{0} is required").format(docfield.label), raise_exception=1)
 
 			if docfield.fieldtype == "Select" and val and docfield.options:
 				if val not in docfield.options.split("\n"):
 					frappe.throw(
-						_("{0} must be one of {1}").format(
-							_(docfield.label), comma_or(docfield.options.split("\n"))
-						)
+						_("{0} must be one of {1}").format(_(docfield.label), comma_or(docfield.options.split("\n")))
 					)
 
 			if val and docfield.fieldtype == "Date":
@@ -176,8 +185,7 @@ def import_doc(d, doctype, overwrite, row_idx, submit=False, ignore_links=False)
 
 
 def getlink(doctype, name):
-	return '<a href="/app/Form/{doctype}/{name}">{name}</a>'.format(**locals())
-
+	return '<a href="/app/Form/%(doctype)s/%(name)s">%(name)s</a>' % locals()
 
 
 def get_csv_content_from_google_sheets(url):
@@ -191,7 +199,7 @@ def get_csv_content_from_google_sheets(url):
 	# remove /edit path
 	url = url.rsplit("/edit", 1)[0]
 	# add /export path,
-	url = url + f"/export?format=csv&gid={gid}"
+	url = url + "/export?format=csv&gid={0}".format(gid)
 
 	headers = {"Accept": "text/csv"}
 	response = requests.get(url, headers=headers)

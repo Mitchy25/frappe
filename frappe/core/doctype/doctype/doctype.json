@@ -14,7 +14,6 @@
   "istable",
   "issingle",
   "is_tree",
-  "is_calendar_and_gantt",
   "editable_grid",
   "quick_entry",
   "cb01",
@@ -27,7 +26,6 @@
   "fields_section_break",
   "fields",
   "sb1",
-  "naming_rule",
   "autoname",
   "name_case",
   "allow_rename",
@@ -48,14 +46,11 @@
   "make_attachments_public",
   "view_settings",
   "title_field",
-  "show_title_field_in_link",
   "translated_doctype",
   "search_fields",
   "default_print_format",
   "sort_field",
   "sort_order",
-  "default_view",
-  "force_re_route_to_default_view",
   "column_break_29",
   "document_type",
   "icon",
@@ -67,7 +62,6 @@
   "column_break_51",
   "email_append_to",
   "sender_field",
-  "sender_name_field",
   "subject_field",
   "sb2",
   "permissions",
@@ -78,18 +72,14 @@
   "actions",
   "links_section",
   "links",
-  "document_states_section",
-  "states",
   "web_view",
   "has_web_view",
   "allow_guest_to_view",
   "index_web_pages_for_search",
   "route",
   "is_published_field",
-  "website_search_field",
   "advanced",
-  "engine",
-  "migration_hash"
+  "engine"
  ],
  "fields": [
   {
@@ -214,7 +204,7 @@
    "label": "Naming"
   },
   {
-   "description": "Naming Options:\n<ol><li><b>field:[fieldname]</b> - By Field</li><li><b>autoincrement</b> - Uses Databases' Auto Increment feature</li><li><b>naming_series:</b> - By Naming Series (field called naming_series must be present)</li><li><b>Prompt</b> - Prompt user for a name</li><li><b>[series]</b> - Series by prefix (separated by a dot); for example PRE.#####</li>\n<li><b>format:EXAMPLE-{MM}morewords{fieldname1}-{fieldname2}-{#####}</b> - Replace all braced words (fieldnames, date words (DD, MM, YY), series) with their value. Outside braces, any characters can be used.</li></ol>",
+   "description": "Naming Options:\n<ol><li><b>field:[fieldname]</b> - By Field</li><li><b>naming_series:</b> - By Naming Series (field called naming_series must be present</li><li><b>Prompt</b> - Prompt user for a name</li><li><b>[series]</b> - Series by prefix (separated by a dot); for example PRE.#####</li>\n<li><b>format:EXAMPLE-{MM}morewords{fieldname1}-{fieldname2}-{#####}</b> - Replace all braced words (fieldnames, date words (DD, MM, YY), series) with their value. Outside braces, any characters can be used.</li></ol>",
    "fieldname": "autoname",
    "fieldtype": "Data",
    "label": "Auto Name",
@@ -222,7 +212,6 @@
    "oldfieldtype": "Data"
   },
   {
-   "depends_on": "eval:doc.naming_rule !== \"Autoincrement\"",
    "fieldname": "name_case",
    "fieldtype": "Select",
    "label": "Name Case",
@@ -243,7 +232,6 @@
   },
   {
    "collapsible": 1,
-   "depends_on": "eval:!doc.istable",
    "fieldname": "form_settings_section",
    "fieldtype": "Section Break",
    "label": "Form Settings"
@@ -290,7 +278,6 @@
   },
   {
    "default": "1",
-   "depends_on": "eval:doc.naming_rule !== \"Autoincrement\"",
    "fieldname": "allow_rename",
    "fieldtype": "Check",
    "label": "Allow Rename",
@@ -317,7 +304,6 @@
   },
   {
    "collapsible": 1,
-   "depends_on": "eval:!doc.istable",
    "fieldname": "view_settings",
    "fieldtype": "Section Break",
    "label": "View Settings"
@@ -326,8 +312,7 @@
    "depends_on": "eval:!doc.istable",
    "fieldname": "title_field",
    "fieldtype": "Data",
-   "label": "Title Field",
-   "mandatory_depends_on": "eval:doc.show_title_field_in_link"
+   "label": "Title Field"
   },
   {
    "depends_on": "eval:!doc.istable",
@@ -428,7 +413,7 @@
    "oldfieldtype": "Check"
   },
   {
-   "depends_on": "eval:doc.custom===0 && !doc.istable",
+   "depends_on": "eval:doc.custom===0",
    "fieldname": "web_view",
    "fieldtype": "Section Break",
    "label": "Web View"
@@ -495,7 +480,6 @@
   {
    "collapsible": 1,
    "collapsible_depends_on": "actions",
-   "depends_on": "eval:!doc.istable",
    "fieldname": "actions_section",
    "fieldtype": "Section Break",
    "label": "Actions"
@@ -509,7 +493,6 @@
   {
    "collapsible": 1,
    "collapsible_depends_on": "links",
-   "depends_on": "eval:!doc.istable",
    "fieldname": "links_section",
    "fieldtype": "Section Break",
    "label": "Linked Documents"
@@ -530,7 +513,7 @@
    "depends_on": "email_append_to",
    "fieldname": "sender_field",
    "fieldtype": "Data",
-   "label": "Sender Email Field",
+   "label": "Sender Field",
    "mandatory_depends_on": "email_append_to"
   },
   {
@@ -541,7 +524,6 @@
   },
   {
    "collapsible": 1,
-   "depends_on": "eval:!doc.istable",
    "fieldname": "email_settings_sb",
    "fieldtype": "Section Break",
    "label": "Email Settings"
@@ -569,43 +551,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "depends_on": "has_web_view",
-   "fieldname": "website_search_field",
-   "fieldtype": "Data",
-   "label": "Website Search Field"
-  },
-  {
-   "fieldname": "naming_rule",
-   "fieldtype": "Select",
-   "label": "Naming Rule",
-   "length": 40,
-   "options": "\nSet by user\nAutoincrement\nBy fieldname\nBy \"Naming Series\" field\nExpression\nExpression (old style)\nRandom\nBy script"
-  },
-  {
-   "fieldname": "migration_hash",
-   "fieldtype": "Data",
-   "hidden": 1
-  },
-  {
-   "fieldname": "states",
-   "fieldtype": "Table",
-   "label": "States",
-   "options": "DocType State"
-  },
-  {
-   "collapsible": 1,
-   "depends_on": "eval:!doc.istable",
-   "fieldname": "document_states_section",
-   "fieldtype": "Section Break",
-   "label": "Document States"
-  },
-  {
-   "default": "0",
-   "fieldname": "show_title_field_in_link",
-   "fieldtype": "Check",
-   "label": "Show Title in Link Fields"
-  },
-  {
    "default": "0",
    "fieldname": "translated_doctype",
    "fieldtype": "Check",
@@ -616,35 +561,10 @@
    "fieldname": "make_attachments_public",
    "fieldtype": "Check",
    "label": "Make Attachments Public by Default"
-  },
-  {
-   "fieldname": "default_view",
-   "fieldtype": "Select",
-   "label": "Default View"
-  },
-  {
-   "default": "0",
-   "fieldname": "force_re_route_to_default_view",
-   "fieldtype": "Check",
-   "label": "Force Re-route to Default View"
-  },
-  {
-   "default": "0",
-   "description": "Enables Calendar and Gantt views.",
-   "fieldname": "is_calendar_and_gantt",
-   "fieldtype": "Check",
-   "label": "Is Calendar and Gantt"
-  },
-  {
-   "depends_on": "email_append_to",
-   "fieldname": "sender_name_field",
-   "fieldtype": "Data",
-   "label": "Sender Name Field"
   }
  ],
  "icon": "fa fa-bolt",
  "idx": 6,
- "index_web_pages_for_search": 1,
  "links": [
   {
    "group": "Views",
@@ -722,11 +642,10 @@
    "link_fieldname": "reference_doctype"
   }
  ],
- "modified": "2023-12-01 18:37:16.799471",
+ "modified": "2022-08-24 06:42:27.779699",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "DocType",
- "naming_rule": "Set by user",
  "owner": "Administrator",
  "permissions": [
   {
@@ -756,7 +675,6 @@
  "show_name_in_global_search": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": [],
  "track_changes": 1,
  "translated_doctype": 1
 }

@@ -1,8 +1,13 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+
+from __future__ import unicode_literals
+
 import hashlib
 import hmac
-from urllib.parse import urlencode
+
+from six import string_types
+from six.moves.urllib.parse import urlencode
 
 import frappe
 import frappe.utils
@@ -13,7 +18,7 @@ def get_signed_params(params):
 	"""Sign a url by appending `&_signature=xxxxx` to given params (string or dict).
 
 	:param params: String or dict of parameters."""
-	if not isinstance(params, str):
+	if not isinstance(params, string_types):
 		params = urlencode(params)
 
 	signature = _sign_message(params)
@@ -65,7 +70,7 @@ def get_url(cmd, params, nonce=None, secret=None):
 
 
 def get_signature(params, nonce, secret=None):
-	params = "".join(frappe.utils.cstr(p) for p in params.values())
+	params = "".join((frappe.utils.cstr(p) for p in params.values()))
 	if not secret:
 		secret = frappe.local.conf.get("secret") or "secret"
 

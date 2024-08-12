@@ -8,6 +8,7 @@ Desk
 Integrations
 Printing
 Contacts
+Data Migration
 Social
 Automation
 Event Streaming

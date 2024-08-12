@@ -1,5 +1,8 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2019, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+
+import typing
 
 import frappe
 from frappe import _
@@ -50,7 +53,9 @@ class Exporter:
 		self.add_data()
 
 	def get_all_exportable_fields(self):
-		child_table_fields = [df.fieldname for df in self.meta.fields if df.fieldtype in table_fieldtypes]
+		child_table_fields = [
+			df.fieldname for df in self.meta.fields if df.fieldtype in table_fieldtypes
+		]
 
 		meta = frappe.get_meta(self.doctype)
 		exportable_fields = frappe._dict({})
@@ -105,7 +110,7 @@ class Exporter:
 		fields = [df for df in fields if is_exportable(df)]
 
 		if "name" in fieldnames:
-			fields = [name_field, *fields]
+			fields = [name_field] + fields
 
 		return fields or []
 
@@ -127,7 +132,8 @@ class Exporter:
 						child_doctype = table_df.options
 						rows = self.add_data_row(child_doctype, child_row.parentfield, child_row, rows, i)
 
-			yield from rows
+			for row in rows:
+				yield row
 
 	def add_data_row(self, doctype, parentfield, doc, rows, row_idx):
 		if len(rows) < row_idx + 1:
@@ -150,20 +156,20 @@ class Exporter:
 
 	def get_data_as_docs(self):
 		def format_column_name(df):
-			return f"`tab{df.parent}`.`{df.fieldname}`"
+			return "`tab{0}`.`{1}`".format(df.parent, df.fieldname)
 
 		filters = self.export_filters
 
 		if self.meta.is_nested_set():
-			order_by = f"`tab{self.doctype}`.`lft` ASC"
+			order_by = "`tab{0}`.`lft` ASC".format(self.doctype)
 		else:
-			order_by = f"`tab{self.doctype}`.`creation` DESC"
+			order_by = "`tab{0}`.`creation` DESC".format(self.doctype)
 
 		parent_fields = [format_column_name(df) for df in self.fields if df.parent == self.doctype]
 		parent_data = frappe.db.get_list(
 			self.doctype,
 			filters=filters,
-			fields=["name", *parent_fields],
+			fields=["name"] + parent_fields,
 			limit_page_length=self.export_page_length,
 			order_by=order_by,
 			as_list=0,
@@ -176,14 +182,10 @@ class Exporter:
 				continue
 			child_table_df = self.meta.get_field(key)
 			child_table_doctype = child_table_df.options
-			child_fields = [
-				"name",
-				"idx",
-				"parent",
-				"parentfield",
-				*list({format_column_name(df) for df in self.fields if df.parent == child_table_doctype}),
-			]
-			data = frappe.get_all(
+			child_fields = ["name", "idx", "parent", "parentfield"] + list(
+				set([format_column_name(df) for df in self.fields if df.parent == child_table_doctype])
+			)
+			data = frappe.db.get_list(
 				child_table_doctype,
 				filters={
 					"parent": ("in", parent_names),
@@ -199,7 +201,7 @@ class Exporter:
 		# Group children data by parent name
 		grouped_children_data = self.group_children_data_by_parent(child_data)
 		for doc in parent_data:
-			related_children_docs = grouped_children_data.get(str(doc.name), {})
+			related_children_docs = grouped_children_data.get(doc.name, {})
 			yield {**doc, **related_children_docs}
 
 	def add_header(self):
@@ -207,19 +209,18 @@ class Exporter:
 		for df in self.fields:
 			is_parent = not df.is_child_table_field
 			if is_parent:
-				label = _(df.label or df.fieldname)
+				label = _(df.label)
 			else:
-				label = f"{_(df.label or df.fieldname)} ({_(df.child_table_df.label or df.child_table_df.fieldname)})"
+				label = "{0} ({1})".format(_(df.label), _(df.child_table_df.label))
 
 			if label in header:
 				# this label is already in the header,
 				# which means two fields with the same label
 				# add the fieldname to avoid clash
 				if is_parent:
-					label = f"{df.fieldname}"
+					label = "{0}".format(df.fieldname)
 				else:
-					label = f"{df.child_table_df.fieldname}.{df.fieldname}"
-
+					label = "{0}.{1}".format(df.child_table_df.fieldname, df.fieldname)
 			header.append(label)
 
 		self.csv_array.append(header)
@@ -241,9 +242,15 @@ class Exporter:
 
 	def build_response(self):
 		if self.file_type == "CSV":
-			build_csv_response(self.get_csv_array_for_export(), _(self.doctype))
+			self.build_csv_response()
 		elif self.file_type == "Excel":
-			build_xlsx_response(self.get_csv_array_for_export(), _(self.doctype))
+			self.build_xlsx_response()
 
-	def group_children_data_by_parent(self, children_data: dict[str, list]):
+	def build_csv_response(self):
+		build_csv_response(self.get_csv_array_for_export(), _(self.doctype))
+
+	def build_xlsx_response(self):
+		build_xlsx_response(self.get_csv_array_for_export(), _(self.doctype))
+
+	def group_children_data_by_parent(self, children_data: typing.Dict[str, list]):
 		return groupby_metric(children_data, key="parent")

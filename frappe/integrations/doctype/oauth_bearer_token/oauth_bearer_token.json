@@ -67,7 +67,6 @@
   {
    "fieldname": "status",
    "fieldtype": "Select",
-   "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
    "options": "Active\nRevoked",
@@ -75,11 +74,10 @@
   }
  ],
  "links": [],
- "modified": "2023-04-07 07:08:00.249740",
+ "modified": "2021-04-26 06:40:34.922441",
  "modified_by": "Administrator",
  "module": "Integrations",
  "name": "OAuth Bearer Token",
- "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
@@ -94,6 +92,5 @@
   }
  ],
  "sort_field": "modified",
- "sort_order": "DESC",
- "states": []
+ "sort_order": "DESC"
 }

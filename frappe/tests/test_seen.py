@@ -1,12 +1,14 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+from __future__ import unicode_literals
+
 import json
+import unittest
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
 
 
-class TestSeen(FrappeTestCase):
+class TestSeen(unittest.TestCase):
 	def tearDown(self):
 		frappe.set_user("Administrator")
 

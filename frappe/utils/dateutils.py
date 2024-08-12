@@ -1,7 +1,11 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+
+from __future__ import unicode_literals
 
 import datetime
+
+from six import string_types
 
 import frappe
 import frappe.defaults
@@ -42,7 +46,7 @@ def user_to_str(date, date_format=None):
 	try:
 		return datetime.datetime.strptime(date, dateformats[date_format]).strftime("%Y-%m-%d")
 	except ValueError:
-		raise ValueError(f"Date {date} must be in format {date_format}")
+		raise ValueError("Date %s must be in format %s" % (date, date_format))
 
 
 def parse_date(date):
@@ -51,10 +55,12 @@ def parse_date(date):
 
 	if " " in date:
 		# as date-timestamp, remove the time part
-		date = date.split(" ", 1)[0]
+		date = date.split(" ")[0]
 
 	# why the sorting? checking should be done in a predictable order
-	check_formats = [None, *sorted(list(dateformats), reverse=not get_user_date_format().startswith("dd"))]
+	check_formats = [None] + sorted(
+		list(dateformats), reverse=not get_user_date_format().startswith("dd")
+	)
 
 	for f in check_formats:
 		try:
@@ -66,8 +72,9 @@ def parse_date(date):
 
 	if not parsed_date:
 		raise Exception(
-			f"""Cannot understand date - '{date}'.
-			Try formatting it like your default format - '{get_user_date_format()}'"""
+			"""Cannot understand date - '%s'.
+			Try formatting it like your default format - '%s'"""
+			% (date, get_user_date_format())
 		)
 
 	return parsed_date
@@ -83,7 +90,7 @@ def get_user_date_format():
 def datetime_in_user_format(date_time):
 	if not date_time:
 		return ""
-	if isinstance(date_time, str):
+	if isinstance(date_time, string_types):
 		date_time = get_datetime(date_time)
 	from frappe.utils import formatdate
 
@@ -112,7 +119,9 @@ def get_dates_from_timegrain(from_date, to_date, timegrain="Daily"):
 		if "Weekly" == timegrain:
 			date = get_last_day_of_week(add_to_date(dates[-1], years=years, months=months, days=days))
 		else:
-			date = get_period_ending(add_to_date(dates[-1], years=years, months=months, days=days), timegrain)
+			date = get_period_ending(
+				add_to_date(dates[-1], years=years, months=months, days=days), timegrain
+			)
 		dates.append(date)
 	return dates
 

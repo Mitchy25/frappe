@@ -1,12 +1,14 @@
 # Copyright (c) 2017, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+from __future__ import unicode_literals
+
 import time
+import unittest
 
 import pyotp
 
 import frappe
 from frappe.auth import HTTPRequest, get_login_attempt_tracker, validate_ip_address
-from frappe.tests.utils import FrappeTestCase
 from frappe.twofactor import (
 	ExpiredLoginException,
 	authenticate_for_2factor,
@@ -23,9 +25,9 @@ from frappe.utils import cint, set_request
 from . import get_system_setting, update_system_settings
 
 
-class TestTwoFactor(FrappeTestCase):
+class TestTwoFactor(unittest.TestCase):
 	def __init__(self, *args, **kwargs):
-		super().__init__(*args, **kwargs)
+		super(TestTwoFactor, self).__init__(*args, **kwargs)
 		self.default_allowed_login_attempts = get_system_setting("allow_consecutive_login_attempts")
 
 	def setUp(self):
@@ -61,7 +63,7 @@ class TestTwoFactor(FrappeTestCase):
 		self.assertTrue(verification_obj)
 		self.assertTrue(tmp_id)
 		for k in ["_usr", "_pwd", "_otp_secret"]:
-			self.assertTrue(frappe.cache().get(f"{tmp_id}{k}"), f"{k} not available")
+			self.assertTrue(frappe.cache().get("{0}{1}".format(tmp_id, k)), "{} not available".format(k))
 
 	def test_two_factor_is_enabled(self):
 		"""
@@ -232,10 +234,10 @@ def disable_2fa():
 def toggle_2fa_all_role(state=None):
 	"""Enable or disable 2fa for 'all' role on the system."""
 	all_role = frappe.get_doc("Role", "All")
-	state = state if state is not None else False
-	if not isinstance(state, bool):
+	if state == None:
+		state = False if all_role.two_factor_auth == True else False
+	if state not in [True, False]:
 		return
-
 	all_role.two_factor_auth = cint(state)
 	all_role.save(ignore_permissions=True)
 	frappe.db.commit()

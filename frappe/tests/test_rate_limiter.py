@@ -1,18 +1,25 @@
+#  -*- coding: utf-8 -*-
+
 # Copyright (c) 2020, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+
+from __future__ import unicode_literals
 
 import time
+import unittest
 
 from werkzeug.wrappers import Response
 
 import frappe
 import frappe.rate_limiter
 from frappe.rate_limiter import RateLimiter
-from frappe.tests.utils import FrappeTestCase
 from frappe.utils import cint
 
 
-class TestRateLimiter(FrappeTestCase):
+class TestRateLimiter(unittest.TestCase):
+	def setUp(self):
+		pass
+
 	def test_apply_with_limit(self):
 		frappe.conf.rate_limit = {"window": 86400, "limit": 1}
 		frappe.rate_limiter.apply()

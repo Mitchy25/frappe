@@ -1,5 +1,11 @@
-# Copyright (c) 2021, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# -*- coding: utf-8 -*-
+# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
+# License: GNU General Public License v3. See license.txt
+
+from __future__ import unicode_literals
+
+import six
+from six import string_types
 
 import frappe
 from frappe import _, msgprint, throw
@@ -15,7 +21,7 @@ def validate_receiver_nos(receiver_list):
 	validated_receiver_list = []
 	for d in receiver_list:
 		if not d:
-			continue
+			break
 
 		# remove invalid character
 		for x in [" ", "-", "(", ")"]:
@@ -47,9 +53,10 @@ def get_contact_number(contact_name, ref_doctype, ref_name):
 
 @frappe.whitelist()
 def send_sms(receiver_list, msg, sender_name="", success_msg=True):
+
 	import json
 
-	if isinstance(receiver_list, str):
+	if isinstance(receiver_list, string_types):
 		receiver_list = json.loads(receiver_list)
 		if not isinstance(receiver_list, list):
 			receiver_list = [receiver_list]
@@ -62,7 +69,7 @@ def send_sms(receiver_list, msg, sender_name="", success_msg=True):
 		"success_msg": success_msg,
 	}
 
-	if frappe.db.get_single_value("SMS Settings", "sms_gateway_url"):
+	if frappe.db.get_value("SMS Settings", None, "sms_gateway_url"):
 		send_via_gateway(arg)
 	else:
 		msgprint(_("Please Update SMS Settings"))

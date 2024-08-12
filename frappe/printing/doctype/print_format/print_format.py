@@ -1,5 +1,8 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2017, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# For license information, please see license.txt
+
+from __future__ import unicode_literals
 
 import json
 
@@ -8,30 +11,16 @@ import frappe.utils
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils.jinja import validate_template
-from frappe.utils.weasyprint import download_pdf, get_html
 
 
 class PrintFormat(Document):
-	def onload(self):
-		templates = frappe.get_all(
-			"Print Format Field Template",
-			fields=["template", "field", "name"],
-			filters={"document_type": self.doc_type},
-		)
-		self.set_onload("print_templates", templates)
-
-	def get_html(self, docname, letterhead=None):
-		return get_html(self.doc_type, docname, self.name, letterhead)
-
-	def download_pdf(self, docname, letterhead=None):
-		return download_pdf(self.doc_type, docname, self.name, letterhead)
-
 	def validate(self):
 		if (
 			self.standard == "Yes"
 			and not frappe.local.conf.get("developer_mode")
 			and not (frappe.flags.in_import or frappe.flags.in_test)
 		):
+
 			frappe.throw(frappe._("Standard Print Format cannot be updated"))
 
 		# old_doc_type is required for clearing item cache
@@ -46,16 +35,15 @@ class PrintFormat(Document):
 			validate_template(self.html)
 
 		if self.custom_format and self.raw_printing and not self.raw_commands:
-			frappe.throw(_("{0} are required").format(frappe.bold(_("Raw Commands"))), frappe.MandatoryError)
+			frappe.throw(
+				_("{0} are required").format(frappe.bold(_("Raw Commands"))), frappe.MandatoryError
+			)
 
 		if self.custom_format and not self.html and not self.raw_printing:
 			frappe.throw(_("{0} is required").format(frappe.bold(_("HTML"))), frappe.MandatoryError)
 
 	def extract_images(self):
-		from frappe.core.doctype.file.utils import extract_images_from_html
-
-		if self.print_format_builder_beta:
-			return
+		from frappe.core.doctype.file.file import extract_images_from_html
 
 		if self.format_data:
 			data = json.loads(self.format_data)
@@ -106,12 +94,13 @@ def make_default(name):
 
 	print_format = frappe.get_doc("Print Format", name)
 
-	doctype = frappe.get_doc("DocType", print_format.doc_type)
-	if doctype.custom:
+	if (frappe.conf.get("developer_mode") or 0) == 1:
+		# developer mode, set it default in doctype
+		doctype = frappe.get_doc("DocType", print_format.doc_type)
 		doctype.default_print_format = name
 		doctype.save()
 	else:
-		# "Customize form"
+		# customization
 		frappe.make_property_setter(
 			{
 				"doctype_or_field": "DocType",

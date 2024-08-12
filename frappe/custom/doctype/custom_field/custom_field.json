@@ -7,9 +7,7 @@
  "document_type": "Setup",
  "engine": "InnoDB",
  "field_order": [
-  "is_system_generated",
   "dt",
-  "module",
   "label",
   "label_help",
   "fieldname",
@@ -21,7 +19,6 @@
   "hide_seconds",
   "hide_days",
   "options",
-  "sort_options",
   "fetch_from",
   "fetch_if_empty",
   "options_help",
@@ -36,7 +33,6 @@
   "non_negative",
   "reqd",
   "unique",
-  "is_virtual",
   "read_only",
   "ignore_user_permissions",
   "hidden",
@@ -68,8 +64,7 @@
    "fieldtype": "Link",
    "in_filter": 1,
    "in_list_view": 1,
-   "in_standard_filter": 1,
-   "label": "DocType",
+   "label": "Document",
    "oldfieldname": "dt",
    "oldfieldtype": "Link",
    "options": "DocType",
@@ -96,7 +91,6 @@
    "fieldname": "fieldname",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "in_standard_filter": 1,
    "label": "Fieldname",
    "no_copy": 1,
    "oldfieldname": "fieldname",
@@ -126,9 +120,8 @@
    "label": "Field Type",
    "oldfieldname": "fieldtype",
    "oldfieldtype": "Select",
-   "options": "Autocomplete\nAttach\nAttach Image\nBarcode\nButton\nCheck\nCode\nColor\nColumn Break\nCurrency\nData\nDate\nDatetime\nDuration\nDynamic Link\nFloat\nFold\nGeolocation\nHeading\nHTML\nHTML Editor\nIcon\nImage\nInt\nJSON\nLink\nLong Text\nMarkdown Editor\nPassword\nPercent\nPhone\nRead Only\nRating\nSection Break\nSelect\nSignature\nSmall Text\nTab Break\nTable\nTable MultiSelect\nText\nText Editor\nTime",
-   "reqd": 1,
-   "sort_options": 1
+   "options": "Attach\nAttach Image\nBarcode\nButton\nCheck\nCode\nColor\nColumn Break\nCurrency\nData\nDate\nDatetime\nDuration\nDynamic Link\nFloat\nFold\nGeolocation\nHeading\nHTML\nHTML Editor\nIcon\nImage\nInt\nLink\nLong Text\nMarkdown Editor\nPassword\nPercent\nRead Only\nRating\nSection Break\nSelect\nSmall Text\nTable\nTable MultiSelect\nText\nText Editor\nTime\nSignature",
+   "reqd": 1
   },
   {
    "depends_on": "eval:in_list([\"Float\", \"Currency\", \"Percent\"], doc.fieldtype)",
@@ -153,10 +146,10 @@
   },
   {
    "default": "0",
-   "description": "If unchecked, the value will always be re-fetched on save.",
+   "description": "If checked, this field will be not overwritten based on Fetch From if a value already exists.",
    "fieldname": "fetch_if_empty",
    "fieldtype": "Check",
-   "label": "Fetch on Save if Empty"
+   "label": "Fetch If Empty"
   },
   {
    "fieldname": "options_help",
@@ -245,12 +238,6 @@
    "fieldname": "unique",
    "fieldtype": "Check",
    "label": "Unique"
-  },
-  {
-   "default": "0",
-   "fieldname": "is_virtual",
-   "fieldtype": "Check",
-   "label": "Is Virtual"
   },
   {
    "default": "0",
@@ -360,7 +347,7 @@
    "label": "Ignore XSS Filter"
   },
   {
-   "default": "0",
+   "default": "1",
    "depends_on": "eval:['Data', 'Select', 'Text', 'Small Text', 'Text Editor'].includes(doc.fieldtype)",
    "fieldname": "translatable",
    "fieldtype": "Check",
@@ -424,33 +411,13 @@
    "fieldname": "non_negative",
    "fieldtype": "Check",
    "label": "Non Negative"
-  },
-  {
-   "fieldname": "module",
-   "fieldtype": "Link",
-   "label": "Module (for export)",
-   "options": "Module Def"
-  },
-  {
-   "default": "0",
-   "fieldname": "is_system_generated",
-   "fieldtype": "Check",
-   "label": "Is System Generated",
-   "read_only": 1
-  },
-  {
-   "default": "0",
-   "depends_on": "eval: doc.fieldtype === 'Select'",
-   "fieldname": "sort_options",
-   "fieldtype": "Check",
-   "label": "Sort Options"
   }
  ],
  "icon": "fa fa-glass",
  "idx": 1,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-03-07 17:34:47.167183",
+ "modified": "2021-07-12 05:54:13.042319",
  "modified_by": "Administrator",
  "module": "Custom",
  "name": "Custom Field",
@@ -482,6 +449,5 @@
  "search_fields": "dt,label,fieldtype,options",
  "sort_field": "modified",
  "sort_order": "ASC",
- "states": [],
  "track_changes": 1
 }

@@ -1,6 +1,3 @@
-import types
-import typing
-
 from pypika import MySQLQuery, Order, PostgreSQLQuery, terms
 from pypika.dialects import MySQLQueryBuilder, PostgreSQLQueryBuilder
 from pypika.queries import QueryBuilder, Schema, Table
@@ -13,16 +10,8 @@ from frappe.utils import get_table_name
 class Base:
 	terms = terms
 	desc = Order.desc
-	asc = Order.asc
 	Schema = Schema
 	Table = Table
-
-	# Added dynamic type hints for engine attribute
-	# which is to be assigned later.
-	if typing.TYPE_CHECKING:
-		from frappe.database.query import Engine
-
-		engine: Engine
 
 	@staticmethod
 	def functions(name: str, *args, **kwargs) -> Function:
@@ -49,8 +38,6 @@ class Base:
 class MariaDB(Base, MySQLQuery):
 	Field = terms.Field
 
-	_BuilderClasss = MySQLQueryBuilder
-
 	@classmethod
 	def _builder(cls, *args, **kwargs) -> "MySQLQueryBuilder":
 		return super()._builder(*args, wrapper_cls=ParameterizedValueWrapper, **kwargs)
@@ -63,8 +50,8 @@ class MariaDB(Base, MySQLQuery):
 
 
 class Postgres(Base, PostgreSQLQuery):
-	field_translation = types.MappingProxyType({"table_name": "relname", "table_rows": "n_tup_ins"})
-	schema_translation = types.MappingProxyType({"tables": "pg_stat_all_tables"})
+	field_translation = {"table_name": "relname", "table_rows": "n_tup_ins"}
+	schema_translation = {"tables": "pg_stat_all_tables"}
 	# TODO: Find a better way to do this
 	# These are interdependent query changes that need fixing. These
 	# translations happen in the same query. But there is no check to see if
@@ -73,8 +60,6 @@ class Postgres(Base, PostgreSQLQuery):
 	# function can not see the arguments passed to the "select" function as
 	# they are two different objects. The quick fix used here is to replace the
 	# Field names in the "Field" function.
-
-	_BuilderClasss = PostgreSQLQueryBuilder
 
 	@classmethod
 	def _builder(cls, *args, **kwargs) -> "PostgreSQLQueryBuilder":
@@ -91,7 +76,7 @@ class Postgres(Base, PostgreSQLQuery):
 		if isinstance(table, Table):
 			if table._schema:
 				if table._schema._name == "information_schema":
-					table = cls.schema_translation.get(table._table_name) or table
+					table = cls.schema_translation[table._table_name]
 
 		elif isinstance(table, str):
 			table = cls.DocType(table)

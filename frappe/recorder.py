@@ -1,5 +1,8 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2018, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+from __future__ import unicode_literals
+
 import datetime
 import functools
 import inspect
@@ -7,18 +10,16 @@ import json
 import re
 import time
 from collections import Counter
-from collections.abc import Callable
+from typing import Callable
 
 import sqlparse
 
 import frappe
 from frappe import _
-from frappe.database.database import is_query_type
 
 RECORDER_INTERCEPT_FLAG = "recorder-intercept"
 RECORDER_REQUEST_SPARSE_HASH = "recorder-requests-sparse"
 RECORDER_REQUEST_HASH = "recorder-requests"
-TRACEBACK_PATH_PATTERN = re.compile(".*/apps/")
 
 
 def sql(*args, **kwargs):
@@ -28,12 +29,26 @@ def sql(*args, **kwargs):
 
 	stack = list(get_current_stack_frames())
 
+	if frappe.db.db_type == "postgres":
+		query = frappe.db._cursor.query
+	else:
+		query = frappe.db._cursor._executed
+
+	query = sqlparse.format(query.strip(), keyword_case="upper", reindent=True)
+
+	# Collect EXPLAIN for executed query
+	if query.lower().strip().split()[0] in ("select", "update", "delete"):
+		# Only SELECT/UPDATE/DELETE queries can be "EXPLAIN"ed
+		explain_result = frappe.db._sql("EXPLAIN {}".format(query), as_dict=True)
+	else:
+		explain_result = []
+
 	data = {
-		"query": str(frappe.db.last_query),
+		"query": query,
 		"stack": stack,
-		"explain_result": [],
+		"explain_result": explain_result,
 		"time": start_time,
-		"duration": float(f"{(end_time - start_time) * 1000:.3f}"),
+		"duration": float("{:.3f}".format((end_time - start_time) * 1000)),
 	}
 
 	frappe.local._recorder.register(data)
@@ -44,89 +59,15 @@ def get_current_stack_frames():
 	try:
 		current = inspect.currentframe()
 		frames = inspect.getouterframes(current, context=10)
-		for _frame, filename, lineno, function, _context, _index in list(reversed(frames))[:-2]:
-			if "/apps/" in filename or "<serverscript>" in filename:
+		for frame, filename, lineno, function, context, index in list(reversed(frames))[:-2]:
+			if "/apps/" in filename:
 				yield {
-					"filename": TRACEBACK_PATH_PATTERN.sub("", filename),
+					"filename": re.sub(".*/apps/", "", filename),
 					"lineno": lineno,
 					"function": function,
 				}
 	except Exception:
 		pass
-
-
-def post_process():
-	"""post process all recorded values.
-
-	Any processing that can be done later should be done here to avoid overhead while
-	profiling. As of now following values are post-processed:
-	        - `EXPLAIN` output of queries.
-	        - SQLParse reformatting of queries
-	        - Mark duplicates
-	"""
-	frappe.db.rollback()
-	frappe.db.begin(read_only=True)  # Explicitly start read only transaction
-
-	result = list(frappe.cache().hgetall(RECORDER_REQUEST_HASH).values())
-
-	for request in result:
-		for call in request["calls"]:
-			formatted_query = sqlparse.format(
-				call["query"].strip(), keyword_case="upper", reindent=True, strip_comments=True
-			)
-			call["query"] = formatted_query
-
-			# Collect EXPLAIN for executed query
-			if is_query_type(formatted_query, ("select", "update", "delete")):
-				# Only SELECT/UPDATE/DELETE queries can be "EXPLAIN"ed
-				try:
-					call["explain_result"] = frappe.db.sql(f"EXPLAIN {formatted_query}", as_dict=True)
-				except Exception:
-					pass
-		mark_duplicates(request)
-		frappe.cache().hset(RECORDER_REQUEST_HASH, request["uuid"], request)
-
-
-def mark_duplicates(request):
-	exact_duplicates = Counter([call["query"] for call in request["calls"]])
-
-	for sql_call in request["calls"]:
-		sql_call["normalized_query"] = normalize_query(sql_call["query"])
-
-	normalized_duplicates = Counter([call["normalized_query"] for call in request["calls"]])
-
-	for index, call in enumerate(request["calls"]):
-		call["index"] = index
-		call["exact_copies"] = exact_duplicates[call["query"]]
-		call["normalized_copies"] = normalized_duplicates[call["normalized_query"]]
-
-
-def normalize_query(query: str) -> str:
-	"""Attempt to normalize query by removing variables.
-	This gives a different view of similar duplicate queries.
-
-	Example:
-	        These two are distinct queries:
-	                `select * from user where name = 'x'`
-	                `select * from user where name = 'z'`
-
-	        But their "normalized" form would be same:
-	                `select * from user where name = ?`
-	"""
-
-	try:
-		q = sqlparse.parse(query)[0]
-		for token in q.flatten():
-			if "Token.Literal" in str(token.ttype):
-				token.value = "?"
-
-		# Transform IN parts like this: IN (?, ?, ?) -> IN (?)
-		q = re.sub(r"( IN )\(\?[\s\n\?\,]*\)", r"\1(?)", str(q), flags=re.IGNORECASE)
-		return q
-	except Exception as e:
-		print("Failed to normalize query ", e)
-
-	return query
 
 
 def record(force=False):
@@ -172,7 +113,9 @@ class Recorder:
 			"time": self.time,
 			"queries": len(self.calls),
 			"time_queries": float("{:0.3f}".format(sum(call["duration"] for call in self.calls))),
-			"duration": float(f"{(datetime.datetime.now() - self.time).total_seconds() * 1000:0.3f}"),
+			"duration": float(
+				"{:0.3f}".format((datetime.datetime.now() - self.time).total_seconds() * 1000)
+			),
 			"method": self.method,
 		}
 		frappe.cache().hset(RECORDER_REQUEST_SPARSE_HASH, self.uuid, request_data)
@@ -182,10 +125,18 @@ class Recorder:
 			user="Administrator",
 		)
 
+		self.mark_duplicates()
+
 		request_data["calls"] = self.calls
 		request_data["headers"] = self.headers
 		request_data["form_dict"] = self.form_dict
 		frappe.cache().hset(RECORDER_REQUEST_HASH, self.uuid, request_data)
+
+	def mark_duplicates(self):
+		counts = Counter([call["query"] for call in self.calls])
+		for index, call in enumerate(self.calls):
+			call["index"] = index
+			call["exact_copies"] = counts[call["query"]]
 
 
 def _patch():
@@ -227,7 +178,7 @@ def status(*args, **kwargs):
 @do_not_record
 @administrator_only
 def start(*args, **kwargs):
-	frappe.cache().set_value(RECORDER_INTERCEPT_FLAG, 1, expires_in_sec=60 * 60)
+	frappe.cache().set_value(RECORDER_INTERCEPT_FLAG, 1)
 
 
 @frappe.whitelist()
@@ -235,7 +186,6 @@ def start(*args, **kwargs):
 @administrator_only
 def stop(*args, **kwargs):
 	frappe.cache().delete_value(RECORDER_INTERCEPT_FLAG)
-	frappe.enqueue(post_process, now=frappe.flags.in_test)
 
 
 @frappe.whitelist()
@@ -274,7 +224,6 @@ def record_queries(func: Callable):
 		ret = func(*args, **kwargs)
 		dump()
 		_unpatch()
-		post_process()
 		print("Recorded queries, open recorder to view them.")
 		return ret
 

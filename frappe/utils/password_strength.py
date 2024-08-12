@@ -1,5 +1,7 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+
+from __future__ import unicode_literals
 
 from zxcvbn import zxcvbn
 from zxcvbn.scoring import ALL_UPPER, START_UPPER
@@ -42,7 +44,9 @@ def get_feedback(score, sequence):
 	Returns the feedback dictionary consisting of ("warning","suggestions") for the given sequences.
 	"""
 	global default_feedback
-	minimum_password_score = int(frappe.db.get_single_value("System Settings", "minimum_password_score") or 2)
+	minimum_password_score = int(
+		frappe.db.get_single_value("System Settings", "minimum_password_score") or 2
+	)
 
 	# Starting feedback
 	if len(sequence) == 0:

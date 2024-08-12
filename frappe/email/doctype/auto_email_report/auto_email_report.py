@@ -1,5 +1,8 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2015, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# For license information, please see license.txt
+
+from __future__ import unicode_literals
 
 import calendar
 from datetime import timedelta
@@ -130,7 +133,7 @@ class AutoEmailReport(Document):
 			report_data["columns"] = columns
 			report_data["result"] = data
 
-			xlsx_data, column_widths = build_xlsx_data(report_data, [], 1, ignore_visible_idx=True)
+			xlsx_data, column_widths = build_xlsx_data(columns, report_data, [], 1, ignore_visible_idx=True)
 			xlsx_file = make_xlsx(xlsx_data, "Auto Email Report", column_widths=column_widths)
 			return xlsx_file.getvalue()
 
@@ -139,13 +142,14 @@ class AutoEmailReport(Document):
 			report_data["columns"] = columns
 			report_data["result"] = data
 
-			xlsx_data, column_widths = build_xlsx_data(report_data, [], 1, ignore_visible_idx=True)
+			xlsx_data, column_widths = build_xlsx_data(columns, report_data, [], 1, ignore_visible_idx=True)
 			return to_csv(xlsx_data)
 
 		else:
 			frappe.throw(_("Invalid Output Format"))
 
 	def get_html_table(self, columns=None, data=None):
+
 		date_time = global_date_format(now()) + " " + format_time(now())
 		report_doctype = frappe.db.get_value("Report", self.report, "ref_doctype")
 
@@ -164,7 +168,7 @@ class AutoEmailReport(Document):
 		)
 
 	def get_file_name(self):
-		return "{}.{}".format(self.report.replace(" ", "-").replace("/", "-"), self.format.lower())
+		return "{0}.{1}".format(self.report.replace(" ", "-").replace("/", "-"), self.format.lower())
 
 	def prepare_dynamic_filters(self):
 		self.filters = frappe.parse_json(self.filters)
@@ -258,8 +262,8 @@ def send_daily():
 				continue
 		try:
 			auto_email_report.send()
-		except Exception:
-			auto_email_report.log_error(f"Failed to send {auto_email_report.name} Auto Email Report")
+		except Exception as e:
+			frappe.log_error(e, _("Failed to send {0} Auto Email Report").format(auto_email_report.name))
 
 
 def send_monthly():
@@ -281,11 +285,7 @@ def make_links(columns, data):
 				if col.options and row.get(col.options):
 					row[col.fieldname] = get_link_to_form(row[col.options], row[col.fieldname])
 			elif col.fieldtype == "Currency":
-				doc = None
-				if doc_name and col.get("parent") and not frappe.get_meta(col.parent).istable:
-					if frappe.db.exists(col.parent, doc_name):
-						doc = frappe.get_doc(col.parent, doc_name)
-
+				doc = frappe.get_doc(col.parent, doc_name) if doc_name and col.parent else None
 				# Pass the Document to get the currency based on docfield option
 				row[col.fieldname] = frappe.format_value(row[col.fieldname], col, doc=doc)
 	return columns, data

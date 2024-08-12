@@ -1,16 +1,18 @@
+from __future__ import unicode_literals
+
 import base64
 import random
 from hashlib import md5
-from io import StringIO
 
 from PIL import Image, ImageDraw
+from six import StringIO
 
 GRID_SIZE = 5
 BORDER_SIZE = 20
 SQUARE_SIZE = 40
 
 
-class Identicon:
+class Identicon(object):
 	def __init__(self, str_, background="#fafbfc"):
 		"""
 		`str_` is the string used to generate the identicon.
@@ -104,4 +106,4 @@ class Identicon:
 			save_handler(self.image, fp, "")
 		finally:
 			fp.seek(0)
-			return f"data:image/png;base64,{base64.b64encode(fp.read())}"  # noqa
+			return "data:image/png;base64,{0}".format(base64.b64encode(fp.read()))

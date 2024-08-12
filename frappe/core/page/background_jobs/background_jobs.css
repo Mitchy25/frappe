@@ -1,32 +1,43 @@
+.list-jobs {
+	font-size: var(--text-base);
+}
 
-.table-background-jobs {
+.table {
 	margin-bottom: 0px;
 	margin-top: 0px;
-	font-size: var(--text-md);
-	table-layout: fixed;
 }
 
-.table-background-jobs th {
-	font-weight: normal;
-	color: var(--text-muted);
+thead {
+	background-color: var(--control-bg);
+	border-radius: var(--border-radius-sm);
 }
 
-.table-background-jobs td {
-	color: var(--text-light);
+thead > tr {
+	border-radius: var(--border-radius-sm);
 }
 
-.table-background-jobs th, .table-background-jobs td {
-	padding: var(--padding-sm) var(--padding-md);
+thead > tr > th:first-child {
+	border-radius: var(--border-radius-sm) 0 0 var(--border-radius-sm);
+}
+thead > tr > th:last-child {
+	border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0;
 }
 
-.table-background-jobs tbody tr:hover {
-	background-color: var(--highlight-color);
+.worker-name {
+	display: flex;
+	align-items: center;
 }
 
 .job-name {
 	font-size: var(--text-md);
-	font-family: var(--font-family-monospace);
-	word-break: break-word;
+	font-family: "Courier New", Courier, monospace;
+	/* background-color: var(--control-bg); */
+	/* padding: var(--padding-xs) var(--padding-sm); */
+	/* border-radius: var(--border-radius-md); */
+}
+
+.background-job-row:hover {
+	background-color: var(--bg-color);
 }
 
 .no-background-jobs {
@@ -43,5 +54,7 @@
 }
 
 .footer {
-	padding: var(--padding-md);
+	align-items: flex-end;
+	margin-top: var(--margin-md);
+	font-size: var(--text-base);
 }

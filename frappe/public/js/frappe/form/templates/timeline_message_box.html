@@ -23,36 +23,29 @@
 					{% } %}
 
 					<div class="text-muted">
-						{{ comment_when(doc.communication_date || doc.creation) }}
+						{{ comment_when(doc.creation) }}
 					</div>
 				</span>
 			{% } else if (doc.comment_type && doc.comment_type == "Comment") { %}
 				<span>
-					{{ frappe.avatar(doc.owner, "avatar-medium") }}
-					<span class="ml-2" style="font-size: var(--text-base);">{{ doc.user_full_name || frappe.user.full_name(doc.owner) }}</span>
-					<span class="text-muted">{{ __("commented") }}</span>
-					<span> . </span>
-					<span class="margin-left text-muted">
-						{{ comment_when(doc.communication_date || doc.creation) }}
+					{{ doc.user_full_name || frappe.user.full_name(doc.owner) }} {{ __("commented") }}
+					<span class="text-muted margin-left">
+						{{ comment_when(doc.creation) }}
 					</span>
 				</span>
 			{% } else { %}
 				<span class="margin-right">
 					{{ frappe.avatar(doc.owner, "avatar-medium") }}
 				</span>
-				<div>
+				<span>
 					{{ doc.user_full_name || frappe.user.full_name(doc.owner) }}
-					<span> . </span>
-					<span class="text-muted">
-						{{ comment_when(doc.communication_date || doc.creation) }}
-					</span>
-					{% if (doc.subject) { %}
-						<div class="text-muted my-1">{{doc.subject}}</div>
-					{% } %}
-				</div>
+					<div class="text-muted">
+						{{ comment_when(doc.creation) }}
+					</div>
+				</span>
 			{% } %}
 		</span>
-		<span class="actions" style="flex-shrink: 0">
+		<span class="actions">
 			{% if (doc._doc_status && doc._doc_status_indicator) { %}
 			<span class="indicator-pill {%= doc._doc_status_indicator %}"
 				title="{%= __(doc._doc_status) %}"
@@ -70,20 +63,6 @@
 				</svg>
 			</a>
 			{% } %}
-			<div class="custom-actions"></div>
-			<div class="more-actions">
-				<a type="button" class="action-btn"
-					data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-					<svg class="icon icon-sm">
-						<use href="#icon-dot-horizontal"></use>
-					</svg>
-				</a>
-				<ul class="dropdown-menu small">
-					<li>
-						<a class="dropdown-item" data-action="copy_link">{{ __('Copy Link') }}</a>
-					</li>
-				</ul>
-			</div>
 		</span>
 	</span>
 	<div class="content">

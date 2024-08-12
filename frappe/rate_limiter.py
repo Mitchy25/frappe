@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2020, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
 
-from collections.abc import Callable
+from __future__ import unicode_literals
+
 from datetime import datetime
 from functools import wraps
+from typing import Callable, Union
 
 from werkzeug.wrappers import Response
 
@@ -83,10 +86,10 @@ class RateLimiter:
 
 
 def rate_limit(
-	key: str | None = None,
-	limit: int | Callable = 5,
+	key: str = None,
+	limit: Union[int, Callable] = 5,
 	seconds: int = 24 * 60 * 60,
-	methods: str | list = "ALL",
+	methods: Union[str, list] = "ALL",
 	ip_based: bool = True,
 ):
 	"""Decorator to rate limit an endpoint.
@@ -135,7 +138,7 @@ def rate_limit(
 			if not identity:
 				frappe.throw(_("Either key or IP flag is required."))
 
-			cache_key = frappe.cache().make_key(f"rl:{frappe.form_dict.cmd}:{identity}")
+			cache_key = f"rl:{frappe.form_dict.cmd}:{identity}"
 
 			value = frappe.cache().get(cache_key) or 0
 			if not value:
@@ -144,8 +147,7 @@ def rate_limit(
 			value = frappe.cache().incrby(cache_key, 1)
 			if value > _limit:
 				frappe.throw(
-					_("You hit the rate limit because of too many requests. Please try after sometime."),
-					frappe.RateLimitExceededError,
+					_("You hit the rate limit because of too many requests. Please try after sometime.")
 				)
 
 			return frappe.call(fun, **frappe.form_dict or kwargs)

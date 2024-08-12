@@ -1,5 +1,8 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2017, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# For license information, please see license.txt
+
+from __future__ import unicode_literals
 
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
@@ -85,8 +88,8 @@ class Domain(Document):
 	def set_default_portal_role(self):
 		"""Set default portal role based on domain"""
 		if self.data.get("default_portal_role"):
-			frappe.db.set_single_value(
-				"Portal Settings", "default_role", self.data.get("default_portal_role")
+			frappe.db.set_value(
+				"Portal Settings", None, "default_role", self.data.get("default_portal_role")
 			)
 
 	def setup_properties(self):
@@ -112,7 +115,9 @@ class Domain(Document):
 			# enable
 			frappe.db.sql(
 				"""update `tabPortal Menu Item` set enabled=1
-				where route in ({})""".format(", ".join(f'"{d}"' for d in self.data.allow_sidebar_items))
+				where route in ({0})""".format(
+					", ".join(['"{0}"'.format(d) for d in self.data.allow_sidebar_items])
+				)
 			)
 
 		if self.data.remove_sidebar_items:
@@ -122,5 +127,7 @@ class Domain(Document):
 			# enable
 			frappe.db.sql(
 				"""update `tabPortal Menu Item` set enabled=0
-				where route in ({})""".format(", ".join(f'"{d}"' for d in self.data.remove_sidebar_items))
+				where route in ({0})""".format(
+					", ".join(['"{0}"'.format(d) for d in self.data.remove_sidebar_items])
+				)
 			)

@@ -1,14 +1,17 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+from __future__ import unicode_literals
+
+import unittest
+
 import frappe
 import frappe.desk.form.assign_to
 from frappe.automation.doctype.assignment_rule.test_assignment_rule import make_note
 from frappe.desk.form.load import get_assignments
 from frappe.desk.listview import get_group_by_count
-from frappe.tests.utils import FrappeTestCase
 
 
-class TestAssign(FrappeTestCase):
+class TestAssign(unittest.TestCase):
 	def test_assign(self):
 		todo = frappe.get_doc({"doctype": "ToDo", "description": "test"}).insert()
 		if not frappe.db.exists("User", "test@example.com"):
@@ -18,14 +21,14 @@ class TestAssign(FrappeTestCase):
 
 		self.assertTrue("test@example.com" in [d.owner for d in added])
 
-		frappe.desk.form.assign_to.remove(todo.doctype, todo.name, "test@example.com")
+		removed = frappe.desk.form.assign_to.remove(todo.doctype, todo.name, "test@example.com")
 
 		# assignment is cleared
 		assignments = frappe.desk.form.assign_to.get(dict(doctype=todo.doctype, name=todo.name))
 		self.assertEqual(len(assignments), 0)
 
 	def test_assignment_count(self):
-		frappe.db.delete("ToDo")
+		frappe.db.sql("delete from tabToDo")
 
 		if not frappe.db.exists("User", "test_assign1@example.com"):
 			frappe.get_doc(
@@ -80,7 +83,7 @@ class TestAssign(FrappeTestCase):
 		new_todo = assign(todo, "test@example.com")
 
 		# remove assignment
-		frappe.db.set_value("ToDo", new_todo[0].name, "allocated_to", "")
+		frappe.db.set_value("ToDo", new_todo[0].name, "owner", "")
 
 		self.assertFalse(get_assignments("ToDo", todo.name))
 

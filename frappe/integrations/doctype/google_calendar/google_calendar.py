@@ -1,10 +1,10 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2019, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# For license information, please see license.txt
 
 
 from datetime import datetime, timedelta
 from urllib.parse import quote
-from zoneinfo import ZoneInfo
 
 import google.oauth2.credentials
 import requests
@@ -14,14 +14,14 @@ from googleapiclient.errors import HttpError
 
 import frappe
 from frappe import _
-from frappe.integrations.google_oauth import GoogleOAuth
+from frappe.integrations.doctype.google_settings.google_settings import get_auth_url
 from frappe.model.document import Document
 from frappe.utils import (
 	add_days,
 	add_to_date,
 	get_datetime,
 	get_request_site_address,
-	get_system_timezone,
+	get_time_zone,
 	get_weekdays,
 	now_datetime,
 )
@@ -91,7 +91,7 @@ class GoogleCalendar(Document):
 		}
 
 		try:
-			r = requests.post(GoogleOAuth.OAUTH_URL, data=data).json()
+			r = requests.post(get_auth_url(), data=data).json()
 		except requests.exceptions.HTTPError:
 			button_label = frappe.bold(_("Allow Google Calendar Access"))
 			frappe.throw(
@@ -131,7 +131,7 @@ def authorize_access(g_calendar, reauthorize=None):
 				"redirect_uri": redirect_uri,
 				"grant_type": "authorization_code",
 			}
-			r = requests.post(GoogleOAuth.OAUTH_URL, data=data).json()
+			r = requests.post(get_auth_url(), data=data).json()
 
 			if "refresh_token" in r:
 				frappe.db.set_value(
@@ -140,7 +140,7 @@ def authorize_access(g_calendar, reauthorize=None):
 				frappe.db.commit()
 
 			frappe.local.response["type"] = "redirect"
-			frappe.local.response["location"] = "/app/Form/{}/{}".format(
+			frappe.local.response["location"] = "/app/Form/{0}/{1}".format(
 				quote("Google Calendar"), quote(google_calendar.name)
 			)
 
@@ -192,10 +192,10 @@ def get_google_calendar_object(g_calendar):
 	credentials_dict = {
 		"token": account.get_access_token(),
 		"refresh_token": account.get_password(fieldname="refresh_token", raise_exception=False),
-		"token_uri": GoogleOAuth.OAUTH_URL,
+		"token_uri": get_auth_url(),
 		"client_id": google_settings.client_id,
 		"client_secret": google_settings.get_password(fieldname="client_secret", raise_exception=False),
-		"scopes": ["https://www.googleapis.com/auth/calendar/v3"],
+		"scopes": "https://www.googleapis.com/auth/calendar/v3",
 	}
 
 	credentials = google.oauth2.credentials.Credentials(**credentials_dict)
@@ -275,7 +275,7 @@ def sync_events_from_google_calendar(g_calendar, method=None):
 			if err.resp.status == 410:
 				set_encrypted_password("Google Calendar", account.name, "", "next_sync_token")
 				frappe.db.commit()
-				msg += " " + _("Sync token was invalid and has been reset, Retry syncing.")
+				msg += " " + _("Sync token was invalid and has been resetted, Retry syncing.")
 				frappe.msgprint(msg, title="Invalid Sync Token", indicator="blue")
 			else:
 				frappe.throw(msg)
@@ -357,11 +357,12 @@ def insert_event_to_calendar(account, event, recurrence=None):
 		"google_calendar": account.name,
 		"google_calendar_id": account.google_calendar_id,
 		"google_calendar_event_id": event.get("id"),
-		"google_meet_link": event.get("hangoutLink"),
 		"pulled_from_google_calendar": 1,
 	}
 	calendar_event.update(
-		google_calendar_to_repeat_on(recurrence=recurrence, start=event.get("start"), end=event.get("end"))
+		google_calendar_to_repeat_on(
+			recurrence=recurrence, start=event.get("start"), end=event.get("end")
+		)
 	)
 	frappe.get_doc(calendar_event).insert(ignore_permissions=True)
 
@@ -373,9 +374,10 @@ def update_event_in_calendar(account, event, recurrence=None):
 	calendar_event = frappe.get_doc("Event", {"google_calendar_event_id": event.get("id")})
 	calendar_event.subject = event.get("summary")
 	calendar_event.description = event.get("description")
-	calendar_event.google_meet_link = event.get("hangoutLink")
 	calendar_event.update(
-		google_calendar_to_repeat_on(recurrence=recurrence, start=event.get("start"), end=event.get("end"))
+		google_calendar_to_repeat_on(
+			recurrence=recurrence, start=event.get("start"), end=event.get("end")
+		)
 	)
 	calendar_event.save(ignore_permissions=True)
 
@@ -399,40 +401,18 @@ def insert_event_in_google_calendar(doc, method=None):
 	event = {"summary": doc.subject, "description": doc.description, "google_calendar_event": 1}
 	event.update(
 		format_date_according_to_google_calendar(
-			doc.all_day, get_datetime(doc.starts_on), get_datetime(doc.ends_on) if doc.ends_on else None
+			doc.all_day, get_datetime(doc.starts_on), get_datetime(doc.ends_on)
 		)
 	)
 
 	if doc.repeat_on:
 		event.update({"recurrence": repeat_on_to_google_calendar_recurrence_rule(doc)})
 
-	event.update({"attendees": get_attendees(doc)})
-
-	conference_data_version = 0
-
-	if doc.add_video_conferencing:
-		event.update({"conferenceData": get_conference_data(doc)})
-		conference_data_version = 1
-
 	try:
-		event = (
-			google_calendar.events()
-			.insert(
-				calendarId=doc.google_calendar_id,
-				body=event,
-				conferenceDataVersion=conference_data_version,
-				sendUpdates="all",
-			)
-			.execute()
-		)
-
+		event = google_calendar.events().insert(calendarId=doc.google_calendar_id, body=event).execute()
 		frappe.db.set_value(
-			"Event",
-			doc.name,
-			{"google_calendar_event_id": event.get("id"), "google_meet_link": event.get("hangoutLink")},
-			update_modified=False,
+			"Event", doc.name, "google_calendar_event_id", event.get("id"), update_modified=False
 		)
-
 		frappe.msgprint(_("Event Synced with Google Calendar."))
 	except HttpError as err:
 		frappe.throw(
@@ -479,43 +459,13 @@ def update_event_in_google_calendar(doc, method=None):
 		)
 		event.update(
 			format_date_according_to_google_calendar(
-				doc.all_day, get_datetime(doc.starts_on), get_datetime(doc.ends_on) if doc.ends_on else None
+				doc.all_day, get_datetime(doc.starts_on), get_datetime(doc.ends_on)
 			)
 		)
 
-		conference_data_version = 0
-
-		if doc.add_video_conferencing:
-			event.update({"conferenceData": get_conference_data(doc)})
-			conference_data_version = 1
-		elif doc.get_doc_before_save().add_video_conferencing or event.get("hangoutLink"):
-			# remove google meet from google calendar event, if turning off add_video_conferencing
-			event.update({"conferenceData": None})
-			conference_data_version = 1
-
-		event.update({"attendees": get_attendees(doc)})
-
-		event = (
-			google_calendar.events()
-			.update(
-				calendarId=doc.google_calendar_id,
-				eventId=doc.google_calendar_event_id,
-				body=event,
-				conferenceDataVersion=conference_data_version,
-				sendUpdates="all",
-			)
-			.execute()
-		)
-
-		# if add_video_conferencing enabled or disabled during update, overwrite
-		frappe.db.set_value(
-			"Event",
-			doc.name,
-			{"google_meet_link": event.get("hangoutLink")},
-			update_modified=False,
-		)
-		doc.notify_update()
-
+		google_calendar.events().update(
+			calendarId=doc.google_calendar_id, eventId=doc.google_calendar_event_id, body=event
+		).execute()
 		frappe.msgprint(_("Event Synced with Google Calendar."))
 	except HttpError as err:
 		frappe.throw(
@@ -566,20 +516,12 @@ def google_calendar_to_repeat_on(start, end, recurrence=None):
 	Both have been mapped in a dict for easier mapping.
 	"""
 	repeat_on = {
-		"starts_on": (
-			get_datetime(start.get("date"))
-			if start.get("date")
-			else parser.parse(start.get("dateTime"))
-			.astimezone(ZoneInfo(get_system_timezone()))
-			.replace(tzinfo=None)
-		),
-		"ends_on": (
-			get_datetime(end.get("date"))
-			if end.get("date")
-			else parser.parse(end.get("dateTime"))
-			.astimezone(ZoneInfo(get_system_timezone()))
-			.replace(tzinfo=None)
-		),
+		"starts_on": get_datetime(start.get("date"))
+		if start.get("date")
+		else parser.parse(start.get("dateTime")).astimezone().replace(tzinfo=None),
+		"ends_on": get_datetime(end.get("date"))
+		if end.get("date")
+		else parser.parse(end.get("dateTime")).astimezone().replace(tzinfo=None),
 		"all_day": 1 if start.get("date") else 0,
 		"repeat_this_event": 1 if recurrence else 0,
 		"repeat_on": None,
@@ -643,11 +585,11 @@ def format_date_according_to_google_calendar(all_day, starts_on, ends_on=None):
 	date_format = {
 		"start": {
 			"dateTime": starts_on.isoformat(),
-			"timeZone": get_system_timezone(),
+			"timeZone": get_time_zone(),
 		},
 		"end": {
 			"dateTime": ends_on.isoformat(),
-			"timeZone": get_system_timezone(),
+			"timeZone": get_time_zone(),
 		},
 	}
 
@@ -741,37 +683,6 @@ def get_recurrence_parameters(recurrence):
 	return frequency, until, byday
 
 
-def get_conference_data(doc):
-	return {
-		"createRequest": {"requestId": doc.name, "conferenceSolutionKey": {"type": "hangoutsMeet"}},
-		"notes": doc.description,
-	}
-
-
-def get_attendees(doc):
-	"""
-	Returns a list of dicts with attendee emails, if available in event_participants table
-	"""
-	attendees, email_not_found = [], []
-
-	for participant in doc.event_participants:
-		if participant.get("email"):
-			attendees.append({"email": participant.email})
-		else:
-			email_not_found.append({"dt": participant.reference_doctype, "dn": participant.reference_docname})
-
-	if email_not_found:
-		frappe.msgprint(
-			_("Google Calendar - Contact / email not found. Did not add attendee for -<br>{0}").format(
-				"<br>".join(f"{d.get('dt')} {d.get('dn')}" for d in email_not_found)
-			),
-			alert=True,
-			indicator="yellow",
-		)
-
-	return attendees
-
-
 """API Response
 	{
 		'kind': 'calendar#events',
@@ -811,32 +722,6 @@ def get_attendees(doc):
 				'recurrence': *recurrence,
 				'iCalUID': 'uid',
 				'sequence': 1,
-				'hangoutLink': 'https://meet.google.com/mee-ting-uri',
-				'conferenceData': {
-					'createRequest': {
-						'requestId': 'EV00001',
-						'conferenceSolutionKey': {
-							'type': 'hangoutsMeet'
-						},
-						'status': {
-							'statusCode': 'success'
-						}
-					},
-					'entryPoints': [
-						{
-							'entryPointType': 'video',
-							'uri': 'https://meet.google.com/mee-ting-uri',
-							'label': 'meet.google.com/mee-ting-uri'
-						}
-					],
-					'conferenceSolution': {
-						'key': {
-							'type': 'hangoutsMeet'
-						},
-						'name': 'Google Meet',
-						'iconUri': 'https://fonts.gstatic.com/s/i/productlogos/meet_2020q4/v6/web-512dp/logo_meet_2020q4_color_2x_web_512dp.png'
-					},
-					'conferenceId': 'mee-ting-uri'
 				'reminders': {
 					'useDefault': True
 				}

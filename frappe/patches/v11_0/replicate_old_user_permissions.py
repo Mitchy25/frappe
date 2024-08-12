@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 import json
 
 import frappe
@@ -55,6 +57,7 @@ def get_doctypes_to_skip(doctype, user):
 			doctypes_to_skip.append(parent_doctype)
 
 		elif parent_doctype not in doctypes_to_skip:
+
 			user_permission_doctypes = get_user_permission_doctypes(perm)
 
 			# "No doctypes present" indicates that user permission will be applied to each link field

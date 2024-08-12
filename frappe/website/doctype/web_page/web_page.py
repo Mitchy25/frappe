@@ -1,8 +1,12 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+
+from __future__ import print_function, unicode_literals
 
 import re
 
+import requests
+import requests.exceptions
 from jinja2.exceptions import TemplateSyntaxError
 
 import frappe
@@ -11,16 +15,14 @@ from frappe.utils import get_datetime, now, quoted, strip_html
 from frappe.utils.jinja import render_template
 from frappe.utils.safe_exec import safe_exec
 from frappe.website.doctype.website_slideshow.website_slideshow import get_slideshow
+from frappe.website.router import resolve_route
 from frappe.website.utils import (
 	extract_title,
 	find_first_image,
 	get_comment_list,
 	get_html_content_based_on_type,
-	get_sidebar_items,
 )
 from frappe.website.website_generator import WebsiteGenerator
-
-H_TAG_PATTERN = re.compile("<h.>")
 
 
 class WebPage(WebsiteGenerator):
@@ -34,10 +36,10 @@ class WebPage(WebsiteGenerator):
 		return self.title
 
 	def on_update(self):
-		super().on_update()
+		super(WebPage, self).on_update()
 
 	def on_trash(self):
-		super().on_trash()
+		super(WebPage, self).on_trash()
 
 	def get_context(self, context):
 		context.main_section = get_html_content_based_on_type(self, "main_section", self.content_type)
@@ -71,9 +73,6 @@ class WebPage(WebsiteGenerator):
 		if not self.show_title:
 			context["no_header"] = 1
 
-		if self.show_sidebar:
-			context.sidebar_items = get_sidebar_items(self.website_sidebar)
-
 		self.set_metatags(context)
 		self.set_breadcrumbs(context)
 		self.set_title_and_header(context)
@@ -83,35 +82,27 @@ class WebPage(WebsiteGenerator):
 
 	def render_dynamic(self, context):
 		# dynamic
-		is_jinja = (
-			context.dynamic_template
-			or "<!-- jinja -->" in context.main_section
-			or ("{{" in context.main_section)
-		)
-		if is_jinja:
-			frappe.flags.web_block_scripts = {}
-			frappe.flags.web_block_styles = {}
+		is_jinja = context.dynamic_template or "<!-- jinja -->" in context.main_section
+		if is_jinja or ("{{" in context.main_section):
 			try:
 				context["main_section"] = render_template(context.main_section, context)
-				if "<!-- static -->" not in context.main_section:
+				if not "<!-- static -->" in context.main_section:
 					context["no_cache"] = 1
 			except TemplateSyntaxError:
-				raise
-			finally:
-				frappe.flags.web_block_scripts = {}
-				frappe.flags.web_block_styles = {}
+				if is_jinja:
+					raise
 
 	def set_breadcrumbs(self, context):
 		"""Build breadcrumbs template"""
 		if self.breadcrumbs:
 			context.parents = frappe.safe_eval(self.breadcrumbs, {"_": _})
-		if "no_breadcrumbs" not in context:
+		if not "no_breadcrumbs" in context:
 			if "<!-- no-breadcrumbs -->" in context.main_section:
 				context.no_breadcrumbs = 1
 
 	def set_title_and_header(self, context):
 		"""Extract and set title and header from content or context."""
-		if "no_header" not in context:
+		if not "no_header" in context:
 			if "<!-- no-header -->" in context.main_section:
 				context.no_header = 1
 
@@ -128,7 +119,7 @@ class WebPage(WebsiteGenerator):
 				context.header = context.title
 
 			# add h1 tag to header
-			if context.get("header") and not H_TAG_PATTERN.findall(context.header):
+			if context.get("header") and not re.findall("<h.>", context.header):
 				context.header = "<h1>" + context.header + "</h1>"
 
 		# if title not set, set title from header
@@ -156,7 +147,7 @@ class WebPage(WebsiteGenerator):
 	def check_for_redirect(self, context):
 		if "<!-- redirect:" in context.main_section:
 			frappe.local.flags.redirect_location = (
-				context.main_section.split("<!-- redirect:", 2)[1].split("-->", 1)[0].strip()
+				context.main_section.split("<!-- redirect:")[1].split("-->")[0].strip()
 			)
 			raise frappe.Redirect
 
@@ -202,12 +193,38 @@ def check_publish_status():
 					frappe.db.set_value("Web Page", page.name, "published", 1)
 
 
+def check_broken_links():
+	cnt = 0
+	for p in frappe.db.sql("select name, main_section from `tabWeb Page`", as_dict=True):
+		for link in re.findall("href=[\"']([^\"']*)[\"']", p.main_section):
+			if link.startswith("http"):
+				try:
+					res = requests.get(link)
+				except requests.exceptions.SSLError:
+					res = frappe._dict({"status_code": "SSL Error"})
+				except requests.exceptions.ConnectionError:
+					res = frappe._dict({"status_code": "Connection Error"})
+
+				if res.status_code != 200:
+					print("[{0}] {1}: {2}".format(res.status_code, p.name, link))
+					cnt += 1
+			else:
+				link = link[1:]  # remove leading /
+				link = link.split("#")[0]
+
+				if not resolve_route(link):
+					print(p.name + ":" + link)
+					cnt += 1
+
+	print("{0} links broken".format(cnt))
+
+
 def get_web_blocks_html(blocks):
 	"""Converts a list of blocks into Raw HTML and extracts out their scripts for deduplication"""
 
-	out = frappe._dict(html="", scripts={}, styles={})
-	extracted_scripts = {}
-	extracted_styles = {}
+	out = frappe._dict(html="", scripts=[], styles=[])
+	extracted_scripts = []
+	extracted_styles = []
 	for block in blocks:
 		web_template = frappe.get_cached_doc("Web Template", block.web_template)
 		rendered_html = frappe.render_template(
@@ -221,15 +238,11 @@ def get_web_blocks_html(blocks):
 		html, scripts, styles = extract_script_and_style_tags(rendered_html)
 		out.html += html
 		if block.web_template not in extracted_scripts:
-			extracted_scripts.setdefault(block.web_template, [])
-			extracted_scripts[block.web_template] += scripts
-
+			out.scripts += scripts
+			extracted_scripts.append(block.web_template)
 		if block.web_template not in extracted_styles:
-			extracted_styles.setdefault(block.web_template, [])
-			extracted_styles[block.web_template] += styles
-
-	out.scripts = extracted_scripts
-	out.styles = extracted_styles
+			out.styles += styles
+			extracted_styles.append(block.web_template)
 
 	return out
 

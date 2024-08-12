@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2019, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# For license information, please see license.txt
 
 import os
 from urllib.parse import urlencode, urljoin
@@ -98,12 +99,6 @@ class ConnectedApp(Document):
 
 		return token_cache
 
-	def get_scopes(self):
-		return [row.scope for row in self.scopes]
-
-	def get_query_params(self):
-		return {param.key: param.value for param in self.query_parameters}
-
 	def get_active_token(self, user=None):
 		user = user or frappe.session.user
 		token_cache = self.get_token_cache(user)
@@ -116,12 +111,18 @@ class ConnectedApp(Document):
 					token_url=self.token_uri,
 				)
 			except Exception:
-				self.log_error("Token Refresh Error")
+				frappe.log_error(title="Token Refresh Error")
 				return None
 
 			token_cache.update_data(token)
 
 		return token_cache
+
+	def get_scopes(self):
+		return [row.scope for row in self.scopes]
+
+	def get_query_params(self):
+		return {param.key: param.value for param in self.query_parameters}
 
 
 @frappe.whitelist(methods=["GET"], allow_guest=True)

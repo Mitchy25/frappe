@@ -1,4 +1,5 @@
 import time
+import unittest
 from contextlib import contextmanager
 from unittest.mock import patch
 
@@ -6,17 +7,10 @@ from rq import Queue
 
 import frappe
 from frappe.core.page.background_jobs.background_jobs import remove_failed_jobs
-from frappe.tests.utils import FrappeTestCase
-from frappe.utils.background_jobs import (
-	RQ_JOB_FAILURE_TTL,
-	RQ_RESULTS_TTL,
-	execute_job,
-	generate_qname,
-	get_redis_conn,
-)
+from frappe.utils.background_jobs import execute_job, get_redis_conn
 
 
-class TestBackgroundJobs(FrappeTestCase):
+class TestBackgroundJobs(unittest.TestCase):
 	def test_remove_failed_jobs(self):
 		frappe.enqueue(method="frappe.tests.test_background_jobs.fail_function", queue="short")
 		# wait for enqueued job to execute
@@ -25,32 +19,16 @@ class TestBackgroundJobs(FrappeTestCase):
 		queues = Queue.all(conn)
 
 		for queue in queues:
-			if queue.name == generate_qname("short"):
+			if queue.name == "short":
 				fail_registry = queue.failed_job_registry
 				self.assertGreater(fail_registry.count, 0)
 
 		remove_failed_jobs()
 
 		for queue in queues:
-			if queue.name == generate_qname("short"):
+			if queue.name == "short":
 				fail_registry = queue.failed_job_registry
 				self.assertEqual(fail_registry.count, 0)
-
-	def test_enqueue_at_front(self):
-		kwargs = {
-			"method": "frappe.handler.ping",
-			"queue": "short",
-		}
-
-		# give worker something to work on first so that get_position doesn't return None
-		frappe.enqueue(**kwargs)
-
-		# test enqueue with at_front=True
-		low_priority_job = frappe.enqueue(**kwargs)
-		high_priority_job = frappe.enqueue(**kwargs, at_front=True)
-
-		# lesser is earlier
-		self.assertTrue(high_priority_job.get_position() < low_priority_job.get_position())
 
 	def test_job_hooks(self):
 		self.addCleanup(lambda: _test_JOB_HOOK.clear())

@@ -1,5 +1,8 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2019, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# For license information, please see license.txt
+
+from __future__ import unicode_literals
 
 import frappe
 from frappe.model.document import Document
@@ -87,7 +90,7 @@ def get_permission_query_conditions(user):
 	if "System Manager" in roles:
 		return """(`tabNotification Settings`.name != 'Administrator')"""
 
-	return f"""(`tabNotification Settings`.name = {frappe.db.escape(user)})"""
+	return """(`tabNotification Settings`.name = {user})""".format(user=frappe.db.escape(user))
 
 
 @frappe.whitelist()

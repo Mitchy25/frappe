@@ -1,7 +1,7 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
 
-from markdownify import markdownify as md
+from __future__ import unicode_literals
 
 import frappe
 
@@ -88,8 +88,3 @@ def ljust_list(_list, length, fill_word=None):
 		_list.extend([fill_word] * fill_length)
 
 	return _list
-
-
-def html2text(html, strip_links=False, wrap=True):
-	strip = ["a"] if strip_links else None
-	return md(html, heading_style="ATX", strip=strip, wrap=wrap)

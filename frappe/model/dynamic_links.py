@@ -1,5 +1,7 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+
+from __future__ import unicode_literals
 
 import frappe
 
@@ -13,7 +15,7 @@ dynamic_link_queries = [
 		`tabDocField`.fieldname, `tabDocField`.options
 	from `tabDocField`, `tabDocType`
 	where `tabDocField`.fieldtype='Dynamic Link' and
-	`tabDocType`.`name`=`tabDocField`.parent and `tabDocType`.is_virtual = 0
+	`tabDocType`.`name`=`tabDocField`.parent
 	order by `tabDocType`.read_only, `tabDocType`.in_create""",
 	"""select `tabCustom Field`.dt as parent,
 		`tabDocType`.read_only, `tabDocType`.in_create,
@@ -32,7 +34,7 @@ def get_dynamic_link_map(for_delete=False):
 
 	Note: Will not map single doctypes
 	"""
-	if getattr(frappe.local, "dynamic_link_map", None) is None or frappe.flags.in_test:
+	if getattr(frappe.local, "dynamic_link_map", None) == None or frappe.flags.in_test:
 		# Build from scratch
 		dynamic_link_map = {}
 		for df in get_dynamic_links():
@@ -42,12 +44,10 @@ def get_dynamic_link_map(for_delete=False):
 				dynamic_link_map.setdefault(meta.name, []).append(df)
 			else:
 				try:
-					links = frappe.db.sql_list(
-						"""select distinct `{options}` from `tab{parent}`""".format(**df)
-					)
+					links = frappe.db.sql_list("""select distinct {options} from `tab{parent}`""".format(**df))
 					for doctype in links:
 						dynamic_link_map.setdefault(doctype, []).append(df)
-				except frappe.db.TableMissingError:
+				except frappe.db.TableMissingError:  # noqa: E722
 					pass
 
 		frappe.local.dynamic_link_map = dynamic_link_map

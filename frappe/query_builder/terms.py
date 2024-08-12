@@ -1,11 +1,10 @@
-from datetime import time, timedelta
-from typing import Any
+from datetime import timedelta
+from typing import Any, Dict, Optional
 
-from pypika.queries import QueryBuilder
-from pypika.terms import Criterion, Function, ValueWrapper
+from pypika.terms import Function, ValueWrapper
 from pypika.utils import format_alias_sql
 
-from frappe.utils.data import format_time, format_timedelta
+from frappe.utils.data import format_timedelta
 
 
 class NamedParameterWrapper:
@@ -27,7 +26,7 @@ class NamedParameterWrapper:
 		self.parameters[param_key[2:-2]] = param_value
 		return param_key
 
-	def get_parameters(self) -> dict[str, Any]:
+	def get_parameters(self) -> Dict[str, Any]:
 		"""get dict with parameters and values
 
 		Returns:
@@ -45,9 +44,9 @@ class ParameterizedValueWrapper(ValueWrapper):
 
 	def get_sql(
 		self,
-		quote_char: str | None = None,
+		quote_char: Optional[str] = None,
 		secondary_quote_char: str = "'",
-		param_wrapper: NamedParameterWrapper | None = None,
+		param_wrapper: Optional[NamedParameterWrapper] = None,
 		**kwargs: Any,
 	) -> str:
 		if param_wrapper and isinstance(self.value, str):
@@ -55,12 +54,9 @@ class ParameterizedValueWrapper(ValueWrapper):
 			value_sql = self.get_value_sql(quote_char=quote_char, **kwargs)
 			sql = param_wrapper.get_sql(param_value=value_sql, **kwargs)
 		else:
-			# * BUG: pypika doesen't parse timedeltas and datetime.time
+			# * BUG: pypika doesen't parse timedeltas
 			if isinstance(self.value, timedelta):
 				self.value = format_timedelta(self.value)
-			elif isinstance(self.value, time):
-				self.value = format_time(self.value)
-
 			sql = self.get_value_sql(
 				quote_char=quote_char,
 				secondary_quote_char=secondary_quote_char,
@@ -101,20 +97,3 @@ class ParameterizedFunction(Function):
 			return format_alias_sql(function_sql, self.alias, quote_char=quote_char, **kwargs)
 
 		return function_sql
-
-
-class SubQuery(Criterion):
-	def __init__(
-		self,
-		subq: QueryBuilder,
-		alias: str | None = None,
-	) -> None:
-		super().__init__(alias)
-		self.subq = subq
-
-	def get_sql(self, **kwg: Any) -> str:
-		kwg["subquery"] = True
-		return self.subq.get_sql(**kwg)
-
-
-subqry = SubQuery

@@ -1,14 +1,18 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2015, Frappe Technologies and Contributors
-# License: MIT. See LICENSE
+# See license.txt
+from __future__ import unicode_literals
+
 import time
+import unittest
 
 import frappe
 from frappe.auth import CookieManager, LoginManager
-from frappe.tests.utils import FrappeTestCase
 
 
-class TestActivityLog(FrappeTestCase):
+class TestActivityLog(unittest.TestCase):
 	def test_activity_log(self):
+
 		# test user login log
 		frappe.local.form_dict = frappe._dict(
 			{
@@ -19,7 +23,6 @@ class TestActivityLog(FrappeTestCase):
 			}
 		)
 
-		frappe.local.request_ip = "127.0.0.1"
 		frappe.local.cookie_manager = CookieManager()
 		frappe.local.login_manager = LoginManager()
 
@@ -41,7 +44,7 @@ class TestActivityLog(FrappeTestCase):
 		frappe.local.form_dict = frappe._dict()
 
 	def get_auth_log(self, operation="Login"):
-		names = frappe.get_all(
+		names = frappe.db.get_all(
 			"Activity Log",
 			filters={
 				"user": "Administrator",
@@ -61,17 +64,16 @@ class TestActivityLog(FrappeTestCase):
 			{"cmd": "login", "sid": "Guest", "pwd": "admin", "usr": "Administrator"}
 		)
 
-		frappe.local.request_ip = "127.0.0.1"
 		frappe.local.cookie_manager = CookieManager()
 		frappe.local.login_manager = LoginManager()
 
 		auth_log = self.get_auth_log()
-		self.assertEqual(auth_log.status, "Success")
+		self.assertEquals(auth_log.status, "Success")
 
 		# test user logout log
 		frappe.local.login_manager.logout()
 		auth_log = self.get_auth_log(operation="Logout")
-		self.assertEqual(auth_log.status, "Success")
+		self.assertEquals(auth_log.status, "Success")
 
 		# test invalid login
 		frappe.form_dict.update({"pwd": "password"})

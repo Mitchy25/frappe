@@ -12,11 +12,7 @@
 		{# powered #}
 		<div class="footer-col-right col-sm-6 col-12 footer-powered">
 			{% block powered %}
-			{%- if footer_powered -%}
-				{{ footer_powered }}
-			{%- else -%}
-				{% include "templates/includes/footer/footer_powered.html" %}
-			{%- endif -%}
+			{% include "templates/includes/footer/footer_powered.html" %}
 			{% endblock %}
 		</div>
 	</div>

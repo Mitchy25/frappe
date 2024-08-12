@@ -1,27 +1,17 @@
-name: Server (Postgres)
+name: Server
 
 on:
   pull_request:
   workflow_dispatch:
-  push:
-    branches: [ develop ]
-
-concurrency:
-  group: server-postgres-develop-${{ github.event.number }}
-  cancel-in-progress: true
-
-permissions:
-  # Do not change this as GITHUB_TOKEN is being used by roulette
-  contents: read
 
 jobs:
   test:
-    name: Unit Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    runs-on: ubuntu-20.04
 
     strategy:
       fail-fast: false
+
+    name: Python Unit Tests (Postgres)
 
     services:
       postgres:
@@ -38,20 +28,12 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v2
         with:
-          python-version: '3.10'
-
-      - name: Check for valid Python & Merge Conflicts
-        run: |
-          python -m compileall -f "${GITHUB_WORKSPACE}"
-          if grep -lr --exclude-dir=node_modules "^<<<<<<< " "${GITHUB_WORKSPACE}"
-              then echo "Found merge conflicts"
-              exit 1
-          fi
+          python-version: 3.7
 
       - name: Check if build should be run
         id: check-build
@@ -61,12 +43,11 @@ jobs:
           TYPE: "server"
           PR_NUMBER: ${{ github.event.number }}
           REPO_NAME: ${{ github.repository }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v2
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
         with:
-          node-version: '16'
+          node-version: '14'
           check-latest: true
 
       - name: Add to Hosts
@@ -77,17 +58,17 @@ jobs:
 
       - name: Cache pip
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
-        uses: actions/cache@v3
+        uses: actions/cache@v2
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/*requirements.txt', '**/pyproject.toml', '**/setup.py') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
             ${{ runner.os }}-
 
       - name: Cache node modules
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
-        uses: actions/cache@v3
+        uses: actions/cache@v2
         env:
           cache-name: cache-node-modules
         with:
@@ -103,7 +84,7 @@ jobs:
         id: yarn-cache-dir-path
         run: echo "::set-output name=dir::$(yarn cache dir)"
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v2
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
         id: yarn-cache
         with:
@@ -114,14 +95,18 @@ jobs:
 
       - name: Install Dependencies
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}
-        run: |
-          bash ${GITHUB_WORKSPACE}/.github/helper/install_dependencies.sh
-          bash ${GITHUB_WORKSPACE}/.github/helper/install.sh
+        run: bash ${GITHUB_WORKSPACE}/.github/helper/install_dependencies.sh
         env:
           BEFORE: ${{ env.GITHUB_EVENT_PATH.before }}
           AFTER: ${{ env.GITHUB_EVENT_PATH.after }}
           TYPE: server
+
+      - name: Install
+        if: ${{ steps.check-build.outputs.build == 'strawberry' }}
+        run: bash ${GITHUB_WORKSPACE}/.github/helper/install.sh
+        env:
           DB: postgres
+          TYPE: server
 
       - name: Run Tests
         if: ${{ steps.check-build.outputs.build == 'strawberry' }}

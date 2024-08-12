@@ -1,25 +1,28 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+from __future__ import unicode_literals
+
+import unittest
+
 import frappe
 from frappe.core.page.permission_manager.permission_manager import add, reset, update
 from frappe.custom.doctype.property_setter.property_setter import make_property_setter
 from frappe.desk.form.load import get_docinfo, getdoc, getdoctype
-from frappe.tests.utils import FrappeTestCase
 from frappe.utils.file_manager import save_file
 
 test_dependencies = ["Blog Category", "Blogger"]
 
 
-class TestFormLoad(FrappeTestCase):
+class TestFormLoad(unittest.TestCase):
 	def test_load(self):
 		getdoctype("DocType")
-		meta = next(filter(lambda d: d.name == "DocType", frappe.response.docs))
+		meta = list(filter(lambda d: d.name == "DocType", frappe.response.docs))[0]
 		self.assertEqual(meta.name, "DocType")
 		self.assertTrue(meta.get("__js"))
 
 		frappe.response.docs = []
 		getdoctype("Event")
-		meta = next(filter(lambda d: d.name == "Event", frappe.response.docs))
+		meta = list(filter(lambda d: d.name == "Event", frappe.response.docs))[0]
 		self.assertTrue(meta.get("__calendar_js"))
 
 	def test_fieldlevel_permissions_in_load(self):
@@ -30,7 +33,7 @@ class TestFormLoad(FrappeTestCase):
 				"blog_intro": "Test Blog Intro",
 				"blogger": "_Test Blogger 1",
 				"content": "Test Blog Content",
-				"title": f"_Test Blog Post {frappe.utils.now()}",
+				"title": "_Test Blog Post {}".format(frappe.utils.now()),
 				"published": 0,
 			}
 		)
@@ -50,8 +53,7 @@ class TestFormLoad(FrappeTestCase):
 		frappe.set_user(user.name)
 		blog_doc = get_blog(blog.name)
 
-		with self.assertRaises(AttributeError):
-			blog_doc.published
+		self.assertEqual(blog_doc.published, None)
 
 		# this will be ignored because user does not
 		# have write access on `published` field (or on permlevel 1 fields)
@@ -71,8 +73,7 @@ class TestFormLoad(FrappeTestCase):
 
 		self.assertEqual(blog_doc.name, blog.name)
 		# since published field has higher permlevel
-		with self.assertRaises(AttributeError):
-			blog_doc.published
+		self.assertEqual(blog_doc.published, None)
 
 		# this will be ignored because user does not
 		# have write access on `published` field (or on permlevel 1 fields)
@@ -177,7 +178,7 @@ class TestFormLoad(FrappeTestCase):
 		).insert()
 
 		get_docinfo(note)
-		docinfo = frappe.response["docinfo"]
+		docinfo = frappe._dict(frappe.response["docinfo"])
 
 		self.assertEqual(len(docinfo.comments), 1)
 		self.assertIn("test", docinfo.comments[0].content)

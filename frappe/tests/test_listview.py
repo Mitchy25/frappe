@@ -1,13 +1,15 @@
 # Copyright (c) 2019, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# MIT License. See license.txt
+from __future__ import unicode_literals
+
 import json
+import unittest
 
 import frappe
 from frappe.desk.listview import get_group_by_count, get_list_settings, set_list_settings
-from frappe.tests.utils import FrappeTestCase
 
 
-class TestListView(FrappeTestCase):
+class TestListView(unittest.TestCase):
 	def setUp(self):
 		if frappe.db.exists("List View Settings", "DocType"):
 			frappe.delete_doc("List View Settings", "DocType")

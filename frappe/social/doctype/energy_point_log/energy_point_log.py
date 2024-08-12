@@ -1,5 +1,8 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2018, Frappe Technologies and contributors
-# License: MIT. See LICENSE
+# For license information, please see license.txt
+
+from __future__ import unicode_literals
 
 import json
 
@@ -43,6 +46,7 @@ class EnergyPointLog(Document):
 		if self.type != "Review" and frappe.get_cached_value(
 			"Notification Settings", self.user, "energy_points_system_notifications"
 		):
+
 			reference_user = self.user if self.type == "Auto" else self.owner
 			notification_doc = {
 				"type": "Energy Point",
@@ -50,7 +54,7 @@ class EnergyPointLog(Document):
 				"document_name": self.reference_name,
 				"subject": get_notification_message(self),
 				"from_user": reference_user,
-				"email_content": f"<div>{self.reason}</div>" if self.reason else None,
+				"email_content": "<div>{}</div>".format(self.reason) if self.reason else None,
 			}
 
 			enqueue_create_notification(self.user, notification_doc)
@@ -171,12 +175,13 @@ def get_alert_dict(doc):
 
 def create_energy_points_log(ref_doctype, ref_name, doc, apply_only_once=False):
 	doc = frappe._dict(doc)
-	if doc.rule:
-		log_exists = check_if_log_exists(
-			ref_doctype, ref_name, doc.rule, None if apply_only_once else doc.user
-		)
-		if log_exists:
-			return frappe.get_doc("Energy Point Log", log_exists)
+
+	log_exists = check_if_log_exists(
+		ref_doctype, ref_name, doc.rule, None if apply_only_once else doc.user
+	)
+
+	if log_exists:
+		return
 
 	new_log = frappe.new_doc("Energy Point Log")
 	new_log.reference_doctype = ref_doctype
@@ -242,7 +247,7 @@ def get_user_energy_and_review_points(user=None, from_date=None, as_dict=True):
 		values.from_date = from_date
 
 	points_list = frappe.db.sql(
-		f"""
+		"""
 		SELECT
 			SUM(CASE WHEN `type` != 'Review' THEN `points` ELSE 0 END) AS energy_points,
 			SUM(CASE WHEN `type` = 'Review' THEN `points` ELSE 0 END) AS review_points,
@@ -256,7 +261,9 @@ def get_user_energy_and_review_points(user=None, from_date=None, as_dict=True):
 		{conditions}
 		GROUP BY `user`
 		ORDER BY `energy_points` DESC
-	""",
+	""".format(
+			conditions=conditions, given_points_condition=given_points_condition
+		),
 		values=values,
 		as_dict=1,
 	)
@@ -356,7 +363,7 @@ def send_summary(timespan):
 	]
 
 	frappe.sendmail(
-		subject=f"{timespan} energy points summary",
+		subject="{} energy points summary".format(timespan),
 		recipients=all_users,
 		template="energy_points_summary",
 		args={

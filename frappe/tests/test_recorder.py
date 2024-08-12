@@ -1,18 +1,21 @@
-# Copyright (c) 2019, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+#  -*- coding: utf-8 -*-
 
+# Copyright (c) 2019, Frappe Technologies Pvt. Ltd. and Contributors
+# MIT License. See license.txt
+
+from __future__ import unicode_literals
+
+import unittest
 
 import sqlparse
 
 import frappe
 import frappe.recorder
-from frappe.recorder import normalize_query
-from frappe.tests.utils import FrappeTestCase
 from frappe.utils import set_request
-from frappe.website.serve import get_response_content
+from frappe.website.render import render_page
 
 
-class TestRecorder(FrappeTestCase):
+class TestRecorder(unittest.TestCase):
 	def setUp(self):
 		frappe.recorder.stop()
 		frappe.recorder.delete()
@@ -20,23 +23,19 @@ class TestRecorder(FrappeTestCase):
 		frappe.recorder.start()
 		frappe.recorder.record()
 
-	def stop_recording(self):
-		frappe.recorder.dump()
-		frappe.recorder.stop()
-
 	def test_start(self):
-		self.stop_recording()
+		frappe.recorder.dump()
 		requests = frappe.recorder.get()
 		self.assertEqual(len(requests), 1)
 
 	def test_do_not_record(self):
 		frappe.recorder.do_not_record(frappe.get_all)("DocType")
-		self.stop_recording()
+		frappe.recorder.dump()
 		requests = frappe.recorder.get()
 		self.assertEqual(len(requests), 0)
 
 	def test_get(self):
-		self.stop_recording()
+		frappe.recorder.dump()
 
 		requests = frappe.recorder.get()
 		self.assertEqual(len(requests), 1)
@@ -45,7 +44,7 @@ class TestRecorder(FrappeTestCase):
 		self.assertTrue(request)
 
 	def test_delete(self):
-		self.stop_recording()
+		frappe.recorder.dump()
 
 		requests = frappe.recorder.get()
 		self.assertEqual(len(requests), 1)
@@ -56,7 +55,7 @@ class TestRecorder(FrappeTestCase):
 		self.assertEqual(len(requests), 0)
 
 	def test_record_without_sql_queries(self):
-		self.stop_recording()
+		frappe.recorder.dump()
 
 		requests = frappe.recorder.get()
 		request = frappe.recorder.get(requests[0]["uuid"])
@@ -65,7 +64,7 @@ class TestRecorder(FrappeTestCase):
 
 	def test_record_with_sql_queries(self):
 		frappe.get_all("DocType")
-		self.stop_recording()
+		frappe.recorder.dump()
 
 		requests = frappe.recorder.get()
 		request = frappe.recorder.get(requests[0]["uuid"])
@@ -75,7 +74,7 @@ class TestRecorder(FrappeTestCase):
 	def test_explain(self):
 		frappe.db.sql("SELECT * FROM tabDocType")
 		frappe.db.sql("COMMIT")
-		self.stop_recording()
+		frappe.recorder.dump()
 
 		requests = frappe.recorder.get()
 		request = frappe.recorder.get(requests[0]["uuid"])
@@ -94,19 +93,16 @@ class TestRecorder(FrappeTestCase):
 		for query in queries:
 			frappe.db.sql(query[sql_dialect])
 
-		self.stop_recording()
+		frappe.recorder.dump()
 
 		requests = frappe.recorder.get()
 		request = frappe.recorder.get(requests[0]["uuid"])
 
 		self.assertEqual(len(request["calls"]), len(queries))
 
-		for query, call in zip(queries, request["calls"], strict=False):
+		for query, call in zip(queries, request["calls"]):
 			self.assertEqual(
-				call["query"],
-				sqlparse.format(
-					query[sql_dialect].strip(), keyword_case="upper", reindent=True, strip_comments=True
-				),
+				call["query"], sqlparse.format(query[sql_dialect].strip(), keyword_case="upper", reindent=True)
 			)
 
 	def test_duplicate_queries(self):
@@ -121,20 +117,20 @@ class TestRecorder(FrappeTestCase):
 		for query in queries:
 			frappe.db.sql(query[0])
 
-		self.stop_recording()
+		frappe.recorder.dump()
 
 		requests = frappe.recorder.get()
 		request = frappe.recorder.get(requests[0]["uuid"])
 
-		for query, call in zip(queries, request["calls"], strict=False):
+		for query, call in zip(queries, request["calls"]):
 			self.assertEqual(call["exact_copies"], query[1])
 
 	def test_error_page_rendering(self):
-		content = get_response_content("error")
+		content = render_page("error")
 		self.assertIn("Error", content)
 
 
-class TestRecorderDeco(FrappeTestCase):
+class TestRecorderDeco(unittest.TestCase):
 	def test_recorder_flag(self):
 		frappe.recorder.delete()
 
@@ -144,18 +140,3 @@ class TestRecorderDeco(FrappeTestCase):
 
 		test()
 		self.assertTrue(frappe.recorder.get())
-
-
-class TestQueryNormalization(FrappeTestCase):
-	def test_query_normalization(self):
-		test_cases = {
-			"select * from user where name = 'x'": "select * from user where name = ?",
-			"select * from user where a > 5": "select * from user where a > ?",
-			"select * from `user` where a > 5": "select * from `user` where a > ?",
-			"select `name` from `user`": "select `name` from `user`",
-			"select `name` from `user` limit 10": "select `name` from `user` limit ?",
-			"select `name` from `user` where name in ('a', 'b', 'c')": "select `name` from `user` where name in (?)",
-		}
-
-		for query, normalized in test_cases.items():
-			self.assertEqual(normalize_query(query), normalized)

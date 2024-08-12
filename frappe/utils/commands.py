@@ -8,7 +8,9 @@ def get_first_party_apps():
 
 	apps = []
 	for org in ["frappe", "erpnext"]:
-		req = requests.get(f"https://api.github.com/users/{org}/repos", {"type": "sources", "per_page": 200})
+		req = requests.get(
+			f"https://api.github.com/users/{org}/repos", {"type": "sources", "per_page": 200}
+		)
 		if req.ok:
 			apps.extend([x["name"] for x in req.json()])
 	return apps
@@ -57,7 +59,7 @@ def log(message, colour=""):
 	print(colour + message + end_line)
 
 
-def warn(message, category=None, stacklevel=3):
+def warn(message, category=None):
 	from warnings import warn
 
-	warn(message=message, category=category, stacklevel=stacklevel)
+	warn(message=message, category=category, stacklevel=2)

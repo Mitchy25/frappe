@@ -1,5 +1,7 @@
-# Copyright (c) 2021, Frappe Technologies Pvt. Ltd. and Contributors
-# License: MIT. See LICENSE
+# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
+# MIT License. See license.txt
+
+from __future__ import unicode_literals
 
 import base64
 import hashlib
@@ -7,31 +9,27 @@ import io
 import json
 import mimetypes
 import os
+import re
 from copy import copy
-from urllib.parse import unquote
+
+from six import PY2, string_types, text_type
+from six.moves.urllib.parse import unquote
 
 import frappe
 from frappe import _, conf
-from frappe.query_builder.utils import DocType
-from frappe.utils import call_hook_method, cint, cstr, encode, get_files_path, get_hook_method
+from frappe.utils import (
+	call_hook_method,
+	cint,
+	cstr,
+	encode,
+	get_files_path,
+	get_hook_method,
+	random_string,
+)
 
 
 class MaxFileSizeReachedError(frappe.ValidationError):
 	pass
-
-
-def safe_b64decode(binary: bytes) -> bytes:
-	"""Adds padding if doesn't already exist before decoding.
-
-	This attempts to avoid the `binascii.Error: Incorrect padding` error raised
-	when the number of trailing = is simply not enough :crie:. Although, it may
-	be an indication of corrupted data.
-
-	Refs:
-	        * https://en.wikipedia.org/wiki/Base64
-	        * https://stackoverflow.com/questions/2941995/python-ignore-incorrect-padding-error-when-base64-decoding
-	"""
-	return base64.b64decode(binary + b"===")
 
 
 def get_file_url(file_data_name):
@@ -144,7 +142,7 @@ def get_uploaded_content():
 	if "filedata" in frappe.form_dict:
 		if "," in frappe.form_dict.filedata:
 			frappe.form_dict.filedata = frappe.form_dict.filedata.rsplit(",", 1)[1]
-		frappe.uploaded_content = safe_b64decode(frappe.form_dict.filedata)
+		frappe.uploaded_content = base64.b64decode(frappe.form_dict.filedata)
 		frappe.uploaded_filename = frappe.form_dict.filename
 		return frappe.uploaded_filename, frappe.uploaded_content
 	else:
@@ -154,12 +152,12 @@ def get_uploaded_content():
 
 def save_file(fname, content, dt, dn, folder=None, decode=False, is_private=0, df=None):
 	if decode:
-		if isinstance(content, str):
+		if isinstance(content, text_type):
 			content = content.encode("utf-8")
 
 		if b"," in content:
 			content = content.split(b",")[1]
-		content = safe_b64decode(content)
+		content = base64.b64decode(content)
 
 	file_size = check_max_file_size(content)
 	content_hash = get_content_hash(content)
@@ -197,8 +195,8 @@ def save_file(fname, content, dt, dn, folder=None, decode=False, is_private=0, d
 
 
 def get_file_data_from_hash(content_hash, is_private=0):
-	for name in frappe.get_all(
-		"File", {"content_hash": content_hash, "is_private": is_private}, pluck="name"
+	for name in frappe.db.sql_list(
+		"select name from `tabFile` where content_hash=%s and is_private=%s", (content_hash, is_private)
 	):
 		b = frappe.get_doc("File", name)
 		return {k: b.get(k) for k in frappe.get_hooks()["write_file_keys"]}
@@ -209,9 +207,9 @@ def save_file_on_filesystem(fname, content, content_type=None, is_private=0):
 	fpath = write_file(content, fname, is_private)
 
 	if is_private:
-		file_url = f"/private/files/{fname}"
+		file_url = "/private/files/{0}".format(fname)
 	else:
-		file_url = f"/files/{fname}"
+		file_url = "/files/{0}".format(fname)
 
 	return {"file_name": os.path.basename(fpath), "file_url": file_url}
 
@@ -240,7 +238,7 @@ def write_file(content, fname, is_private=0):
 	# create directory (if not exists)
 	frappe.create_folder(file_path)
 	# write the file
-	if isinstance(content, str):
+	if isinstance(content, text_type):
 		content = content.encode()
 	with open(os.path.join(file_path.encode("utf-8"), fname.encode("utf-8")), "wb+") as f:
 		f.write(content)
@@ -251,7 +249,11 @@ def write_file(content, fname, is_private=0):
 def remove_all(dt, dn, from_delete=False, delete_permanently=False):
 	"""remove all files in a transaction"""
 	try:
-		for fid in frappe.get_all("File", {"attached_to_doctype": dt, "attached_to_name": dn}, pluck="name"):
+		for fid in frappe.db.sql_list(
+			"""select name from `tabFile` where
+			attached_to_doctype=%s and attached_to_name=%s""",
+			(dt, dn),
+		):
 			if from_delete:
 				# If deleting a doc, directly delete files
 				frappe.delete_doc("File", fid, ignore_permissions=True, delete_permanently=delete_permanently)
@@ -279,7 +281,9 @@ def remove_file(
 	"""Remove file and File entry"""
 	file_name = None
 	if not (attached_to_doctype and attached_to_name):
-		attached = frappe.db.get_value("File", fid, ["attached_to_doctype", "attached_to_name", "file_name"])
+		attached = frappe.db.get_value(
+			"File", fid, ["attached_to_doctype", "attached_to_name", "file_name"]
+		)
 		if attached:
 			attached_to_doctype, attached_to_name, file_name = attached
 
@@ -338,14 +342,18 @@ def get_file(fname):
 	file_path = get_file_path(fname)
 
 	# read the file
-	with open(encode(file_path), mode="rb") as f:
-		content = f.read()
-		try:
-			# for plain text files
-			content = content.decode()
-		except UnicodeDecodeError:
-			# for .png, .jpg, etc
-			pass
+	if PY2:
+		with open(encode(file_path)) as f:
+			content = f.read()
+	else:
+		with io.open(encode(file_path), mode="rb") as f:
+			content = f.read()
+			try:
+				# for plain text files
+				content = content.decode()
+			except UnicodeDecodeError:
+				# for .png, .jpg, etc
+				pass
 
 	return [file_path.rsplit("/", 1)[-1], content]
 
@@ -355,15 +363,11 @@ def get_file_path(file_name):
 	if "../" in file_name:
 		return
 
-	File = DocType("File")
-
-	f = (
-		frappe.qb.from_(File)
-		.where((File.name == file_name) | (File.file_name == file_name))
-		.select(File.file_url)
-		.run()
+	f = frappe.db.sql(
+		"""select file_url from `tabFile`
+		where name=%s or file_name=%s""",
+		(file_name, file_name),
 	)
-
 	if f:
 		file_name = f[0][0]
 
@@ -385,7 +389,7 @@ def get_file_path(file_name):
 
 
 def get_content_hash(content):
-	if isinstance(content, str):
+	if isinstance(content, text_type):
 		content = content.encode()
 	return hashlib.md5(content).hexdigest()
 
@@ -394,14 +398,14 @@ def get_file_name(fname, optional_suffix):
 	# convert to unicode
 	fname = cstr(fname)
 
-	n_records = frappe.get_all("File", {"file_name": fname}, pluck="name")
+	n_records = frappe.db.sql("select name from `tabFile` where file_name=%s", fname)
 	if len(n_records) > 0 or os.path.exists(encode(get_files_path(fname))):
 		f = fname.rsplit(".", 1)
 		if len(f) == 1:
 			partial, extn = f[0], ""
 		else:
 			partial, extn = f[0], "." + f[1]
-		return f"{partial}{optional_suffix}{extn}"
+		return "{partial}{suffix}{extn}".format(partial=partial, extn=extn, suffix=optional_suffix)
 	return fname
 
 
@@ -426,16 +430,80 @@ def download_file(file_url):
 	frappe.local.response.type = "download"
 
 
+def extract_images_from_doc(doc, fieldname):
+	content = doc.get(fieldname)
+	content = extract_images_from_html(doc, content)
+	if frappe.flags.has_dataurl:
+		doc.set(fieldname, content)
+
+
+def extract_images_from_html(doc, content):
+	frappe.flags.has_dataurl = False
+
+	def _save_file(match):
+		data = match.group(1)
+		data = data.split("data:")[1]
+		headers, content = data.split(",")
+
+		if "filename=" in headers:
+			filename = headers.split("filename=")[-1]
+
+			# decode filename
+			if not isinstance(filename, text_type):
+				filename = text_type(filename, "utf-8")
+		else:
+			mtype = headers.split(";")[0]
+			filename = get_random_filename(content_type=mtype)
+
+		doctype = doc.parenttype if doc.parent else doc.doctype
+		name = doc.parent or doc.name
+
+		if doc.doctype == "Comment":
+			doctype = doc.reference_doctype
+			name = doc.reference_name
+
+		# TODO fix this
+		file_url = save_file(filename, content, doctype, name, decode=True).get("file_url")
+		if not frappe.flags.has_dataurl:
+			frappe.flags.has_dataurl = True
+
+		return '<img src="{file_url}"'.format(file_url=file_url)
+
+	if content:
+		content = re.sub(r'<img[^>]*src\s*=\s*["\'](?=data:)(.*?)["\']', _save_file, content)
+
+	return content
+
+
+def get_random_filename(extn=None, content_type=None):
+	if extn:
+		if not extn.startswith("."):
+			extn = "." + extn
+
+	elif content_type:
+		extn = mimetypes.guess_extension(content_type)
+
+	return random_string(7) + (extn or "")
+
+
+@frappe.whitelist(allow_guest=True)
+def validate_filename(filename):
+	from frappe.utils import now_datetime
+
+	timestamp = now_datetime().strftime(" %Y-%m-%d %H:%M:%S")
+	fname = get_file_name(filename, timestamp)
+	return fname
+
 
 @frappe.whitelist()
 def add_attachments(doctype, name, attachments):
 	"""Add attachments to the given DocType"""
-	if isinstance(attachments, str):
+	if isinstance(attachments, string_types):
 		attachments = json.loads(attachments)
 	# loop through attachments
 	files = []
 	for a in attachments:
-		if isinstance(a, str):
+		if isinstance(a, string_types):
 			attach = frappe.db.get_value(
 				"File", {"name": a}, ["file_name", "file_url", "is_private"], as_dict=1
 			)
@@ -446,15 +514,3 @@ def add_attachments(doctype, name, attachments):
 			files.append(f)
 
 	return files
-
-
-def is_safe_path(path: str) -> bool:
-	if path.startswith(("http://", "https://")):
-		return True
-
-	basedir = frappe.get_site_path()
-	# ref: https://docs.python.org/3/library/os.path.html#os.path.commonpath
-	matchpath = os.path.abspath(path)
-	basedir = os.path.abspath(basedir)
-
-	return basedir == os.path.commonpath((basedir, matchpath))

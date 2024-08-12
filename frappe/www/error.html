@@ -23,22 +23,18 @@
 <script></script>
 <div class="page-card">
 	<div class="page-card-head">
-		<span class="indicator red">{{ error_title }}</span>
+		<span class="indicator red">{{_("Uncaught Server Exception")}}</span>
 	</div>
-	<p>{{ error_message }}</p>
+	<p>{{_("There was an error building this page")}}</p>
 	<div>
 		<a href="/" class="btn btn-primary btn-sm">{{ _("Home") }}</a>
 	</div>
 </div>
 <p class="text-muted text-center small" style="margin-top: -20px;">
-	{{ _("Error Code: {0}").format(http_status_code) }}
+	{{ _("Error Code: {0}").format('500') }}
 </p>
 <div class="text-center mt-3">
-	<p class="text-muted text-center small">
-		If you don't know what just happened, and wish to file a ticket
-		please </br> <b>copy the error below </b> and share it.
-	</p>
-	<button class="btn btn-xs btn-secondary text-muted small view-error" >{{ _("Show Error") if not dev_server else _("Hide Error") }}</a>
+	<button class="btn btn-xs btn-link text-muted small view-error" >{{ _("Show Traceback") if not dev_server else _("Hide Traceback") }}</a>
 </div>
 
 <div class="error-content {{ 'hidden' if not dev_server else '' }}">
@@ -53,10 +49,10 @@
 
 	toggle_button.on('click', () => {
 		if (error_log.hasClass("hidden")) {
-			toggle_button.html(`{{ _("Hide Error") }}`);
+			toggle_button.html(`{{ _("Hide Traceback") }}`);
 			error_log.removeClass("hidden");
 		} else {
-			toggle_button.html(`{{ _("Show Error") }}`);
+			toggle_button.html(`{{ _("Show Traceback") }}`);
 			error_log.addClass("hidden");
 		}
 	})
