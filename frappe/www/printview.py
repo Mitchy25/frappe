@@ -175,7 +175,8 @@ def get_rendered_template(
 		template = jenv.get_template(standard_format)
 
 	letter_head = frappe._dict(get_letter_head(doc, no_letterhead, letterhead) or {})
-
+	#TODO HERE
+	# breakpoint()
 	if letter_head.content:
 		letter_head.content = frappe.utils.jinja.render_template(letter_head.content, {"doc": doc.as_dict()})
 		if letter_head.header_script:
@@ -391,7 +392,7 @@ def validate_key(key, doc):
 	raise frappe.exceptions.InvalidKeyError
 
 
-def get_letter_head(doc, no_letterhead, letterhead=None):
+def get_letter_head(doc, no_letterhead, letterhead=None):	
 	if no_letterhead:
 		return {}
 
