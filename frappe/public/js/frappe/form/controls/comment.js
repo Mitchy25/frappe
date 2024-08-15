@@ -73,7 +73,14 @@ frappe.ui.form.ControlComment = class ControlComment extends frappe.ui.form.Cont
 	}
 
 	submit() {
-		this.on_submit && this.on_submit(this.get_value());
+		var notifyOnLoad = false;
+		const notifyCheckbox = this.comment_wrapper.find('.input-with-feedback#notifyOnLoadCheckbox');
+		if (notifyCheckbox && notifyCheckbox.prop(('checked'))) {
+			notifyOnLoad = 1;
+		} else {
+			notifyOnLoad = 0;
+		}
+		this.on_submit && this.on_submit(this.get_value(), notifyOnLoad);
 	}
 
 	update_state() {

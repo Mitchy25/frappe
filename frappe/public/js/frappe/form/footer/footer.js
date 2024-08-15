@@ -28,7 +28,7 @@ frappe.ui.form.Footer = class FormFooter {
 				fieldtype: "Comment",
 				fieldname: "comment",
 			},
-			on_submit: (comment) => {
+			on_submit: (comment, notifyOnLoad = false) => {
 				if (strip_html(comment).trim() != "" || comment.includes("img")) {
 					this.frm.comment_box.disable();
 					frappe
@@ -38,6 +38,7 @@ frappe.ui.form.Footer = class FormFooter {
 							content: comment,
 							comment_email: frappe.session.user,
 							comment_by: frappe.session.user_fullname,
+							notify_on_load: notifyOnLoad
 						})
 						.then((comment) => {
 							let comment_item =
