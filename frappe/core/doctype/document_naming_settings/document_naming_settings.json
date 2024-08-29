@@ -22,7 +22,6 @@
  ],
  "fields": [
   {
-   "collapsible": 1,
    "description": "Set Naming Series options on your transactions.",
    "fieldname": "setup_series",
    "fieldtype": "Section Break",
@@ -50,7 +49,6 @@
    "label": "Update"
   },
   {
-   "collapsible": 1,
    "description": "Change the starting / current sequence number of an existing series. <br>\n\nWarning: Incorrectly updating counters can prevent documents from getting created. ",
    "fieldname": "update_series",
    "fieldtype": "Section Break",
@@ -111,7 +109,7 @@
  "icon": "fa fa-sort-by-order",
  "issingle": 1,
  "links": [],
- "modified": "2022-05-30 23:51:36.136535",
+ "modified": "2024-08-30 11:12:29.435950",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "Document Naming Settings",
