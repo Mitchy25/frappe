@@ -103,12 +103,12 @@ frappe.ui.FieldGroup = class FieldGroup extends frappe.ui.form.Layout {
 
 				if (!is_null(v)) ret[f.df.fieldname] = v;
 
-			if (this.is_dialog && f.df.reqd && !f.value) {
-				f.refresh_input();
-			}
-
-			if (f.df.invalid) {
-				invalid.push(__(f.df.label));
+				if (this.is_dialog && f.df.reqd && !f.value) {
+					f.refresh_input();
+				}
+	
+				if (f.df.invalid) {
+					invalid.push(__(f.df.label));
 				}
 			}
 		}
