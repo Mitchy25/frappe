@@ -177,6 +177,11 @@ frappe.report_utils = {
 				reqd: 1,
 			},
 			{
+				fieldtype: "Check",
+				fieldname: "filter_export",
+				label: "Export Filters"
+			},			
+			{
 				fieldtype: "Section Break",
 				fieldname: "csv_settings",
 				label: "Settings",
