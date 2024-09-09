@@ -340,6 +340,11 @@ def export_query():
 	custom_columns = frappe.parse_json(form_params.custom_columns or "[]")
 	include_indentation = form_params.include_indentation
 	visible_idx = form_params.visible_idx
+	filter_export = form_params.filter_export
+	if filter_export != "0":
+		filter_export = form_params.filters
+	else:
+		filter_export = None
 
 	if isinstance(visible_idx, str):
 		visible_idx = json.loads(visible_idx)
@@ -354,7 +359,7 @@ def export_query():
 		return
 
 	format_duration_fields(data)
-	xlsx_data, column_widths = build_xlsx_data(data, visible_idx, include_indentation)
+	xlsx_data, column_widths = build_xlsx_data(data, visible_idx, include_indentation, filter_export=filter_export)
 
 	if file_format_type == "CSV":
 		content = get_csv_bytes(xlsx_data, csv_params)
@@ -379,7 +384,7 @@ def format_duration_fields(data: frappe._dict) -> None:
 				row[index] = format_duration(row[index])
 
 
-def build_xlsx_data(data, visible_idx, include_indentation, ignore_visible_idx=False):
+def build_xlsx_data(data, visible_idx, include_indentation, ignore_visible_idx=False, filter_export=False):
 	EXCEL_TYPES = (
 		str,
 		bool,
@@ -433,8 +438,8 @@ def build_xlsx_data(data, visible_idx, include_indentation, ignore_visible_idx=F
 				row_data = row
 
 			result.append(row_data)
+	#TODO - Fix this
 	if filter_export:
-		filter_export = json.loads(filter_export)
 		result_filter = [["Filter Name", "Filter Value"]]
 		for key, value in filter_export.items():
 			if type(value) is list:

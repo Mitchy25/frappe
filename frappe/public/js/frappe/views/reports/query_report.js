@@ -1514,7 +1514,7 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		this.export_dialog = frappe.report_utils.get_export_dialog(
 			__(this.report_name),
 			extra_fields,
-			({ file_format, include_indentation, csv_delimiter, csv_quoting }) => {
+			({ file_format, filter_export, include_indentation, csv_delimiter, csv_quoting }) => {
 				this.make_access_log("Export", file_format);
 
 				let filters = this.get_filter_values(true);

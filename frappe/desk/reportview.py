@@ -358,6 +358,12 @@ def export_query():
 	csv_params = pop_csv_params(form_params)
 	add_totals_row = 1 if form_params.pop("add_totals_row", None) == "1" else None
 
+	filter_export = form_params.pop("filter_export")
+	if filter_export != "0":
+		filter_export = form_params.pop("filter_export")
+	else:
+		filter_export = None
+
 	frappe.permissions.can_export(doctype, raise_exception=True)
 
 	if selection := form_params.pop("selected_items", None):
@@ -375,6 +381,8 @@ def export_query():
 
 	if add_totals_row:
 		ret = append_totals_row(ret)
+	
+	#TODO - Handle filter export here
 
 	data = [[_("Sr"), *get_labels(db_query.fields, doctype)]]
 	data.extend([i + 1, *list(row)] for i, row in enumerate(ret))
