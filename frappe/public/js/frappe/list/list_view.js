@@ -1565,7 +1565,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 			label: __("Share URL", null, "Button in list view menu"),
 			action: () => this.share_url(),
 			standard: true,
-			shortcut: "Ctrl+L",
+			shortcut: "Ctrl+Y",
 		});
 
 		if (
