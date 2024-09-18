@@ -502,7 +502,6 @@ def search(text, start=0, limit=20, doctype=""):
 
 		results.extend(result)
 
-	# sort results based on allowed_doctype's priority
 	for doctype in allowed_doctypes:
 		for index, r in enumerate(results):
 			if r.doctype == doctype and r.rank > 0.0:
@@ -514,6 +513,10 @@ def search(text, start=0, limit=20, doctype=""):
 					frappe.clear_messages()
 
 				sorted_results.extend([r])
+	
+	#Sort by highest rank first
+	sorted_results = sorted(sorted_results, key=lambda r: r.rank, reverse=True)
+
 	return sorted_results
 
 
