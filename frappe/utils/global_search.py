@@ -15,6 +15,7 @@ from frappe.model.base_document import get_controller
 from frappe.utils import cint, strip_html_tags
 from frappe.utils.html_utils import unescape_html
 
+from pypika import Case, CustomFunction
 
 def setup_global_search_table():
 	"""
@@ -465,13 +466,22 @@ def search(text, start=0, limit=20, doctype=""):
 	if not allowed_doctypes or (doctype and doctype not in allowed_doctypes):
 		return []
 
+	Instr = CustomFunction('INSTR', ['content', 'substring'])
+
 	for text in set(text.split("&")):
 		text = text.strip()
 		if not text:
 			continue
 
 		global_search = frappe.qb.Table("__global_search")
-		rank = Match(global_search.content).Against(text).as_("rank")
+
+		# rank = Match(global_search.content).Against(text).as_("rank")
+		
+		rank = (
+			(Match(global_search.content).Against(text))
+		    + Case().when(Instr(global_search.content, text) > 0, 1).else_(0)
+		).as_("rank")
+		
 		query = (
 			frappe.qb.from_(global_search)
 			.select(global_search.doctype, global_search.name, global_search.content, rank)
@@ -488,7 +498,7 @@ def search(text, start=0, limit=20, doctype=""):
 		if cint(start) > 0:
 			query = query.offset(start)
 
-		result = query.run(as_dict=True)
+		result = query.run(as_dict=True, debug=True)
 
 		results.extend(result)
 
