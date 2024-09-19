@@ -15,6 +15,7 @@ from frappe.utils.html_utils import unescape_html
 
 HTML_TAGS_PATTERN = re.compile(r"(?s)<[\s]*(script|style).*?</\1>")
 
+from pypika import Case, CustomFunction
 
 def setup_global_search_table():
 	"""
@@ -440,6 +441,8 @@ def search(text, start=0, limit=20, doctype=""):
 	allowed_doctypes = set(get_doctypes_for_global_search()) & set(frappe.get_user().get_can_read())
 	if not allowed_doctypes or (doctype and doctype not in allowed_doctypes):
 		return []
+	
+	Instr = CustomFunction('INSTR', ['content', 'substring'])
 
 	for word in set(text.split("&")):
 		word = word.strip()
@@ -447,7 +450,13 @@ def search(text, start=0, limit=20, doctype=""):
 			continue
 
 		global_search = frappe.qb.Table("__global_search")
-		rank = Match(global_search.content).Against(word).as_("rank")
+		# rank = Match(global_search.content).Against(word).as_("rank")
+
+		rank = (
+			(Match(global_search.content).Against(text))
+		    + Case().when(Instr(global_search.content, text) > 0, 1).else_(0)
+		).as_("rank")
+
 		query = (
 			frappe.qb.from_(global_search)
 			.select(global_search.doctype, global_search.name, global_search.content, rank)
@@ -479,6 +488,10 @@ def search(text, start=0, limit=20, doctype=""):
 					frappe.clear_messages()
 
 				sorted_results.extend([r])
+
+	#Sort by highest rank first
+	sorted_results = sorted(sorted_results, key=lambda r: r.rank, reverse=True)
+
 	return sorted_results
 
 
