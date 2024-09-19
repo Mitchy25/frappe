@@ -203,7 +203,7 @@ def search_widget(
 				page_length = None
 
 			# Sales Partner doctype will only show list of company bank accounts
-			if doctype == "Bank Account" and reference_doctype != "Sales Partner":
+			if doctype == "Bank Account" and not reference_doctype in ["Sales Partner", "Supplier"]:
 				filters.append("is_company_account = 1")
 			
 
