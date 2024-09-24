@@ -1058,8 +1058,10 @@ export default class GridRow {
 			});
 
 			frappe.ui.form.editable_row = this;
-			this.frm.script_manager.trigger(this.doc.parentfield + "_on_row_toggled", this.doc.doctype, this.doc.name);
-
+			if (this.frm){
+				this.frm.script_manager.trigger(this.doc.parentfield + "_on_row_toggled", this.doc.doctype, this.doc.name);
+			}
+			
 			return false;
 		} else {
 			this.row.toggleClass("editable-row", false);
