@@ -30,7 +30,7 @@ HTML_TAGS_PATTERN = re.compile(r"\<[^>]*\>")
 INCLUDE_DIRECTIVE_PATTERN = re.compile("""({% include ['"]([^'"]*)['"] %})""")
 PHONE_NUMBER_PATTERN = re.compile(r"([0-9\ \+\_\-\,\.\*\#\(\)]){1,20}$")
 PERSON_NAME_PATTERN = re.compile(r"^[\w][\w\'\-]*( \w[\w\'\-]*)*$")
-WHITESPACE_PATTERN = re.compile(r"[\t\n\r]")
+WHITESPACE_PATTERN = re.compile(r"[\t\n\r;]")
 MULTI_EMAIL_STRING_PATTERN = re.compile(r'[,\n](?=(?:[^"]|"[^"]*")*$)')
 
 
