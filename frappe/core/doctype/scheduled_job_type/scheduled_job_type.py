@@ -16,6 +16,37 @@ from frappe.utils.background_jobs import enqueue, is_job_enqueued
 
 
 class ScheduledJobType(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.types import DF
+
+		create_log: DF.Check
+		cron_format: DF.Data | None
+		frequency: DF.Literal[
+			"All",
+			"Hourly",
+			"Hourly Long",
+			"Daily",
+			"Daily Long",
+			"Weekly",
+			"Weekly Long",
+			"Monthly",
+			"Monthly Long",
+			"Cron",
+			"Yearly",
+			"Annual",
+		]
+		last_execution: DF.Datetime | None
+		method: DF.Data
+		next_execution: DF.Datetime | None
+		server_script: DF.Link | None
+		stopped: DF.Check
+
+	# end: auto-generated types
 	def autoname(self):
 		self.name = ".".join(self.method.split(".")[-2:])
 
@@ -38,24 +69,19 @@ class ScheduledJobType(Document):
 	def enqueue(self, force=False) -> bool:
 		# enqueue event if last execution is done
 		if self.is_event_due() or force:
-			if frappe.flags.enqueued_jobs:
-				frappe.flags.enqueued_jobs.append(self.method)
-
-			if frappe.flags.execute_job:
-				self.execute()
+			if not self.is_job_in_queue():
+				enqueue(
+					"frappe.core.doctype.scheduled_job_type.scheduled_job_type.run_scheduled_job",
+					queue=self.get_queue_name(),
+					job_type=self.method,
+					job_id=self.rq_job_id,
+				)
+				return True
 			else:
-				if not self.is_job_in_queue():
-					enqueue(
-						"frappe.core.doctype.scheduled_job_type.scheduled_job_type.run_scheduled_job",
-						queue=self.get_queue_name(),
-						job_type=self.method,
-						job_id=self.rq_job_id,
-					)
-					return True
-				else:
-					frappe.logger("scheduler").error(
-						f"Skipped queueing {self.method} because it was found in queue for {frappe.local.site}"
-					)
+				frappe.logger("scheduler").error(
+					f"Skipped queueing {self.method} because it was found in queue for {frappe.local.site}"
+				)
+
 		return False
 
 	def is_event_due(self, current_time=None):
@@ -87,7 +113,7 @@ class ScheduledJobType(Document):
 			"Daily Long": "0 0 * * *",
 			"Hourly": "0 * * * *",
 			"Hourly Long": "0 * * * *",
-			"All": "0/" + str((frappe.get_conf().scheduler_interval or 240) // 60) + " * * * *",
+			"All": f"*/{(frappe.get_conf().scheduler_interval or 240) // 60} * * * *",
 		}
 
 		if not self.cron_format:
@@ -137,8 +163,10 @@ class ScheduledJobType(Document):
 				dict(doctype="Scheduled Job Log", scheduled_job_type=self.name)
 			).insert(ignore_permissions=True)
 		self.scheduler_log.db_set("status", status)
+		if frappe.debug_log:
+			self.scheduler_log.db_set("debug_log", "\n".join(frappe.debug_log))
 		if status == "Failed":
-			self.scheduler_log.db_set("details", frappe.get_traceback())
+			self.scheduler_log.db_set("details", frappe.get_traceback(with_context=True))
 		if status == "Start":
 			self.db_set("last_execution", now_datetime(), update_modified=False)
 		frappe.db.commit()

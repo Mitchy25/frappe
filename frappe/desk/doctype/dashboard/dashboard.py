@@ -12,6 +12,25 @@ from frappe.query_builder import DocType
 
 
 class Dashboard(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.desk.doctype.dashboard_chart_link.dashboard_chart_link import DashboardChartLink
+		from frappe.desk.doctype.number_card_link.number_card_link import NumberCardLink
+		from frappe.types import DF
+
+		cards: DF.Table[NumberCardLink]
+		chart_options: DF.Code | None
+		charts: DF.Table[DashboardChartLink]
+		dashboard_name: DF.Data
+		is_default: DF.Check
+		is_standard: DF.Check
+		module: DF.Link | None
+
+	# end: auto-generated types
 	def on_update(self):
 		if self.is_default:
 			# make all other dashboards non-default
@@ -65,7 +84,6 @@ def get_permission_query_conditions(user):
 	return f" `tabDashboard`.`module` in ({','.join(allowed_modules)}) or {module_not_set} "
 
 
-
 @frappe.whitelist()
 def get_permitted_charts(dashboard_name):
 	permitted_charts = []
@@ -84,12 +102,8 @@ def get_permitted_charts(dashboard_name):
 
 @frappe.whitelist()
 def get_permitted_cards(dashboard_name):
-	permitted_cards = []
 	dashboard = frappe.get_doc("Dashboard", dashboard_name)
-	for card in dashboard.cards:
-		if frappe.has_permission("Number Card", doc=card.card):
-			permitted_cards.append(card)
-	return permitted_cards
+	return [card for card in dashboard.cards if frappe.has_permission("Number Card", doc=card.card)]
 
 
 def get_non_standard_charts_in_dashboard(dashboard):

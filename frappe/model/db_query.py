@@ -44,7 +44,6 @@ FIELD_COMMA_PATTERN = re.compile(r"[0-9a-zA-Z]+\s*,")
 STRICT_FIELD_PATTERN = re.compile(r".*/\*.*")
 STRICT_UNION_PATTERN = re.compile(r".*\s(union).*\s")
 ORDER_GROUP_PATTERN = re.compile(r".*[^a-z0-9-_ ,`'\"\.\(\)].*")
-FN_PARAMS_PATTERN = re.compile(r".*?\((.*)\).*")
 SPECIAL_FIELD_CHARS = frozenset(("(", "`", ".", "'", '"', "*"))
 
 
@@ -63,6 +62,8 @@ class DatabaseQuery:
 		self.flags = frappe._dict()
 		self.reference_doctype = None
 		self.permission_map = {}
+		self.shared = []
+		self._fetch_shared_documents = False
 
 	@property
 	def doctype_meta(self):
@@ -345,7 +346,7 @@ class DatabaseQuery:
 				if " as " in field:
 					field, alias = field.split(" as ", 1)
 				linked_fieldname, fieldname = field.split(".", 1)
-				linked_field = self.doctype_meta.get_field(linked_fieldname)
+				linked_field = frappe.get_meta(self.doctype).get_field(linked_fieldname)
 				# this is not a link field
 				if not linked_field:
 					continue
@@ -366,9 +367,7 @@ class DatabaseQuery:
 
 			if isinstance(filters, dict):
 				fdict = filters
-				filters = []
-				for key, value in fdict.items():
-					filters.append(make_filter_tuple(self.doctype, key, value))
+				filters = [make_filter_tuple(self.doctype, key, value) for key, value in fdict.items()]
 			setattr(self, filter_name, filters)
 
 	def sanitize_fields(self):
@@ -556,10 +555,7 @@ class DatabaseQuery:
 		# remove from fields
 		to_remove = []
 		for fld in self.fields:
-			for f in optional_fields:
-				if f in fld and f not in self.columns:
-					to_remove.append(fld)
-
+			to_remove.extend(fld for f in optional_fields if f in fld and f not in self.columns)
 		for fld in to_remove:
 			del self.fields[self.fields.index(fld)]
 
@@ -569,10 +565,9 @@ class DatabaseQuery:
 			if isinstance(each, str):
 				each = [each]
 
-			for element in each:
-				if element in optional_fields and element not in self.columns:
-					to_remove.append(each)
-
+			to_remove.extend(
+				each for element in each if element in optional_fields and element not in self.columns
+			)
 		for each in to_remove:
 			if isinstance(self.filters, dict):
 				del self.filters[each]
@@ -624,7 +619,9 @@ class DatabaseQuery:
 		        - Query: fields=["*"]
 		        - Result: fields=["title", ...] // will also include Frappe's meta field like `name`, `owner`, etc.
 		"""
-		if self.flags.ignore_permissions or not frappe.get_system_settings("apply_perm_level_on_api_calls"):
+		from frappe.desk.reportview import extract_fieldnames
+
+		if self.flags.ignore_permissions:
 			return
 
 		asterisk_fields = []
@@ -636,23 +633,18 @@ class DatabaseQuery:
 		)
 
 		for i, field in enumerate(self.fields):
-			if "distinct" in field.lower():
-				# field: 'count(distinct `tabPhoto`.name) as total_count'
-				# column: 'tabPhoto.name'
-				if _fn := FN_PARAMS_PATTERN.findall(field):
-					column = _fn[0].replace("distinct ", "").replace("DISTINCT ", "").replace("`", "")
-				# field: 'distinct name'
-				# column: 'name'
-				else:
-					column = field.split(" ", 1)[1].replace("`", "")
-			else:
-				# field: 'count(`tabPhoto`.name) as total_count'
-				# column: 'tabPhoto.name'
-				column = field.split("(")[-1].split(")", 1)[0]
-				column = strip_alias(column).replace("`", "")
+			# field: 'count(distinct `tabPhoto`.name) as total_count'
+			# column: 'tabPhoto.name'
+			# field: 'count(`tabPhoto`.name) as total_count'
+			# column: 'tabPhoto.name'
+			columns = extract_fieldnames(field)
+			if not columns:
+				continue
 
-			if column == "*" and not in_function("*", field):
-				asterisk_fields.append(i)
+			column = columns[0]
+			if column == "*" and "*" in field:
+				if not in_function("*", field):
+					asterisk_fields.append(i)
 				continue
 
 			# handle pseudo columns
@@ -691,21 +683,12 @@ class DatabaseQuery:
 			elif "(" in field:
 				if "*" in field:
 					continue
-				elif _params := FN_PARAMS_PATTERN.findall(field):
-					params = (x.strip() for x in _params[0].split(","))
-					for param in params:
-						if not (
-							not param
-							or param in permitted_fields
-							or param.isnumeric()
-							or "'" in param
-							or '"' in param
-						):
+				else:
+					for column in columns:
+						if column not in permitted_fields:
 							self.remove_field(i)
 							break
 					continue
-				self.remove_field(i)
-
 			# remove if access not allowed
 			else:
 				self.remove_field(i)
@@ -756,18 +739,30 @@ class DatabaseQuery:
 				lft, rgt = frappe.db.get_value(ref_doctype, f.value, ["lft", "rgt"]) or (0, 0)
 
 			# Get descendants elements of a DocType with a tree structure
-			if f.operator.lower() in ("descendants of", "not descendants of"):
-				result = frappe.get_all(
-					ref_doctype, filters={"lft": [">", lft], "rgt": ["<", rgt]}, order_by="`lft` ASC"
+			if f.operator.lower() in (
+				"descendants of",
+				"not descendants of",
+				"descendants of (inclusive)",
+			):
+				nodes = frappe.get_all(
+					ref_doctype,
+					filters={"lft": [">", lft], "rgt": ["<", rgt]},
+					order_by="`lft` ASC",
+					pluck="name",
 				)
+				if f.operator.lower() == "descendants of (inclusive)":
+					nodes += [f.value]
 			else:
 				# Get ancestor elements of a DocType with a tree structure
-				result = frappe.get_all(
-					ref_doctype, filters={"lft": ["<", lft], "rgt": [">", rgt]}, order_by="`lft` DESC"
+				nodes = frappe.get_all(
+					ref_doctype,
+					filters={"lft": ["<", lft], "rgt": [">", rgt]},
+					order_by="`lft` DESC",
+					pluck="name",
 				)
 
 			fallback = "''"
-			value = [frappe.db.escape((cstr(v.name) or "").strip(), percent=False) for v in result]
+			value = [frappe.db.escape((cstr(v)).strip(), percent=False) for v in nodes]
 			if len(value):
 				value = f"({', '.join(value)})"
 			else:
@@ -930,8 +925,6 @@ class DatabaseQuery:
 			self.extract_tables()
 
 		role_permissions = frappe.permissions.get_role_permissions(self.doctype_meta, user=self.user)
-		self.shared = frappe.share.get_shared(self.doctype, self.user)
-
 		if (
 			not self.doctype_meta.istable
 			and not (role_permissions.get("select") or role_permissions.get("read"))
@@ -939,6 +932,7 @@ class DatabaseQuery:
 			and not has_any_user_permission_for_doctype(self.doctype, self.user, self.reference_doctype)
 		):
 			only_if_shared = True
+			self.shared = frappe.share.get_shared(self.doctype, self.user)
 			if not self.shared:
 				frappe.throw(_("No permission to read {0}").format(_(self.doctype)), frappe.PermissionError)
 			else:
@@ -947,6 +941,7 @@ class DatabaseQuery:
 		else:
 			# skip user perm check if owner constraint is required
 			if requires_owner_constraint(role_permissions):
+				self._fetch_shared_documents = True
 				self.match_conditions.append(
 					f"`tab{self.doctype}`.`owner` = {frappe.db.escape(self.user, percent=False)}"
 				)
@@ -956,6 +951,14 @@ class DatabaseQuery:
 				# get user permissions
 				user_permissions = frappe.permissions.get_user_permissions(self.user)
 				self.add_user_permissions(user_permissions)
+
+			# Only when full read access is not present fetch shared docuemnts.
+			# This is done to avoid extra query.
+			# Only following cases can require explicit addition of shared documents.
+			#    1. DocType has if_owner constraint and hence can't see shared documents
+			#    2. DocType has user permissions and hence can't see shared documents
+			if self._fetch_shared_documents:
+				self.shared = frappe.share.get_shared(self.doctype, self.user)
 
 		if as_condition:
 			conditions = ""
@@ -1035,9 +1038,11 @@ class DatabaseQuery:
 					match_filters[df.get("options")] = docs
 
 		if match_conditions:
+			self._fetch_shared_documents = True
 			self.match_conditions.append(" and ".join(match_conditions))
 
 		if match_filters:
+			self._fetch_shared_documents = True
 			self.match_filters.append(match_filters)
 
 	def get_permission_query_conditions(self) -> str:
@@ -1056,7 +1061,7 @@ class DatabaseQuery:
 		return " and ".join(conditions) if conditions else ""
 
 	def set_order_by(self, args):
-		if self.order_by and self.order_by != DefaultOrderBy:
+		if self.order_by and self.order_by != "KEEP_DEFAULT_ORDERING":
 			args.order_by = self.order_by
 		else:
 			args.order_by = ""
@@ -1230,20 +1235,6 @@ def get_order_by(doctype, meta):
 	return order_by
 
 
-def is_parent_only_filter(doctype, filters):
-	# check if filters contains only parent doctype
-	only_parent_doctype = True
-
-	if isinstance(filters, list):
-		for filter in filters:
-			if doctype not in filter:
-				only_parent_doctype = False
-			if "Between" in filter:
-				filter[3] = get_between_date_filter(flt[3])
-
-	return only_parent_doctype
-
-
 def has_any_user_permission_for_doctype(doctype, user, applicable_for):
 	user_permissions = frappe.permissions.get_user_permissions(user=user)
 	doctype_user_permissions = user_permissions.get(doctype, [])
@@ -1306,7 +1297,6 @@ def _convert_type_for_between_filters(
 		return datetime.datetime.combine(value, set_time)
 
 	return value
-
 
 
 def get_additional_filter_field(additional_filters_config, f, value):

@@ -24,6 +24,7 @@
   "no_copy",
   "allow_in_quick_entry",
   "translatable",
+  "link_filters",
   "column_break_7",
   "default",
   "precision",
@@ -352,7 +353,7 @@
    "width": "50px"
   },
   {
-   "depends_on": "eval:cur_frm.doc.istable",
+   "depends_on": "eval:parent.istable",
    "description": "Number of columns for a field in a Grid (Total Columns in a grid should be less than 11)",
    "fieldname": "columns",
    "fieldtype": "Int",
@@ -472,13 +473,18 @@
    "fieldname": "sort_options",
    "fieldtype": "Check",
    "label": "Sort Options"
+  },
+  {
+   "fieldname": "link_filters",
+   "fieldtype": "JSON",
+   "label": "Link Filters"
   }
  ],
  "idx": 1,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2024-05-28 15:56:39.171633",
+ "modified": "2024-02-01 15:56:39.171633",
  "modified_by": "Administrator",
  "module": "Custom",
  "name": "Customize Form Field",
@@ -486,6 +492,6 @@
  "owner": "Administrator",
  "permissions": [],
  "sort_field": "modified",
- "sort_order": "ASC",
+ "sort_order": "DESC",
  "states": []
 }

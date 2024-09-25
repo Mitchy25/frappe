@@ -23,6 +23,52 @@ DATE_BASED_EVENTS = frozenset(("Days Before", "Days After"))
 
 
 class Notification(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.email.doctype.notification_recipient.notification_recipient import NotificationRecipient
+		from frappe.types import DF
+
+		attach_print: DF.Check
+		channel: DF.Literal["Email", "Slack", "System Notification", "SMS"]
+		condition: DF.Code | None
+		date_changed: DF.Literal[None]
+		days_in_advance: DF.Int
+		document_type: DF.Link
+		enabled: DF.Check
+		event: DF.Literal[
+			"",
+			"New",
+			"Save",
+			"Submit",
+			"Cancel",
+			"Days After",
+			"Days Before",
+			"Value Change",
+			"Method",
+			"Custom",
+		]
+		is_standard: DF.Check
+		message: DF.Code | None
+		message_type: DF.Literal["Markdown", "HTML", "Plain Text"]
+		method: DF.Data | None
+		module: DF.Link | None
+		print_format: DF.Link | None
+		property_value: DF.Data | None
+		recipients: DF.Table[NotificationRecipient]
+		send_system_notification: DF.Check
+		send_to_all_assignees: DF.Check
+		sender: DF.Link | None
+		sender_email: DF.Data | None
+		set_property_after_alert: DF.Literal[None]
+		slack_webhook_url: DF.Link | None
+		subject: DF.Data | None
+		value_changed: DF.Literal[None]
+	# end: auto-generated types
+
 	def onload(self):
 		"""load message"""
 		if self.is_standard:
@@ -47,10 +93,10 @@ class Notification(Document):
 		self.validate_forbidden_document_types()
 		self.validate_condition()
 		self.validate_standard()
-		frappe.cache().hdel("notifications", self.document_type)
+		frappe.cache.hdel("notifications", self.document_type)
 
 	def on_update(self):
-		frappe.cache().hdel("notifications", self.document_type)
+		frappe.cache.hdel("notifications", self.document_type)
 		path = export_module_json(self, self.is_standard, self.module)
 		if path and self.message:
 			extension = FORMATS.get(self.message_type, ".md")
@@ -225,6 +271,26 @@ def get_context(context):
 		message = frappe.render_template(self.message, context)
 		if self.sender and self.sender_email:
 			sender = formataddr((self.sender, self.sender_email))
+
+		communication = None
+		# Add mail notification to communication list
+		# No need to add if it is already a communication.
+		if doc.doctype != "Communication":
+			communication = make_communication(
+				doctype=get_reference_doctype(doc),
+				name=get_reference_name(doc),
+				content=message,
+				subject=subject,
+				sender=sender,
+				recipients=recipients,
+				communication_medium="Email",
+				send_email=False,
+				attachments=attachments,
+				cc=cc,
+				bcc=bcc,
+				communication_type="Automated Message",
+			).get("name")
+
 		frappe.sendmail(
 			recipients=recipients,
 			subject=subject,
@@ -237,25 +303,8 @@ def get_context(context):
 			attachments=attachments,
 			expose_recipients="header",
 			print_letterhead=((attachments and attachments[0].get("print_letterhead")) or False),
+			communication=communication,
 		)
-
-		# Add mail notification to communication list
-		# No need to add if it is already a communication.
-		if doc.doctype != "Communication":
-			make_communication(
-				doctype=doc.doctype,
-				name=doc.name,
-				content=message,
-				subject=subject,
-				sender=sender,
-				recipients=recipients,
-				communication_medium="Email",
-				send_email=False,
-				attachments=attachments,
-				cc=cc,
-				bcc=bcc,
-				communication_type="Automated Message",
-			)
 
 	def send_a_slack_msg(self, doc, context):
 		send_slack_message(
@@ -326,7 +375,9 @@ def get_context(context):
 
 			# For sending messages to specified role
 			if recipient.receiver_by_role:
-				receiver_list += get_info_based_on_role(recipient.receiver_by_role, "mobile_no")
+				receiver_list += get_info_based_on_role(
+					recipient.receiver_by_role, "mobile_no", ignore_permissions=True
+				)
 
 		return receiver_list
 
@@ -394,8 +445,7 @@ def get_context(context):
 		self.message = self.get_template(md_as_html=True)
 
 	def on_trash(self):
-		frappe.cache().hdel("notifications", self.document_type)
-
+		frappe.cache.hdel("notifications", self.document_type)
 
 
 @frappe.whitelist()
@@ -465,9 +515,8 @@ def evaluate_alert(doc: Document, alert, event):
 		frappe.throw(message, title=_("Error in Notification"))
 	except Exception as e:
 		title = str(e)
-		message = frappe.get_traceback()
-		frappe.log_error(message=message, title=title)
-
+		message = frappe.get_traceback(with_context=True)
+		frappe.log_error(title=title, message=message)
 		msg = f"<details><summary>{title}</summary>{message}</details>"
 		frappe.throw(msg, title=_("Error in Notification"))
 
@@ -489,9 +538,7 @@ def get_assignees(doc):
 		fields=["allocated_to"],
 	)
 
-	recipients = [d.allocated_to for d in assignees]
-
-	return recipients
+	return [d.allocated_to for d in assignees]
 
 
 def get_emails_from_template(template, context):

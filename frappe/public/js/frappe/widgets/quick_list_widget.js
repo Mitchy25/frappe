@@ -50,7 +50,7 @@ export default class QuickListWidget extends Widget {
 	setup_refresh_list_button() {
 		this.refresh_list = $(
 			`<div class="refresh-list btn btn-xs pull-right" title="${__("Refresh List")}">
-				${frappe.utils.icon("refresh", "sm")}
+				${frappe.utils.icon("es-line-reload", "sm")}
 			</div>`
 		);
 
@@ -241,7 +241,6 @@ export default class QuickListWidget extends Widget {
 		this.footer.empty();
 
 		let filters = frappe.utils.get_filter_from_json(this.quick_list_filter);
-
 		let route = frappe.utils.generate_route({ type: "doctype", name: this.document_type });
 		this.see_all_button = $(`
 			<div class="see-all btn btn-xs">${__("View List")}</div>

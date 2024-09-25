@@ -9,13 +9,37 @@ import frappe
 from frappe import _
 from frappe.core.doctype.data_import.exporter import Exporter
 from frappe.core.doctype.data_import.importer import Importer
+from frappe.model import core_doctypes_list
 from frappe.model.document import Document
 from frappe.modules.import_file import import_file_by_path
 from frappe.utils.background_jobs import enqueue, is_job_enqueued
 from frappe.utils.csvutils import validate_google_sheets_url
 
+BLOCKED_DOCTYPES = set(core_doctypes_list) - {"User", "Role"}
+
 
 class DataImport(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.types import DF
+
+		google_sheets_url: DF.Data | None
+		import_file: DF.Attach | None
+		import_type: DF.Literal["", "Insert New Records", "Update Existing Records"]
+		mute_emails: DF.Check
+		payload_count: DF.Int
+		reference_doctype: DF.Link
+		show_failed_logs: DF.Check
+		status: DF.Literal["Pending", "Success", "Partial Success", "Error", "Timed Out"]
+		submit_after_import: DF.Check
+		template_options: DF.Code | None
+		template_warnings: DF.Code | None
+	# end: auto-generated types
+
 	def validate(self):
 		doc_before_save = self.get_doc_before_save()
 		if (
@@ -26,9 +50,14 @@ class DataImport(Document):
 			self.template_options = ""
 			self.template_warnings = ""
 
+		self.validate_doctype()
 		self.validate_import_file()
 		self.validate_google_sheets_url()
 		self.set_payload_count()
+
+	def validate_doctype(self):
+		if self.reference_doctype in BLOCKED_DOCTYPES:
+			frappe.throw(_("Importing {0} is not allowed.").format(self.reference_doctype))
 
 	def validate_import_file(self):
 		if self.import_file:
@@ -61,7 +90,6 @@ class DataImport(Document):
 		return i.get_data_for_import_preview()
 
 	def start_import(self):
-		from frappe.core.page.background_jobs.background_jobs import get_info
 		from frappe.utils.scheduler import is_scheduler_inactive
 
 		run_now = frappe.flags.in_test or frappe.conf.developer_mode
@@ -192,9 +220,6 @@ def get_import_status(data_import_name):
 
 @frappe.whitelist()
 def get_import_logs(data_import: str):
-	if not isinstance(data_import, str):
-		raise ValueError("data_import must be a string")
-
 	doc = frappe.get_doc("Data Import", data_import)
 	doc.check_permission("read")
 
@@ -258,7 +283,7 @@ def export_json(doctype, path, filters=None, or_filters=None, name=None, order_b
 			for key in del_keys:
 				if key in doc:
 					del doc[key]
-			for _k, v in doc.items():
+			for v in doc.values():
 				if isinstance(v, list):
 					for child in v:
 						for key in (*del_keys, "docstatus", "doctype", "modified", "name"):
@@ -287,7 +312,7 @@ def export_json(doctype, path, filters=None, or_filters=None, name=None, order_b
 		path = os.path.join("..", path)
 
 	with open(path, "w") as outfile:
-		outfile.write(frappe.as_json(out))
+		outfile.write(frappe.as_json(out, ensure_ascii=False))
 
 
 def export_csv(doctype, path):

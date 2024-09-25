@@ -6,7 +6,7 @@ import subprocess
 import sys
 import time
 import urllib.request
-from functools import cache, lru_cache
+from functools import cache
 from urllib.error import HTTPError
 
 
@@ -44,35 +44,6 @@ def req(url):
 def get_files_list(pr_number, repo="frappe/frappe"):
 	return [change["filename"] for change in fetch_pr_data(pr_number, repo, "files")]
 
-
-@lru_cache()
-def fetch_pr_data(pr_number, repo, endpoint):
-	api_url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}"
-
-	if endpoint:
-		api_url += f"/{endpoint}"
-
-	res = req(api_url)
-	return json.loads(res.read().decode("utf8"))
-
-
-def req(url):
-	"Simple resilient request call to handle rate limits."
-	retries = 0
-	while True:
-		try:
-			req = urllib.request.Request(url)
-			return urllib.request.urlopen(req)
-		except HTTPError as exc:
-			if exc.code == 403 and retries < 5:
-				retries += 1
-				time.sleep(retries)
-				continue
-			raise
-
-
-def get_files_list(pr_number, repo="frappe/frappe"):
-	return [change["filename"] for change in fetch_pr_data(pr_number, repo, "files")]
 
 def get_output(command, shell=True):
 	print(command)
@@ -127,8 +98,7 @@ if __name__ == "__main__":
 
 	# this is a push build, run all builds
 	if not pr_number:
-		os.system('echo "::set-output name=build::strawberry"')
-		os.system('echo "::set-output name=build-server::strawberry"')
+		os.system('echo "build=strawberry" >> $GITHUB_OUTPUT')
 		sys.exit(0)
 
 	files_list = files_list or get_files_list(pr_number=pr_number, repo=repo)
@@ -171,4 +141,4 @@ if __name__ == "__main__":
 		print("Only Python code was updated, stopping Cypress build process.")
 		sys.exit(0)
 
-	os.system('echo "::set-output name=build::strawberry"')
+	os.system('echo "build=strawberry" >> $GITHUB_OUTPUT')

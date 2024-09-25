@@ -16,9 +16,7 @@ class TestBulkUpdate(FrappeTestCase):
 		cls.doctype = new_doctype(is_submittable=1, custom=1).insert().name
 		frappe.db.commit()
 		for _ in range(50):
-			doc = frappe.new_doc(cls.doctype)
-			doc.some_fieldname = frappe.mock("name")
-			doc.insert()
+			frappe.new_doc(cls.doctype, some_fieldname=frappe.mock("name")).insert()
 
 	@timeout()
 	def wait_for_assertion(self, assertion):

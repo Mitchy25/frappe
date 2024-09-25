@@ -7,10 +7,12 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "details_tab",
   "doc_type",
   "properties",
   "label",
   "search_fields",
+  "link_filters",
   "column_break_5",
   "istable",
   "is_calendar_and_gantt",
@@ -20,8 +22,7 @@
   "track_views",
   "allow_auto_repeat",
   "allow_import",
-  "fields_section_break",
-  "fields",
+  "queue_in_background",
   "naming_section",
   "naming_rule",
   "autoname",
@@ -47,16 +48,20 @@
   "sender_field",
   "sender_name_field",
   "subject_field",
+  "section_break_8",
+  "sort_field",
+  "column_break_10",
+  "sort_order",
   "document_actions_section",
   "actions",
   "document_links_section",
   "links",
   "document_states_section",
   "states",
-  "section_break_8",
-  "sort_field",
-  "column_break_10",
-  "sort_order"
+  "fields_section_break",
+  "fields",
+  "form_tab",
+  "form_builder"
  ],
  "fields": [
   {
@@ -173,8 +178,8 @@
    "options": "ASC\nDESC"
   },
   {
+   "collapsible": 1,
    "depends_on": "doc_type",
-   "description": "Customize Label, Print Hide, Default etc.",
    "fieldname": "fields_section_break",
    "fieldtype": "Section Break",
    "label": "Fields"
@@ -343,6 +348,13 @@
    "label": "Make Attachments Public by Default"
   },
   {
+   "default": "0",
+   "description": "Enabling this will submit documents in background",
+   "fieldname": "queue_in_background",
+   "fieldtype": "Check",
+   "label": "Queue in Background (BETA)"
+  },
+  {
    "fieldname": "default_view",
    "fieldtype": "Select",
    "label": "Default View"
@@ -360,6 +372,27 @@
    "fieldname": "is_calendar_and_gantt",
    "fieldtype": "Check",
    "label": "Is Calendar and Gantt"
+  },
+  {
+   "fieldname": "form_builder",
+   "fieldtype": "HTML",
+   "label": "Form Builder"
+  },
+  {
+   "fieldname": "form_tab",
+   "fieldtype": "Tab Break",
+   "label": "Form"
+  },
+  {
+   "fieldname": "link_filters",
+   "fieldtype": "JSON",
+   "hidden": 1,
+   "label": "Link Filters"
+  },
+  {
+   "fieldname": "details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Details"
   },
   {
    "depends_on": "email_append_to",

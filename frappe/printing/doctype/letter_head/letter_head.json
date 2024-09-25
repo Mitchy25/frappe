@@ -220,11 +220,11 @@
   },
   {
    "read": 1,
-   "role": "All"
+   "role": "Desk User"
   }
  ],
  "sort_field": "modified",
- "sort_order": "ASC",
+ "sort_order": "DESC",
  "states": [],
  "track_changes": 1
 }

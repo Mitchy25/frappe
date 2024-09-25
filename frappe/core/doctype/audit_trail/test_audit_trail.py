@@ -3,7 +3,6 @@
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
-from frappe.utils import today
 
 
 class TestAuditTrail(FrappeTestCase):
@@ -130,11 +129,6 @@ def amend_document(amend_from, changed_fields, rows_updated, submit=False):
 
 def create_comparator_doc(doctype_name, document):
 	comparator = frappe.new_doc("Audit Trail")
-	args_dict = {
-		"doctype_name": doctype_name,
-		"document": document,
-		"start_date": today(),
-		"end_date": today(),
-	}
-	comparator.update(args_dict)
+	comparator.doctype_name = doctype_name
+	comparator.document = document
 	return comparator

@@ -184,7 +184,7 @@ class CommunicationEmailMixin:
 			)
 		return self._incoming_email_account
 
-	def mail_attachments(self, print_format=None, print_html=None):
+	def mail_attachments(self, print_format=None, print_html=None, print_language=None):
 		final_attachments = []
 
 		if print_format or print_html:
@@ -194,13 +194,11 @@ class CommunicationEmailMixin:
 				"print_format_attachment": 1,
 				"doctype": self.reference_doctype,
 				"name": self.reference_name,
-				"lang": frappe.local.lang,
+				"lang": print_language or frappe.local.lang,
 			}
 			final_attachments.append(d)
 
-		for a in self.get_attachments() or []:
-			final_attachments.append({"fid": a["name"]})
-
+		final_attachments.extend({"fid": a["name"]} for a in self.get_attachments() or [])
 		return final_attachments
 
 	def get_unsubscribe_message(self):
@@ -259,6 +257,7 @@ class CommunicationEmailMixin:
 		send_me_a_copy=None,
 		print_letterhead=None,
 		is_inbound_mail_communcation=None,
+		print_language=None,
 	) -> dict:
 		outgoing_email_account = self.get_outgoing_email_account()
 		if not outgoing_email_account:
@@ -275,7 +274,9 @@ class CommunicationEmailMixin:
 		if not (recipients or cc):
 			return {}
 
-		final_attachments = self.mail_attachments(print_format=print_format, print_html=print_html)
+		final_attachments = self.mail_attachments(
+			print_format=print_format, print_html=print_html, print_language=print_language
+		)
 		incoming_email_account = self.get_incoming_email_account()
 		return {
 			"recipients": recipients,
@@ -296,6 +297,7 @@ class CommunicationEmailMixin:
 			"read_receipt": self.read_receipt,
 			"is_notification": (self.sent_or_received == "Received" and True) or False,
 			"print_letterhead": print_letterhead,
+			"send_after": self.send_after,
 		}
 
 	def send_email(
@@ -305,6 +307,7 @@ class CommunicationEmailMixin:
 		send_me_a_copy=None,
 		print_letterhead=None,
 		is_inbound_mail_communcation=None,
+		print_language=None,
 		now=False,
 	):
 		if input_dict := self.sendmail_input_dict(
@@ -313,5 +316,6 @@ class CommunicationEmailMixin:
 			send_me_a_copy=send_me_a_copy,
 			print_letterhead=print_letterhead,
 			is_inbound_mail_communcation=is_inbound_mail_communcation,
+			print_language=print_language,
 		):
 			frappe.sendmail(now=now, **input_dict)

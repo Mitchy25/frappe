@@ -38,6 +38,46 @@ communication_mapping = {
 
 
 class Event(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.desk.doctype.event_participants.event_participants import EventParticipants
+		from frappe.types import DF
+
+		add_video_conferencing: DF.Check
+		all_day: DF.Check
+		color: DF.Color | None
+		description: DF.TextEditor | None
+		ends_on: DF.Datetime | None
+		event_category: DF.Literal["Event", "Meeting", "Call", "Sent/Received Email", "Other"]
+		event_participants: DF.Table[EventParticipants]
+		event_type: DF.Literal["Private", "Public"]
+		friday: DF.Check
+		google_calendar: DF.Link | None
+		google_calendar_event_id: DF.Data | None
+		google_calendar_id: DF.Data | None
+		google_meet_link: DF.Data | None
+		monday: DF.Check
+		pulled_from_google_calendar: DF.Check
+		repeat_on: DF.Literal["", "Daily", "Weekly", "Monthly", "Yearly"]
+		repeat_this_event: DF.Check
+		repeat_till: DF.Date | None
+		saturday: DF.Check
+		send_reminder: DF.Check
+		sender: DF.Data | None
+		starts_on: DF.Datetime
+		status: DF.Literal["Open", "Completed", "Closed", "Cancelled"]
+		subject: DF.SmallText
+		sunday: DF.Check
+		sync_with_google_calendar: DF.Check
+		thursday: DF.Check
+		tuesday: DF.Check
+		wednesday: DF.Check
+
+	# end: auto-generated types
 	def validate(self):
 		if not self.starts_on:
 			self.starts_on = now_datetime()
@@ -222,7 +262,7 @@ def send_event_digest():
 
 
 @frappe.whitelist()
-def get_events(start, end, user=None, for_reminder=False, filters=None):
+def get_events(start, end, user=None, for_reminder=False, filters=None) -> list[frappe._dict]:
 	if not user:
 		user = frappe.session.user
 
@@ -356,6 +396,9 @@ def get_events(start, end, user=None, for_reminder=False, filters=None):
 				try:
 					getdate(date)
 				except Exception:
+					# Don't show any message to the user
+					frappe.clear_last_message()
+
 					date = date.split("-")
 					date = date[0] + "-" + str(cint(date[1]) - 1) + "-" + date[2]
 

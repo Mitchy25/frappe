@@ -32,6 +32,93 @@ exclude_from_linked_with = True
 
 
 class Communication(Document, CommunicationEmailMixin):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.core.doctype.communication_link.communication_link import CommunicationLink
+		from frappe.types import DF
+
+		_user_tags: DF.Data | None
+		bcc: DF.Code | None
+		cc: DF.Code | None
+		comment_type: DF.Literal[
+			"",
+			"Comment",
+			"Like",
+			"Info",
+			"Label",
+			"Workflow",
+			"Created",
+			"Submitted",
+			"Cancelled",
+			"Updated",
+			"Deleted",
+			"Assigned",
+			"Assignment Completed",
+			"Attachment",
+			"Attachment Removed",
+			"Shared",
+			"Unshared",
+			"Relinked",
+		]
+		communication_date: DF.Datetime | None
+		communication_medium: DF.Literal[
+			"", "Email", "Chat", "Phone", "SMS", "Event", "Meeting", "Visit", "Other"
+		]
+		communication_type: DF.Literal[
+			"Communication", "Comment", "Chat", "Notification", "Feedback", "Automated Message"
+		]
+		content: DF.TextEditor | None
+		delivery_status: DF.Literal[
+			"",
+			"Sent",
+			"Bounced",
+			"Opened",
+			"Marked As Spam",
+			"Rejected",
+			"Delayed",
+			"Soft-Bounced",
+			"Clicked",
+			"Recipient Unsubscribed",
+			"Error",
+			"Expired",
+			"Sending",
+			"Read",
+			"Scheduled",
+		]
+		email_account: DF.Link | None
+		email_status: DF.Literal["Open", "Spam", "Trash"]
+		email_template: DF.Link | None
+		feedback_request: DF.Data | None
+		has_attachment: DF.Check
+		imap_folder: DF.Data | None
+		in_reply_to: DF.Link | None
+		message_id: DF.SmallText | None
+		phone_no: DF.Data | None
+		rating: DF.Int
+		read_by_recipient: DF.Check
+		read_by_recipient_on: DF.Datetime | None
+		read_receipt: DF.Check
+		recipients: DF.Code | None
+		reference_doctype: DF.Link | None
+		reference_name: DF.DynamicLink | None
+		reference_owner: DF.ReadOnly | None
+		seen: DF.Check
+		send_after: DF.Datetime | None
+		sender: DF.Data | None
+		sender_full_name: DF.Data | None
+		sent_or_received: DF.Literal["Sent", "Received"]
+		status: DF.Literal["Open", "Replied", "Closed", "Linked"]
+		subject: DF.SmallText
+		text_content: DF.Code | None
+		timeline_links: DF.Table[CommunicationLink]
+		uid: DF.Int
+		unread_notification_sent: DF.Check
+		user: DF.Link | None
+	# end: auto-generated types
 	"""Communication represents an external communication like Email."""
 
 	no_feed_on_delete = True
@@ -75,6 +162,9 @@ class Communication(Document, CommunicationEmailMixin):
 		if not self.sent_or_received:
 			self.seen = 1
 			self.sent_or_received = "Sent"
+
+		if not self.send_after:  # Handle empty string, always set NULL
+			self.send_after = None
 
 		validate_email(self)
 
@@ -189,6 +279,11 @@ class Communication(Document, CommunicationEmailMixin):
 		# comments count for the list view
 		update_comment_in_doc(self)
 
+		parent = get_parent_doc(self)
+		if (method := getattr(parent, "on_communication_update", None)) and callable(method):
+			parent.on_communication_update(self)
+			return
+
 		if self.comment_type != "Updated":
 			update_parent_document_on_communication(self)
 
@@ -225,12 +320,14 @@ class Communication(Document, CommunicationEmailMixin):
 		return self._get_emails_list(self.bcc, exclude_displayname=exclude_displayname)
 
 	def get_attachments(self):
-		attachments = frappe.get_all(
+		return frappe.get_all(
 			"File",
 			fields=["name", "file_name", "file_url", "is_private"],
-			filters={"attached_to_name": self.name, "attached_to_doctype": self.DOCTYPE},
+			filters={
+				"attached_to_name": self.name,
+				"attached_to_doctype": self.DOCTYPE,
+			},
 		)
-		return attachments
 
 	def notify_change(self, action):
 		frappe.publish_realtime(
@@ -248,6 +345,9 @@ class Communication(Document, CommunicationEmailMixin):
 			self.status = "Open"
 		else:
 			self.status = "Closed"
+
+		if self.send_after and self.is_new():
+			self.delivery_status = "Scheduled"
 
 	def mark_email_as_spam(self):
 		if (
@@ -385,7 +485,7 @@ class Communication(Document, CommunicationEmailMixin):
 		return self.timeline_links
 
 	def remove_link(self, link_doctype, link_name, autosave=False, ignore_permissions=True):
-		for l in self.timeline_links:
+		for l in list(self.timeline_links):
 			if l.link_doctype == link_doctype and l.link_name == link_name:
 				self.timeline_links.remove(l)
 
@@ -400,15 +500,15 @@ def on_doctype_update():
 	frappe.db.add_index("Communication", ["message_id(140)"])
 
 
-
-def has_permission(doc, ptype, user):
+def has_permission(doc, ptype, user=None, debug=False):
 	if ptype == "read":
 		if doc.reference_doctype == "Communication" and doc.reference_name == doc.name:
 			return
 
 		if doc.reference_doctype and doc.reference_name:
-			return frappe.has_permission(doc.reference_doctype, ptype="read", doc=doc.reference_name)
-
+			return frappe.has_permission(
+				doc.reference_doctype, ptype="read", doc=doc.reference_name, user=user, debug=debug
+			)
 
 
 def get_permission_query_conditions_for_communication(user):
@@ -468,10 +568,7 @@ def get_emails(email_strings: list[str]) -> list[str]:
 	for email_string in email_strings:
 		if email_string:
 			result = getaddresses([email_string])
-			for email in result:
-				if "@" in email[1]:
-					email_addrs.append(email[1])
-
+			email_addrs.extend(email[1] for email in result)
 	return email_addrs
 
 
@@ -553,8 +650,15 @@ def update_parent_document_on_communication(doc):
 	if status_field:
 		options = (status_field.options or "").splitlines()
 
-		# if status has a "Replied" option, then update the status for received communication
-		if ("Replied" in options) and doc.sent_or_received == "Received":
+		# if status has a "Open" option and status is "Replied", then update the status for received communication
+		if (
+			("Open" in options)
+			and parent.status == "Replied"
+			and doc.sent_or_received == "Received"
+			or (
+				parent.doctype == "Issue" and ("Open" in options) and doc.sent_or_received == "Received"
+			)  # For 'Issue', current status is not considered.
+		):
 			parent.db_set("status", "Open")
 			parent.run_method("handle_hold_time", "Replied")
 			apply_assignment_rule(parent)

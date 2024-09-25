@@ -4,6 +4,7 @@
 import frappe
 from frappe import _, msgprint
 from frappe.utils import cint, cstr, get_url, now_datetime
+from frappe.utils.data import getdate
 from frappe.utils.verified_command import get_signed_params, verify_request
 
 # After this percent of failures in every batch, entire batch is aborted.
@@ -19,26 +20,17 @@ def get_emails_sent_this_month(email_account=None):
 
 	if email_account=None, email account filter is not applied while counting
 	"""
-	q = """
-		SELECT
-			COUNT(*)
-		FROM
-			`tabEmail Queue`
-		WHERE
-			`status`='Sent'
-			AND
-			EXTRACT(YEAR_MONTH FROM `creation`) = EXTRACT(YEAR_MONTH FROM NOW())
-	"""
+	today = getdate()
+	month_start = today.replace(day=1)
 
-	q_args = {}
-	if email_account is not None:
-		if email_account:
-			q += " AND email_account = %(email_account)s"
-			q_args["email_account"] = email_account
-		else:
-			q += " AND (email_account is null OR email_account='')"
+	filters = {
+		"status": "Sent",
+		"creation": [">=", str(month_start)],
+	}
+	if email_account:
+		filters["email_account"] = email_account
 
-	return frappe.db.sql(q, q_args)[0][0]
+	return frappe.db.count("Email Queue", filters=filters)
 
 
 def get_emails_sent_today(email_account=None):
@@ -97,11 +89,6 @@ def get_unsubcribed_url(reference_doctype, reference_name, email, unsubscribe_me
 	if unsubscribe_params:
 		params.update(unsubscribe_params)
 
-	query_string = get_signed_params(params)
-
-	# for test
-	frappe.local.flags.signed_query_string = query_string
-
 	return get_url(unsubscribe_method + "?" + get_signed_params(params))
 
 
@@ -139,9 +126,11 @@ def return_unsubscribed_page(email, doctype, name):
 
 
 def flush():
-	"""flush email queue, every time: called from scheduler"""
-	from frappe.email.doctype.email_queue.email_queue import send_mail
-	from frappe.utils.background_jobs import get_jobs
+	"""flush email queue, every time: called from scheduler.
+
+	This should not be called outside of background jobs.
+	"""
+	from frappe.email.doctype.email_queue.email_queue import EmailQueue
 
 	# To avoid running jobs inside unit tests
 	if frappe.are_emails_muted():
@@ -157,10 +146,12 @@ def flush():
 	failed_email_queues = []
 	for row in email_queue_batch:
 		try:
-			send_mail(email_queue_name=row.name)
+			email_queue: EmailQueue = frappe.get_doc("Email Queue", row.name)
+			email_queue.send()
 		except Exception:
 			frappe.get_doc("Email Queue", row.name).log_error()
 			failed_email_queues.append(row.name)
+
 			if (
 				len(failed_email_queues) / len(email_queue_batch)
 				> EMAIL_QUEUE_BATCH_FAILURE_THRESHOLD_PERCENT
@@ -185,20 +176,4 @@ def get_queue():
 		limit {batch_size}""",
 		{"now": now_datetime()},
 		as_dict=True,
-	)
-
-
-def set_expiry_for_email_queue():
-	"""Mark emails as expire that has not sent for 7 days.
-	Called daily via scheduler.
-	"""
-
-	frappe.db.sql(
-		"""
-		UPDATE `tabEmail Queue`
-		SET `status`='Expired'
-		WHERE `modified` < (NOW() - INTERVAL '7' DAY)
-		AND `status`='Not Sent'
-		AND (`send_after` IS NULL OR `send_after` < %(now)s)""",
-		{"now": now_datetime()},
 	)

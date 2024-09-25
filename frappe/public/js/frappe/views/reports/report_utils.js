@@ -142,7 +142,7 @@ frappe.report_utils = {
 	},
 
 	get_filter_values(filters) {
-		let filter_values = filters
+		return filters
 			.map((f) => {
 				var v = f.default;
 				return {
@@ -153,7 +153,6 @@ frappe.report_utils = {
 				Object.assign(acc, f);
 				return acc;
 			}, {});
-		return filter_values;
 	},
 
 	get_result_of_fn(fn, values) {
@@ -176,11 +175,6 @@ frappe.report_utils = {
 				default: "Excel",
 				reqd: 1,
 			},
-			{
-				fieldtype: "Check",
-				fieldname: "filter_export",
-				label: "Export Filters"
-			},			
 			{
 				fieldtype: "Section Break",
 				fieldname: "csv_settings",
@@ -240,7 +234,7 @@ frappe.report_utils = {
 			const is_query_report = frappe.get_route()[0] === "query-report";
 			const report = is_query_report ? frappe.query_report : cur_list;
 			const columns = report.columns.filter((col) => col.hidden !== 1);
-			PREVIEW_DATA = [
+			let PREVIEW_DATA = [
 				columns.map((col) => __(is_query_report ? col.label : col.name)),
 				...report.data
 					.slice(0, 3)
@@ -261,6 +255,7 @@ frappe.report_utils = {
 
 		dialog.fields_dict["file_format"].df.onchange = () => update_csv_preview(dialog);
 		dialog.fields_dict["csv_quoting"].df.onchange = () => update_csv_preview(dialog);
+		dialog.fields_dict["csv_delimiter"].df.onchange = () => update_csv_preview(dialog);
 		dialog.fields_dict["csv_delimiter"].df.onchange = () => {
 			if (!dialog.get_value("csv_delimiter")) {
 				dialog.set_value("csv_delimiter", ",");

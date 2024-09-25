@@ -230,7 +230,8 @@
    "fieldname": "message",
    "fieldtype": "Code",
    "ignore_xss_filter": 1,
-   "label": "Message"
+   "label": "Message",
+   "options": "Jinja"
   },
   {
    "fieldname": "message_examples",
@@ -290,7 +291,7 @@
  "icon": "fa fa-envelope",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-07-04 05:50:40.595130",
+ "modified": "2024-07-04 05:53:40.595130",
  "modified_by": "Administrator",
  "module": "Email",
  "name": "Notification",

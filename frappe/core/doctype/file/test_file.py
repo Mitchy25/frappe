@@ -17,11 +17,12 @@ from frappe.core.api.file import (
 	move_file,
 	unzip_file,
 )
-from frappe.core.doctype.file.utils import get_corrupted_image_msg
+from frappe.core.doctype.file.exceptions import FileTypeNotAllowed
+from frappe.core.doctype.file.utils import get_corrupted_image_msg, get_extension
 from frappe.desk.form.utils import add_comment
 from frappe.exceptions import ValidationError
-from frappe.tests.utils import FrappeTestCase
-from frappe.utils import get_files_path
+from frappe.tests.utils import FrappeTestCase, change_settings
+from frappe.utils import get_files_path, set_request
 
 if TYPE_CHECKING:
 	from frappe.core.doctype.file.file import File
@@ -81,6 +82,29 @@ class TestSimpleFile(FrappeTestCase):
 		_file = frappe.get_doc("File", {"file_url": self.saved_file_url})
 		content = _file.get_content()
 		self.assertEqual(content, self.test_content)
+
+
+class TestFSRollbacks(FrappeTestCase):
+	def test_rollback_from_file_system(self):
+		file_name = content = frappe.generate_hash()
+		file = frappe.new_doc("File", file_name=file_name, content=content).insert()
+		self.assertTrue(file.exists_on_disk())
+
+		frappe.db.rollback()
+		self.assertFalse(file.exists_on_disk())
+
+
+class TestExtensionValidations(FrappeTestCase):
+	@change_settings("System Settings", {"allowed_file_extensions": "JPG\nCSV"})
+	def test_allowed_extension(self):
+		set_request(method="POST", path="/")
+		file_name = content = frappe.generate_hash()
+		bad_file = frappe.new_doc("File", file_name=f"{file_name}.png", content=content)
+		self.assertRaises(FileTypeNotAllowed, bad_file.insert)
+
+		bad_file = frappe.new_doc("File", file_name=f"{file_name}.csv", content=content).insert()
+		frappe.db.rollback()
+		self.assertFalse(bad_file.exists_on_disk())
 
 
 class TestBase64File(FrappeTestCase):
@@ -464,7 +488,7 @@ class TestFile(FrappeTestCase):
 		).insert(ignore_permissions=True)
 
 		test_file.make_thumbnail()
-		self.assertTrue(test_file.thumbnail_url.endswith("_small.jpeg"))
+		self.assertTrue(test_file.thumbnail_url.endswith("_small.jpg"))
 
 		# test local image
 		test_file.db_set("thumbnail_url", None)
@@ -479,7 +503,7 @@ class TestFile(FrappeTestCase):
 		test_file.file_url = frappe.utils.get_url("unknown.jpg")
 		test_file.make_thumbnail(suffix="xs")
 		self.assertEqual(
-			json.loads(frappe.message_log[0]).get("message"),
+			frappe.message_log[0].get("message"),
 			f"File '{frappe.utils.get_url('unknown.jpg')}' not found",
 		)
 		self.assertEqual(test_file.thumbnail_url, None)
@@ -607,46 +631,38 @@ class TestAttachmentsAccess(FrappeTestCase):
 		frappe.set_user("test4@example.com")
 		self.attached_to_doctype, self.attached_to_docname = make_test_doc()
 
-		frappe.get_doc(
-			{
-				"doctype": "File",
-				"file_name": "test_user_attachment.txt",
-				"attached_to_doctype": self.attached_to_doctype,
-				"attached_to_name": self.attached_to_docname,
-				"content": "Testing User",
-				"is_private": 1,
-			}
+		frappe.new_doc(
+			"File",
+			file_name="test_user_attachment.txt",
+			attached_to_doctype=self.attached_to_doctype,
+			attached_to_name=self.attached_to_docname,
+			content="Testing User",
+			is_private=1,
 		).insert()
 
-		frappe.get_doc(
-			{
-				"doctype": "File",
-				"file_name": "test_user_standalone.txt",
-				"content": "User Home",
-				"is_private": 1,
-			}
+		frappe.new_doc(
+			"File",
+			file_name="test_user_standalone.txt",
+			content="User Home",
+			is_private=1,
 		).insert()
 
 		frappe.set_user("test@example.com")
 
-		frappe.get_doc(
-			{
-				"doctype": "File",
-				"file_name": "test_sm_attachment.txt",
-				"attached_to_doctype": self.attached_to_doctype,
-				"attached_to_name": self.attached_to_docname,
-				"content": "Testing System Manager",
-				"is_private": 1,
-			}
+		frappe.new_doc(
+			"File",
+			file_name="test_sm_attachment.txt",
+			attached_to_doctype=self.attached_to_doctype,
+			attached_to_name=self.attached_to_docname,
+			content="Testing System Manager",
+			is_private=1,
 		).insert()
 
-		frappe.get_doc(
-			{
-				"doctype": "File",
-				"file_name": "test_sm_standalone.txt",
-				"content": "System Manager Home",
-				"is_private": 1,
-			}
+		frappe.new_doc(
+			"File",
+			file_name="test_sm_standalone.txt",
+			content="System Manager Home",
+			is_private=1,
 		).insert()
 
 		system_manager_files = [file.file_name for file in get_files_in_folder("Home")["files"]]
@@ -751,8 +767,7 @@ class TestFileUtils(FrappeTestCase):
 		self.assertFalse(
 			frappe.db.exists("File", {"attached_to_name": communication.name, "is_private": is_private})
 		)
-		self.assertIn('src="#broken-image"', communication.content)
-		self.assertIn(f'alt="{get_corrupted_image_msg()}"', communication.content)
+		self.assertIn(f'<img src="#broken-image" alt="{get_corrupted_image_msg()}">', communication.content)
 
 	def test_create_new_folder(self):
 		folder = create_new_folder("test_folder", "Home")
@@ -803,6 +818,13 @@ class TestFileOptimization(FrappeTestCase):
 
 			self.assertEqual(size_before_optimization, size_after_rollback)
 
+	def test_image_header_guessing(self):
+		file_path = frappe.get_app_path("frappe", "tests/data/sample_image_for_optimization.jpg")
+		with open(file_path, "rb") as f:
+			file_content = f.read()
+
+		self.assertEqual(get_extension("", None, file_content), "jpg")
+
 
 class TestGuestFileAndAttachments(FrappeTestCase):
 	def setUp(self) -> None:
@@ -825,23 +847,17 @@ class TestGuestFileAndAttachments(FrappeTestCase):
 
 	def test_attach_unattached_guest_file(self):
 		"""Ensure that unattached files are attached on doc update."""
-		f = frappe.get_doc(
-			{
-				"doctype": "File",
-				"file_name": "test_private_guest_attachment.txt",
-				"content": "Guest Home",
-				"is_private": 1,
-			}
+		f = frappe.new_doc(
+			"File",
+			file_name="test_private_guest_attachment.txt",
+			content="Guest Home",
+			is_private=1,
 		).insert(ignore_permissions=True)
 
-		d = frappe.get_doc(
-			{
-				"doctype": "Test For Attachment",
-				"title": "Test for attachment on update",
-				"attachment": f.file_url,
-				"assigned_by": frappe.session.user,
-			}
-		)
+		d = frappe.new_doc("Test For Attachment")
+		d.title = "Test for attachment on update"
+		d.attachment = f.file_url
+		d.assigned_by = frappe.session.user
 		d.save()
 
 		self.assertTrue(
@@ -861,13 +877,11 @@ class TestGuestFileAndAttachments(FrappeTestCase):
 		"""Ensure that guests are not able to read private standalone guest files."""
 		frappe.set_user("Guest")
 
-		file = frappe.get_doc(
-			{
-				"doctype": "File",
-				"file_name": "test_private_guest_single_txt",
-				"content": "Private single File",
-				"is_private": 1,
-			}
+		file = frappe.new_doc(
+			"File",
+			file_name="test_private_guest_single_txt",
+			content="Private single File",
+			is_private=1,
 		).insert(ignore_permissions=True)
 
 		self.assertFalse(file.is_downloadable())
@@ -878,15 +892,13 @@ class TestGuestFileAndAttachments(FrappeTestCase):
 
 		self.attached_to_doctype, self.attached_to_docname = make_test_doc(ignore_permissions=True)
 
-		file = frappe.get_doc(
-			{
-				"doctype": "File",
-				"file_name": "test_private_guest_attachment.txt",
-				"attached_to_doctype": self.attached_to_doctype,
-				"attached_to_name": self.attached_to_docname,
-				"content": "Private Attachment",
-				"is_private": 1,
-			}
+		file = frappe.new_doc(
+			"File",
+			file_name="test_private_guest_attachment.txt",
+			attached_to_doctype=self.attached_to_doctype,
+			attached_to_name=self.attached_to_docname,
+			content="Private Attachment",
+			is_private=1,
 		).insert(ignore_permissions=True)
 
 		self.assertFalse(file.is_downloadable())

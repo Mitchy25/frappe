@@ -63,8 +63,8 @@ class TestEmailAccount(FrappeTestCase):
 	def test_unread_notification(self):
 		todo = frappe.get_last_doc("ToDo")
 
-		comm = frappe.get_doc(
-			doctype="Communication",
+		comm = frappe.new_doc(
+			"Communication",
 			sender="test_sender@example.com",
 			subject="test unread reminder",
 			sent_or_received="Received",
@@ -618,6 +618,20 @@ class TestInboundMail(FrappeTestCase):
 		mail_content = self.get_test_mail(fname="incoming-subject-placeholder.raw").replace(
 			"{{ subject }}", f"RE: {subject}"
 		)
+		email_account = frappe.get_doc("Email Account", "_Test Email Account 1")
+		inbound_mail = InboundMail(mail_content, email_account, 12345, 1)
+		reference_doc = inbound_mail.reference_document()
+		self.assertEqual(todo.name, reference_doc.name)
+
+	def test_reference_document_by_subject_match_with_accents(self):
+		subject = "Nouvelle tâche à faire 😃"
+		todo = self.new_todo(sender="test_sender@example.com", description=subject)
+
+		mail_content = (
+			self.get_test_mail(fname="incoming-subject-placeholder.raw")
+			.replace("{{ subject }}", f"RE: {subject}")
+			.encode("utf-8")
+		)  # note: encode to bytes because that's what triggered the error
 		email_account = frappe.get_doc("Email Account", "_Test Email Account 1")
 		inbound_mail = InboundMail(mail_content, email_account, 12345, 1)
 		reference_doc = inbound_mail.reference_document()

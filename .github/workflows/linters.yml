@@ -3,14 +3,12 @@ name: Linters
 on:
   pull_request:
   workflow_dispatch:
-  push:
-    branches: [ develop ]
 
 permissions:
   contents: read
 
 concurrency:
-  group: commitcheck-frappe-${{ github.event.number }}
+  group: commitcheck-frappe-${{ github.event_name }}-${{ github.event.number }}
   cancel-in-progress: true
 
 jobs:
@@ -20,12 +18,12 @@ jobs:
     if: github.event_name == 'pull_request'
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 200
       - uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - name: Check commit titles
@@ -33,32 +31,13 @@ jobs:
           npm install @commitlint/cli @commitlint/config-conventional
           npx commitlint --verbose --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}
 
-  docs-required:
-    name: 'Documentation Required'
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-
-    steps:
-      - name: 'Setup Environment'
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-      - uses: actions/checkout@v3
-
-      - name: Validate Docs
-        env:
-          PR_NUMBER: ${{ github.event.number }}
-        run: |
-          pip install requests --quiet
-          python $GITHUB_WORKSPACE/.github/helper/documentation.py $PR_NUMBER
-
   linter:
     name: 'Semgrep Rules'
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
@@ -81,7 +60,7 @@ jobs:
         with:
           python-version: '3.10'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Cache pip
         uses: actions/cache@v3
@@ -92,7 +71,8 @@ jobs:
             ${{ runner.os }}-pip-
             ${{ runner.os }}-
 
-      - run: |
+      - name: Install and run pip-audit
+        run: |
           pip install pip-audit
           cd ${GITHUB_WORKSPACE}
-          pip-audit --desc on --ignore-vuln GHSA-4xqq-73wg-5mjp --ignore-vuln GHSA-2g68-c3qc-8985 .
+          pip-audit --desc on --ignore-vuln GHSA-4xqq-73wg-5mjp .

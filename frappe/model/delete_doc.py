@@ -73,6 +73,8 @@ def delete_doc(
 
 			else:
 				doc = frappe.get_doc(doctype, name)
+				if not (doc.custom or frappe.conf.developer_mode or frappe.flags.in_patch or force):
+					frappe.throw(_("Standard DocType can not be deleted."))
 
 				update_flags(doc, flags, ignore_permissions)
 				check_permission_and_not_submitted(doc)
@@ -174,7 +176,6 @@ def delete_doc(
 					insert_feed(doc)
 				except ImportError:
 					pass
-
 
 
 def add_to_deleted_document(doc):
@@ -316,7 +317,6 @@ def check_if_doc_is_linked(doc, method="Delete"):
 				raise_link_exists_exception(doc, linked_parent_doctype, reference_docname)
 
 
-
 def check_if_doc_is_dynamically_linked(doc, method="Delete"):
 	"""Raise `frappe.LinkExistsError` if the document is dynamically linked"""
 	for df in get_dynamic_link_map().get(doc.doctype, []):
@@ -359,6 +359,13 @@ def check_if_doc_is_dynamically_linked(doc, method="Delete"):
 				):
 					reference_doctype = refdoc.parenttype if meta.istable else df.parent
 					reference_docname = refdoc.parent if meta.istable else refdoc.name
+
+					if reference_doctype in frappe.get_hooks("ignore_links_on_delete") or (
+						reference_doctype in ignore_linked_doctypes and method == "Cancel"
+					):
+						# don't check for communication and todo!
+						continue
+
 					at_position = f"at Row: {refdoc.idx}" if meta.istable else ""
 
 					raise_link_exists_exception(doc, reference_doctype, reference_docname, at_position)

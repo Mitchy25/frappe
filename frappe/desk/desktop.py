@@ -23,8 +23,7 @@ def handle_not_exist(fn):
 		try:
 			return fn(*args, **kwargs)
 		except DoesNotExistError:
-			if frappe.message_log:
-				frappe.message_log.pop()
+			frappe.clear_last_message()
 			return []
 
 	return wrapper
@@ -63,10 +62,10 @@ class Workspace:
 
 			self.table_counts = get_table_with_counts()
 		self.restricted_doctypes = (
-			frappe.cache().get_value("domain_restricted_doctypes") or build_domain_restriced_doctype_cache()
+			frappe.cache.get_value("domain_restricted_doctypes") or build_domain_restriced_doctype_cache()
 		)
 		self.restricted_pages = (
-			frappe.cache().get_value("domain_restricted_pages") or build_domain_restriced_page_cache()
+			frappe.cache.get_value("domain_restricted_pages") or build_domain_restriced_page_cache()
 		)
 
 	def is_permitted(self):
@@ -87,16 +86,14 @@ class Workspace:
 			return True
 
 	def get_cached(self, cache_key, fallback_fn):
-		_cache = frappe.cache()
-
-		value = _cache.get_value(cache_key, user=frappe.session.user)
+		value = frappe.cache.get_value(cache_key, user=frappe.session.user)
 		if value:
 			return value
 
 		value = fallback_fn()
 
 		# Expire every six hour
-		_cache.set_value(cache_key, value, frappe.session.user, 21600)
+		frappe.cache.set_value(cache_key, value, frappe.session.user, 21600)
 		return value
 
 	def get_can_read_items(self):
@@ -196,6 +193,9 @@ class Workspace:
 				count = self._doctype_contains_a_record(name)
 
 				item["count"] = count
+
+		if item.get("link_type") == "DocType":
+			item["description"] = frappe.get_meta(item.link_to).description
 
 		# Translate label
 		item["label"] = _(item.label) if item.label else _(item.name)
@@ -417,7 +417,7 @@ def get_workspace_sidebar_items():
 	has_access = "Workspace Manager" in frappe.get_roles()
 
 	# don't get domain restricted pages
-	blocked_modules = frappe.get_doc("User", frappe.session.user).get_blocked_modules()
+	blocked_modules = frappe.get_cached_doc("User", frappe.session.user).get_blocked_modules()
 	blocked_modules.append("Dummy Module")
 
 	# adding None to allowed_domains to include pages without domain restriction
@@ -442,6 +442,7 @@ def get_workspace_sidebar_items():
 		"public",
 		"module",
 		"icon",
+		"indicator_color",
 		"is_hidden",
 	]
 	all_pages = frappe.get_all(
@@ -469,12 +470,16 @@ def get_workspace_sidebar_items():
 		pages = [frappe.get_doc("Workspace", "Welcome Workspace").as_dict()]
 		pages[0]["label"] = _("Welcome Workspace")
 
-	return {"pages": pages, "has_access": has_access}
+	return {
+		"pages": pages,
+		"has_access": has_access,
+		"has_create_access": frappe.has_permission(doctype="Workspace", ptype="create"),
+	}
 
 
 
 def get_table_with_counts():
-	counts = frappe.cache().get_value("information_schema:counts")
+	counts = frappe.cache.get_value("information_schema:counts")
 	if not counts:
 		counts = build_table_count_cache()
 
@@ -496,11 +501,15 @@ def get_custom_doctype_list(module):
 		order_by="name",
 	)
 
-	out = []
-	for d in doctypes:
-		out.append({"type": "Link", "link_type": "doctype", "link_to": d.name, "label": _(d.name)})
-
-	return out
+	return [
+		{
+			"type": "Link",
+			"link_type": "doctype",
+			"link_to": d.name,
+			"label": _(d.name),
+		}
+		for d in doctypes
+	]
 
 
 def get_custom_report_list(module):
@@ -512,23 +521,20 @@ def get_custom_report_list(module):
 		order_by="name",
 	)
 
-	out = []
-	for r in reports:
-		out.append(
-			{
-				"type": "Link",
-				"link_type": "report",
-				"doctype": r.ref_doctype,
-				"dependencies": r.ref_doctype,
-				"is_query_report": 1
-				if r.report_type in ("Query Report", "Script Report", "Custom Report")
-				else 0,
-				"label": _(r.name),
-				"link_to": r.name,
-			}
-		)
-
-	return out
+	return [
+		{
+			"type": "Link",
+			"link_type": "report",
+			"doctype": r.ref_doctype,
+			"dependencies": r.ref_doctype,
+			"is_query_report": 1
+			if r.report_type in ("Query Report", "Script Report", "Custom Report")
+			else 0,
+			"label": _(r.name),
+			"link_to": r.name,
+		}
+		for r in reports
+	]
 
 
 def save_new_widget(doc, page, blocks, new_widgets):

@@ -40,7 +40,7 @@ export default class GridRow {
 			render_row = this.render_row();
 		}
 
-		if (!this.render_row) return;
+		if (!render_row) return;
 
 		this.set_data();
 		this.wrapper.appendTo(this.parent);
@@ -95,11 +95,10 @@ export default class GridRow {
 	remove() {
 		var me = this;
 		if (this.grid.is_editable()) {
+			if (this.get_open_form()) {
+				this.hide_form();
+			}
 			if (this.frm) {
-				if (this.get_open_form()) {
-					this.hide_form();
-				}
-
 				frappe
 					.run_serially([
 						() => {
@@ -123,7 +122,7 @@ export default class GridRow {
 					])
 					.catch((e) => {
 						// aborted
-						console.trace(e); // eslint-disable-line
+						console.trace(e);
 					});
 			} else {
 				let data = null;
@@ -430,11 +429,11 @@ export default class GridRow {
 
 		$(`
 			<div class='form-group'>
-				<div class='row' style='margin:0px; margin-bottom:10px'>
-					<div class='col-md-8'>
+				<div class='row' style='margin:0px; margin-bottom:10px;'>
+					<div class='col-6 col-md-8'>
 						${__("Fieldname").bold()}
 					</div>
-					<div class='col-md-4' style='padding-left:5px;'>
+					<div class='col-6 col-md-4' style='padding-left:5px;'>
 						${__("Column Width").bold()}
 					</div>
 				</div>
@@ -538,22 +537,27 @@ export default class GridRow {
 
 				fields += `
 					<div class='control-input flex align-center form-control fields_order sortable-handle sortable'
-						style='display: block; margin-bottom: 5px; cursor: pointer;' data-fieldname='${docfield.fieldname}'
+						style='display: block; margin-bottom: 5px; padding: 0 8px; cursor: pointer; height: 32px;' data-fieldname='${
+							docfield.fieldname
+						}'
 						data-label='${docfield.label}' data-type='${docfield.fieldtype}'>
 
 						<div class='row'>
-							<div class='col-md-1' style='padding-top: 2px'>
+							<div class='col-1' style='padding-top: 4px;'>
 								<a style='cursor: grabbing;'>${frappe.utils.icon("drag", "xs")}</a>
 							</div>
-							<div class='col-md-7' style='padding-left:0px; padding-top:3px'>
-								${__(docfield.label)}
+							<div class='col-6 col-md-8' style='padding-right:0px; padding-top: 5px;'>
+								${__(docfield.label, null, docfield.parent)}
 							</div>
-							<div class='col-md-3' style='padding-left:0px;margin-top:-2px;' title='${__("Columns")}'>
-								<input class='form-control column-width input-xs text-right'
+							<div class='col-3 col-md-2' style='padding-left:0px; padding-top: 2px; margin-top:-2px;' title='${__(
+								"Columns"
+							)}'>
+								<input class='form-control column-width my-1 input-xs text-right'
+								style='height: 24px; max-width: 80px; background: var(--bg-color);'
 									value='${docfield.columns || cint(d.columns)}'
 									data-fieldname='${docfield.fieldname}' style='background-color: var(--modal-bg); display: inline'>
 							</div>
-							<div class='col-md-1' style='padding-top: 3px'>
+							<div class='col-1' style='padding-top: 3px;'>
 								<a class='text-muted remove-field' data-fieldname='${docfield.fieldname}'>
 									<i class='fa fa-trash-o' aria-hidden='true'></i>
 								</a>
@@ -691,7 +695,7 @@ export default class GridRow {
 
 			let txt = this.doc
 				? frappe.format(this.doc[df.fieldname], df, null, this.doc)
-				: __(df.label);
+				: __(df.label, null, df.parent);
 
 			if (this.doc && df.fieldtype === "Select") {
 				txt = __(txt);
@@ -921,6 +925,14 @@ export default class GridRow {
 			}, 600);
 		}
 
+		function trigger_focus(input_field, col_df) {
+			if (["Date", "Datetime"].includes(col_df.fieldtype) && col_df?.read_only) {
+				return;
+			}
+
+			input_field.trigger("focus");
+		}
+
 		var $col = $(
 			'<div class="col grid-static-col col-xs-' + colsize + " " + add_class + '"></div>'
 		)
@@ -997,7 +1009,7 @@ export default class GridRow {
 						}
 					});
 
-				!input_in_focus && first_input_field.trigger("focus");
+				!input_in_focus && trigger_focus(first_input_field, $(col).data("df"));
 
 				if (event.pointerType == "touch") {
 					first_input_field.length && on_input_focus(first_input_field);
@@ -1072,7 +1084,7 @@ export default class GridRow {
 
 					let txt = this.doc
 						? frappe.format(this.doc[df.fieldname], df, null, this.doc)
-						: __(df.label);
+						: __(df.label, null, df.parent);
 
 					this.refresh_field(df.fieldname, txt);
 				}
@@ -1145,7 +1157,7 @@ export default class GridRow {
 		if (field.$input) {
 			field.$input.on("keydown", function (e) {
 				var { TAB, UP: UP_ARROW, DOWN: DOWN_ARROW } = frappe.ui.keyCode;
-				if (!in_list([TAB, UP_ARROW, DOWN_ARROW], e.which)) {
+				if (![TAB, UP_ARROW, DOWN_ARROW].includes(e.which)) {
 					return;
 				}
 
@@ -1154,7 +1166,7 @@ export default class GridRow {
 				var fieldtype = $(this).attr("data-fieldtype");
 
 				let ctrl_key = e.metaKey || e.ctrlKey;
-				if (!in_list(ignore_fieldtypes, fieldtype) && ctrl_key && e.which !== TAB) {
+				if (!ignore_fieldtypes.includes(fieldtype) && ctrl_key && e.which !== TAB) {
 					me.add_new_row_using_keys(e);
 					return;
 				}
@@ -1165,7 +1177,7 @@ export default class GridRow {
 				}
 
 				var move_up_down = function (base) {
-					if (in_list(ignore_fieldtypes, fieldtype) && !e.altKey) {
+					if (ignore_fieldtypes.includes(fieldtype) && !e.altKey) {
 						return false;
 					}
 					if (field.autocomplete_open) {
@@ -1423,7 +1435,9 @@ export default class GridRow {
 		let field = this.on_grid_fields_dict[fieldname];
 		// reset field value
 		if (field) {
-			field.docname = this.doc.name;
+			// the below if statement is added to factor in the exception when this.doc is undefined -
+			// - after row removals via customize_form.js on links, actions and states child-tables
+			if (this.doc) field.docname = this.doc.name;
 			field.refresh();
 		}
 
@@ -1450,8 +1464,8 @@ export default class GridRow {
 				!df.hidden &&
 				df.in_list_view &&
 				me.grid.frm.get_perm(df.permlevel, "read") &&
-				!in_list(frappe.model.layout_fields, df.fieldtype) &&
-				!in_list(blacklist, df.fieldname);
+				!frappe.model.layout_fields.includes(df.fieldtype) &&
+				!blacklist.includes(df.fieldname);
 
 			return visible ? df : null;
 		});

@@ -6,18 +6,19 @@ import io
 import mimetypes
 import os
 import subprocess
-from distutils.version import LooseVersion
 from urllib.parse import parse_qs, urlparse
 
 import cssutils
 import pdfkit
 from bs4 import BeautifulSoup
-from PyPDF2 import PdfReader, PdfWriter
+from packaging.version import Version
+from pypdf import PdfReader, PdfWriter
 
 import frappe
 from frappe import _
 from frappe.core.doctype.file.utils import find_file_by_url
 from frappe.utils import cstr, scrub_urls
+from frappe.utils.caching import redis_cache
 from frappe.utils.jinja_globals import bundled_asset, is_rtl
 
 PDF_CONTENT_ERRORS = [
@@ -28,14 +29,60 @@ PDF_CONTENT_ERRORS = [
 ]
 
 
-def get_pdf(html, options=None, output: PdfWriter | None = None, meta={}):
+def pdf_header_html(soup, head, content, styles, html_id, css):
+	return frappe.render_template(
+		"templates/print_formats/pdf_header_footer.html",
+		{
+			"head": head,
+			"content": content,
+			"styles": styles,
+			"html_id": html_id,
+			"css": css,
+			"lang": frappe.local.lang,
+			"layout_direction": "rtl" if is_rtl() else "ltr",
+		},
+	)
+
+
+def pdf_body_html(template, args, **kwargs):
+	try:
+		return template.render(args, filters={"len": len})
+	except Exception as e:
+		# Guess line number ?
+		frappe.throw(
+			_("Error in print format on line {0}: {1}").format(
+				_guess_template_error_line_number(template), e
+			),
+			exc=frappe.PrintFormatError,
+			title=_("Print Format Error"),
+		)
+
+
+def _guess_template_error_line_number(template) -> int | None:
+	"""Guess line on which exception occured from current traceback."""
+	with contextlib.suppress(Exception):
+		import sys
+		import traceback
+
+		_, _, tb = sys.exc_info()
+
+		for frame in reversed(traceback.extract_tb(tb)):
+			if template.filename in frame.filename:
+				return frame.lineno
+
+
+def pdf_footer_html(soup, head, content, styles, html_id, css):
+	return pdf_header_html(soup=soup, head=head, content=content, styles=styles, html_id=html_id, css=css)
+
+
+def get_pdf(html, options=None, output: PdfWriter | None = None):
 	html = scrub_urls(html)
 	html, options = prepare_options(html, options)
 
 	options.update({"disable-javascript": "", "disable-local-file-access": ""})
 
 	filedata = ""
-	if LooseVersion(get_wkhtmltopdf_version()) > LooseVersion("0.12.3"):
+	if Version(get_wkhtmltopdf_version()) > Version("0.12.3"):
 		options.update({"disable-smart-shrinking": ""})
 
 	try:
@@ -163,7 +210,7 @@ def read_options_from_html(html):
 
 	toggle_visible_pdf(soup)
 
-	# valid_styles = get_print_format_styles(soup)
+	valid_styles = get_print_format_styles(soup)
 
 	attrs = (
 		"margin-top",
@@ -176,7 +223,7 @@ def read_options_from_html(html):
 		"page-width",
 		"page-height",
 	)
-	# options |= {style.name: style.value for style in valid_styles if style.name in attrs}
+	options |= {style.name: style.value for style in valid_styles if style.name in attrs}
 	return str(soup), options
 
 
@@ -266,17 +313,15 @@ def prepare_header_footer(soup: BeautifulSoup):
 				tag.extract()
 
 			toggle_visible_pdf(content)
-			html = frappe.render_template(
-				"templates/print_formats/pdf_header_footer.html",
-				{
-					"head": head,
-					"content": content,
-					"styles": styles,
-					"html_id": html_id,
-					"css": css,
-					"lang": frappe.local.lang,
-					"layout_direction": "rtl" if is_rtl() else "ltr",
-				},
+			id_map = {"header-html": "pdf_header_html", "footer-html": "pdf_footer_html"}
+			hook_func = frappe.get_hooks(id_map.get(html_id))
+			html = frappe.get_attr(hook_func[-1])(
+				soup=soup,
+				head=head,
+				content=content,
+				styles=styles,
+				html_id=html_id,
+				css=css,
 			)
 
 			# create temp file
@@ -311,14 +356,24 @@ def toggle_visible_pdf(soup):
 		tag.extract()
 
 
+@frappe.whitelist()
+@redis_cache(ttl=60 * 60)
+def is_wkhtmltopdf_valid():
+	try:
+		output = subprocess.check_output(["wkhtmltopdf", "--version"])
+		return "qt" in output.decode("utf-8").lower()
+	except Exception:
+		return False
+
+
 def get_wkhtmltopdf_version():
-	wkhtmltopdf_version = frappe.cache().hget("wkhtmltopdf_version", None)
+	wkhtmltopdf_version = frappe.cache.hget("wkhtmltopdf_version", None)
 
 	if not wkhtmltopdf_version:
 		try:
 			res = subprocess.check_output(["wkhtmltopdf", "--version"])
 			wkhtmltopdf_version = res.decode("utf-8").split(" ")[1]
-			frappe.cache().hset("wkhtmltopdf_version", None, wkhtmltopdf_version)
+			frappe.cache.hset("wkhtmltopdf_version", None, wkhtmltopdf_version)
 		except Exception:
 			pass
 

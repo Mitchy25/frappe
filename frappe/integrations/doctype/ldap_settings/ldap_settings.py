@@ -13,6 +13,7 @@ from ldap3.core.exceptions import (
 	LDAPInvalidFilterError,
 	LDAPNoSuchObjectResult,
 )
+from ldap3.utils.conv import escape_filter_chars
 from ldap3.utils.hashed import hashed
 
 import frappe
@@ -25,6 +26,45 @@ if TYPE_CHECKING:
 
 
 class LDAPSettings(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.integrations.doctype.ldap_group_mapping.ldap_group_mapping import LDAPGroupMapping
+		from frappe.types import DF
+
+		base_dn: DF.Data
+		default_role: DF.Link | None
+		default_user_type: DF.Link
+		do_not_create_new_user: DF.Check
+		enabled: DF.Check
+		ldap_custom_group_search: DF.Data | None
+		ldap_directory_server: DF.Literal["", "Active Directory", "OpenLDAP", "Custom"]
+		ldap_email_field: DF.Data
+		ldap_first_name_field: DF.Data
+		ldap_group_field: DF.Data | None
+		ldap_group_member_attribute: DF.Data | None
+		ldap_group_objectclass: DF.Data | None
+		ldap_groups: DF.Table[LDAPGroupMapping]
+		ldap_last_name_field: DF.Data | None
+		ldap_middle_name_field: DF.Data | None
+		ldap_mobile_field: DF.Data | None
+		ldap_phone_field: DF.Data | None
+		ldap_search_path_group: DF.Data
+		ldap_search_path_user: DF.Data
+		ldap_search_string: DF.Data
+		ldap_server_url: DF.Data
+		ldap_username_field: DF.Data
+		local_ca_certs_file: DF.Data | None
+		local_private_key_file: DF.Data | None
+		local_server_certificate_file: DF.Data | None
+		password: DF.Password
+		require_trusted_certificate: DF.Literal["No", "Yes"]
+		ssl_tls_mode: DF.Literal["Off", "StartTLS"]
+
+	# end: auto-generated types
 	def validate(self):
 		self.default_user_type = self.default_user_type or "Website User"
 
@@ -233,7 +273,7 @@ class LDAPSettings(Document):
 		if self.ldap_directory_server.lower() == "active directory":
 			ldap_object_class = "Group"
 			ldap_group_members_attribute = "member"
-			user_search_str = user.entry_dn
+			user_search_str = escape_filter_chars(user.entry_dn)
 
 		elif self.ldap_directory_server.lower() == "openldap":
 			ldap_object_class = "posixgroup"
@@ -261,10 +301,7 @@ class LDAPSettings(Document):
 			)  # Build search query
 
 		if len(conn.entries) >= 1:
-			fetch_ldap_groups = []
-			for group in conn.entries:
-				fetch_ldap_groups.append(group["cn"].value)
-
+			fetch_ldap_groups = [group["cn"].value for group in conn.entries]
 		return fetch_ldap_groups
 
 	def authenticate(self, username: str, password: str):

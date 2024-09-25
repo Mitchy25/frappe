@@ -15,16 +15,7 @@ from frappe.model.utils import render_include
 from frappe.modules import get_module_path, scrub
 from frappe.monitor import add_data_to_monitor
 from frappe.permissions import get_role_permissions
-from frappe.utils import (
-	cint,
-	cstr,
-	flt,
-	format_duration,
-	get_html_format,
-	get_url_to_form,
-	gzip_decompress,
-	sbool,
-)
+from frappe.utils import cint, cstr, flt, format_duration, get_html_format, sbool
 
 
 def get_report_doc(report_name):
@@ -45,7 +36,6 @@ def get_report_doc(report_name):
 
 		# Follow whatever the custom report has set for prepared report field
 		doc.prepared_report = custom_report_doc.prepared_report
-		doc.disable_prepared_report = custom_report_doc.disable_prepared_report
 
 	if not doc.is_permitted():
 		frappe.throw(
@@ -129,7 +119,7 @@ def generate_report_result(
 		"report_summary": report_summary,
 		"skip_total_row": skip_total_row or 0,
 		"status": None,
-		"execution_time": frappe.cache().hget("report_execution_time", report.name) or 0,
+		"execution_time": frappe.cache.hget("report_execution_time", report.name) or 0,
 	}
 
 
@@ -147,13 +137,6 @@ def normalize_result(result, columns):
 		data = result
 
 	return data
-
-
-@frappe.whitelist()
-def background_enqueue_run(report_name, filters=None, user=None):
-	from frappe.core.doctype.prepared_report.prepared_report import make_prepared_report
-
-	return make_prepared_report(report_name, filters)
 
 
 @frappe.whitelist()
@@ -187,7 +170,7 @@ def get_script(report_name):
 	return {
 		"script": render_include(script),
 		"html_format": html_format,
-		"execution_time": frappe.cache().hget("report_execution_time", report_name) or 0,
+		"execution_time": frappe.cache.hget("report_execution_time", report_name) or 0,
 		"filters": report.filters,
 		"custom_report_name": report.name if report.get("is_custom_report") else None,
 	}
@@ -224,23 +207,25 @@ def run(
 	if sbool(are_default_filters) and report.custom_filters:
 		filters = report.custom_filters
 
-	if (
-		report.prepared_report
-		and not report.disable_prepared_report
-		and not sbool(ignore_prepared_report)
-		and not custom_columns
-	):
-		dn = None
-		if filters:
-			if isinstance(filters, str):
-				filters = json.loads(filters)
+	if sbool(are_default_filters) and report.custom_filters:
+		filters = report.custom_filters
 
-			dn = filters.pop("prepared_report_name", None)
+	try:
+		if report.prepared_report and not sbool(ignore_prepared_report) and not custom_columns:
+			if filters:
+				if isinstance(filters, str):
+					filters = json.loads(filters)
 
-		result = get_prepared_report_result(report, filters, dn, user)
-	else:
-		result = generate_report_result(report, filters, user, custom_columns, is_tree, parent_field)
-		add_data_to_monitor(report=report.reference_report or report.name)
+				dn = filters.pop("prepared_report_name", None)
+			else:
+				dn = ""
+			result = get_prepared_report_result(report, filters, dn, user)
+		else:
+			result = generate_report_result(report, filters, user, custom_columns, is_tree, parent_field)
+			add_data_to_monitor(report=report.reference_report or report.name)
+	except Exception:
+		frappe.log_error("Report Error")
+		raise
 
 	result["add_total_row"] = report.add_total_row and not result.get("skip_total_row", False)
 
@@ -283,7 +268,7 @@ def add_custom_column_data(custom_columns, result):
 	return result
 
 
-def get_prepared_report_result(report, filters, dn=None, user=None):
+def get_prepared_report_result(report, filters, dn="", user=None):
 	from frappe.core.doctype.prepared_report.prepared_report import get_completed_prepared_report
 
 	def get_report_data(doc, data):
@@ -339,18 +324,16 @@ def export_query():
 	file_format_type = form_params.file_format_type
 	custom_columns = frappe.parse_json(form_params.custom_columns or "[]")
 	include_indentation = form_params.include_indentation
+	include_filters = form_params.include_filters
 	visible_idx = form_params.visible_idx
-	filter_export = form_params.filter_export
-	if filter_export != "0":
-		filter_export = form_params.filters
-	else:
-		filter_export = None
 
 	if isinstance(visible_idx, str):
 		visible_idx = json.loads(visible_idx)
 
 	data = run(report_name, form_params.filters, custom_columns=custom_columns, are_default_filters=False)
 	data = frappe._dict(data)
+	data.filters = form_params.applied_filters
+
 	if not data.columns:
 		frappe.respond_as_web_page(
 			_("No data to export"),
@@ -359,7 +342,9 @@ def export_query():
 		return
 
 	format_duration_fields(data)
-	xlsx_data, column_widths = build_xlsx_data(data, visible_idx, include_indentation, filter_export=filter_export)
+	xlsx_data, column_widths = build_xlsx_data(
+		data, visible_idx, include_indentation, include_filters=include_filters
+	)
 
 	if file_format_type == "CSV":
 		content = get_csv_bytes(xlsx_data, csv_params)
@@ -384,7 +369,7 @@ def format_duration_fields(data: frappe._dict) -> None:
 				row[index] = format_duration(row[index])
 
 
-def build_xlsx_data(data, visible_idx, include_indentation, ignore_visible_idx=False, filter_export=False):
+def build_xlsx_data(data, visible_idx, include_indentation, include_filters=False, ignore_visible_idx=False):
 	EXCEL_TYPES = (
 		str,
 		bool,
@@ -404,17 +389,34 @@ def build_xlsx_data(data, visible_idx, include_indentation, ignore_visible_idx=F
 		# Note: converted for faster lookups
 		visible_idx = set(visible_idx)
 
-	result = [[]]
+	result = []
 	column_widths = []
 
+	if cint(include_filters):
+		filter_data = []
+		filters = data.filters
+		for filter_name, filter_value in filters.items():
+			if not filter_value:
+				continue
+			filter_value = (
+				", ".join([cstr(x) for x in filter_value])
+				if isinstance(filter_value, list)
+				else cstr(filter_value)
+			)
+			filter_data.append([cstr(filter_name), filter_value])
+		filter_data.append([])
+		result += filter_data
+
+	column_data = []
 	for column in data.columns:
 		if column.get("hidden"):
 			continue
-		result[0].append(_(column.get("label")))
+		column_data.append(_(column.get("label")))
 		column_width = cint(column.get("width", 0))
 		# to convert into scale accepted by openpyxl
 		column_width /= 10
 		column_widths.append(column_width)
+	result.append(column_data)
 
 	# build table from result
 	for row_idx, row in enumerate(data.result):
@@ -526,8 +528,7 @@ def get_data_for_custom_field(doctype, field, names=None):
 			names = frappe.json.loads(names)
 		filters.update({"name": ["in", names]})
 
-	value_map = frappe._dict(frappe.get_list(doctype, filters=filters, fields=["name", field], as_list=1))
-	return value_map
+	return frappe._dict(frappe.get_list(doctype, filters=filters, fields=["name", field], as_list=1))
 
 
 def get_data_for_custom_report(columns, result):
@@ -707,7 +708,7 @@ def get_linked_doctypes(columns, data):
 
 	columns_dict = get_columns_dict(columns)
 
-	for idx, _ in enumerate(columns):  # noqa: F402
+	for idx in range(len(columns)):
 		df = columns_dict[idx]
 		if df.get("fieldtype") == "Link":
 			if data and isinstance(data[0], list | tuple):

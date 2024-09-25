@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 import frappe
 import frappe.utils
 from frappe import _
+from frappe.apps import get_default_path
 from frappe.auth import LoginManager
 from frappe.rate_limiter import rate_limit
 from frappe.utils import cint, get_url
@@ -27,9 +28,9 @@ def get_context(context):
 	if frappe.session.user != "Guest":
 		if not redirect_to:
 			if frappe.session.data.user_type == "Website User":
-				redirect_to = get_home_page()
+				redirect_to = get_default_path() or get_home_page()
 			else:
-				redirect_to = "/app"
+				redirect_to = get_default_path() or "/app"
 
 		if redirect_to != "login":
 			frappe.local.flags.redirect_location = redirect_to
@@ -38,8 +39,10 @@ def get_context(context):
 	context.no_header = True
 	context.for_test = "login.html"
 	context["title"] = "Login"
+	context["hide_login"] = True  # dont show login link on login page again.
 	context["provider_logins"] = []
 	context["disable_signup"] = cint(frappe.get_website_settings("disable_signup"))
+	context["show_footer_on_login"] = cint(frappe.get_website_settings("show_footer_on_login"))
 	context["disable_user_pass_login"] = cint(frappe.get_system_settings("disable_user_pass_login"))
 	context["logo"] = frappe.get_website_settings("app_logo") or frappe.get_hooks("app_logo_url")[-1]
 	context["app_name"] = (
@@ -107,10 +110,9 @@ def get_context(context):
 	return context
 
 
-
 @frappe.whitelist(allow_guest=True)
 def login_via_token(login_token: str):
-	sid = frappe.cache().get_value(f"login_token:{login_token}", expires=True)
+	sid = frappe.cache.get_value(f"login_token:{login_token}", expires=True)
 	if not sid:
 		frappe.respond_as_web_page(_("Invalid Request"), _("Invalid Login Token"), http_status_code=417)
 		return
@@ -126,6 +128,9 @@ def login_via_token(login_token: str):
 @frappe.whitelist(allow_guest=True)
 @rate_limit(limit=5, seconds=60 * 60)
 def send_login_link(email: str):
+	if not frappe.get_system_settings("login_with_email_link"):
+		return
+
 	expiry = frappe.get_system_settings("login_with_email_link_expiry") or 10
 	link = _generate_temporary_login_link(email, expiry)
 
@@ -150,7 +155,7 @@ def _generate_temporary_login_link(email: str, expiry: int):
 	if not frappe.db.exists("User", email):
 		frappe.throw(_("User with email address {0} does not exist").format(email), frappe.DoesNotExistError)
 	key = frappe.generate_hash()
-	frappe.cache().set_value(f"one_time_login_key:{key}", email, expires_in_sec=expiry * 60)
+	frappe.cache.set_value(f"one_time_login_key:{key}", email, expires_in_sec=expiry * 60)
 
 	return get_url(f"/api/method/frappe.www.login.login_via_key?key={key}")
 
@@ -163,10 +168,10 @@ def get_login_with_email_link_ratelimit() -> int:
 @rate_limit(limit=get_login_with_email_link_ratelimit, seconds=60 * 60)
 def login_via_key(key: str):
 	cache_key = f"one_time_login_key:{key}"
-	email = frappe.cache().get_value(cache_key)
+	email = frappe.cache.get_value(cache_key)
 
 	if email:
-		frappe.cache().delete_value(cache_key)
+		frappe.cache.delete_value(cache_key)
 		frappe.local.login_manager.login_as(email)
 
 		redirect_post_login(
