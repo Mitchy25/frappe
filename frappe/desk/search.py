@@ -206,7 +206,7 @@ def search_widget(
 				_relevance = f"(1 / nullif(locate({_txt}, `tab{doctype}`.`name`), 0))"
 				formatted_fields.append(f"""{_relevance} as `_relevance`""")
 				# Since we are sorting by alias postgres needs to know number of column we are sorting
-				if frappe.db.db_type == "mariadb":
+				if frappe.db.db_type == "mariadb" and doctype != "Sales Invoice":
 					order_by = f"ifnull(_relevance, -9999) desc, {order_by}"
 				elif frappe.db.db_type == "postgres":
 					# Since we are sorting by alias postgres needs to know number of column we are sorting
@@ -249,11 +249,6 @@ def search_widget(
 						for value in (result.values() if as_dict else result)
 					)
 				)
-
-			# Sorting the values array so that relevant results always come first
-			# This will first bring elements on top in which query is a prefix of element
-			# Then it will bring the rest of the elements and sort them in lexicographical order
-			values = sorted(values, key=lambda x: relevance_sorter(x, txt, as_dict))
 
 			# Sorting the values array so that relevant results always come first
 			# This will first bring elements on top in which query is a prefix of element
