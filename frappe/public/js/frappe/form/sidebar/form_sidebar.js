@@ -114,7 +114,7 @@ frappe.ui.form.Sidebar = class {
 				let data = ""
 				let date
 				frappe.db.get_list('Access Log',
-				{fields: ['user', 'timestamp'], 
+				{fields: ['user', 'creation'], 
 				filters:[['reference_document', '=', this.frm.doc.name],['method', '=', 'Print']]}).then((res) => {
 					res.forEach(element => {
 						date = new Date(element.creation)					
