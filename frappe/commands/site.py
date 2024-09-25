@@ -43,6 +43,11 @@ from frappe.utils import CallbackManager
 @click.option("--source-sql", "--source_sql", help="Initiate database with a SQL file")
 @click.option("--install-app", multiple=True, help="Install app after installation")
 @click.option("--set-default", is_flag=True, default=False, help="Set the new site as default site")
+@click.option(
+	"--setup-db/--no-setup-db",
+	default=True,
+	help="Create user and database in mariadb/postgres; only bootstrap if false",
+)
 def new_site(
 	site,
 	db_root_username=None,
@@ -59,6 +64,7 @@ def new_site(
 	db_host=None,
 	db_port=None,
 	set_default=False,
+	setup_db=True,
 ):
 	"Create a new site"
 	from frappe.installer import _new_site
@@ -80,6 +86,7 @@ def new_site(
 		db_type=db_type,
 		db_host=db_host,
 		db_port=db_port,
+		setup_db=setup_db,
 	)
 
 	if set_default:
@@ -302,7 +309,7 @@ def restore_backup(
 		)
 
 	except Exception as err:
-		print(err.args[1])
+		print(err)
 		sys.exit(1)
 
 
@@ -322,7 +329,7 @@ def partial_restore(context, sql_file_path, verbose, encryption_key=None):
 	site = get_site(context)
 	verbose = context.verbose or verbose
 	frappe.init(site=site)
-	frappe.connect(site=site)
+	frappe.connect()
 	err, out = frappe.utils.execute_in_shell(f"file {sql_file_path}", check_exit_code=True)
 	if err:
 		click.secho("Failed to detect type of backup file", fg="red")
@@ -515,7 +522,8 @@ def add_db_index(context, doctype, column):
 
 	columns = column  # correct naming
 	for site in context.sites:
-		frappe.connect(site=site)
+		frappe.init(site=site)
+		frappe.connect()
 		try:
 			frappe.db.add_index(doctype, columns)
 			if len(columns) == 1:
@@ -535,6 +543,44 @@ def add_db_index(context, doctype, column):
 		raise SiteNotSpecifiedError
 
 
+@click.command("describe-database-table")
+@click.option("--doctype", help="DocType to describe")
+@click.option(
+	"--column",
+	multiple=True,
+	help="Explicitly fetch accurate cardinality from table data. This can be quite slow on large tables.",
+)
+@pass_context
+def describe_database_table(context, doctype, column):
+	"""Describes various statistics about the table.
+	This is useful to build integration like
+	This includes:
+	1. Schema
+	2. Indexes
+	3. stats - total count of records
+	4. if column is specified then extra stats are generated for column:
+	        Distinct values count in column
+	"""
+	if doctype is None:
+		raise click.UsageError("--doctype <doctype> is required")
+	import json
+
+	from frappe.core.doctype.recorder.recorder import _fetch_table_stats
+
+	for site in context.sites:
+		frappe.init(site=site)
+		frappe.connect()
+		try:
+			data = _fetch_table_stats(doctype, column)
+			# NOTE: Do not print anything else in this to avoid clobbering the output.
+			print(json.dumps(data, indent=2))
+		finally:
+			frappe.destroy()
+
+	if not context.sites:
+		raise SiteNotSpecifiedError
+
+
 @click.command("add-system-manager")
 @click.argument("email")
 @click.option("--first-name")
@@ -547,7 +593,8 @@ def add_system_manager(context, email, first_name, last_name, send_welcome_email
 	import frappe.utils.user
 
 	for site in context.sites:
-		frappe.connect(site=site)
+		frappe.init(site=site)
+		frappe.connect()
 		try:
 			frappe.utils.user.add_system_manager(email, first_name, last_name, send_welcome_email, password)
 			frappe.db.commit()
@@ -573,7 +620,8 @@ def add_user_for_sites(
 	import frappe.utils.user
 
 	for site in context.sites:
-		frappe.connect(site=site)
+		frappe.init(site=site)
+		frappe.connect()
 		try:
 			add_new_user(email, first_name, last_name, user_type, send_welcome_email, password, add_role)
 			frappe.db.commit()
@@ -603,7 +651,6 @@ def disable_user(context, email):
 @pass_context
 def migrate(context, skip_failing=False, skip_search_index=False):
 	"Run patches, sync schema and rebuild files/translations"
-	from traceback_with_variables import activate_by_import
 
 	from frappe.migrate import SiteMigration
 
@@ -621,12 +668,11 @@ def migrate(context, skip_failing=False, skip_search_index=False):
 
 
 @click.command("migrate-to")
-@pass_context
-def migrate_to(context):
+def migrate_to():
 	"Migrates site to the specified provider"
 	from frappe.integrations.frappe_providers import migrate_to
 
-	migrate_to(context)
+	migrate_to()
 
 
 @click.command("run-patch")
@@ -827,6 +873,7 @@ def backup(
 @pass_context
 def remove_from_installed_apps(context, app):
 	"Remove app from site's installed-apps list"
+	ensure_app_not_frappe(app)
 	from frappe.installer import remove_from_installed_apps
 
 	for site in context.sites:
@@ -855,6 +902,7 @@ def remove_from_installed_apps(context, app):
 @pass_context
 def uninstall(context, app, dry_run, yes, no_backup, force):
 	"Remove app and linked modules from site"
+	ensure_app_not_frappe(app)
 	from frappe.installer import remove_app
 	from frappe.utils.synchronization import filelock
 
@@ -1433,10 +1481,23 @@ def add_new_user(
 		update_password(user=user.name, pwd=password)
 
 
+def ensure_app_not_frappe(app: str) -> None:
+	"""
+	Ensure that the app name passed is not 'frappe'
+
+	:param app: Name of the app
+	:return: Nothing
+	"""
+	if app == "frappe":
+		click.secho("You cannot remove or uninstall the app `frappe`", fg="red")
+		sys.exit(1)
+
+
 commands = [
 	add_system_manager,
 	add_user_for_sites,
 	add_db_index,
+	describe_database_table,
 	backup,
 	drop_site,
 	install_app,

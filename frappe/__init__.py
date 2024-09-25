@@ -50,7 +50,7 @@ from .utils.jinja import (
 )
 from .utils.lazy_loader import lazy_import
 
-__version__ = "15.36.0"
+__version__ = "15.42.0"
 __title__ = "Frappe Framework"
 
 controllers = {}
@@ -331,7 +331,8 @@ def connect(site: str | None = None, db_name: str | None = None, set_admin_as_us
 		host=local.conf.db_host,
 		port=local.conf.db_port,
 		user=db_name or local.conf.db_name,
-		password=None,
+		password=local.conf.db_password,
+		cur_db_name=db_name or local.conf.db_name,
 	)
 	if set_admin_as_user:
 		set_user("Administrator")
@@ -351,7 +352,13 @@ def connect_replica() -> bool:
 		user = local.conf.replica_db_name
 		password = local.conf.replica_db_password
 
-	local.replica_db = get_db(host=local.conf.replica_host, user=user, password=password, port=port)
+	local.replica_db = get_db(
+		host=local.conf.replica_host,
+		port=port,
+		user=user,
+		password=password,
+		cur_db_name=local.conf.db_name,
+	)
 
 	# swap db connections
 	local.primary_db = local.db
@@ -2356,8 +2363,11 @@ def logger(module=None, with_more_info=False, allow_site=True, filter=None, max_
 
 
 def get_desk_link(doctype, name):
-	html = '<a href="/app/Form/{doctype}/{name}" style="font-weight: bold;">{doctype_local} {name}</a>'
-	return html.format(doctype=doctype, name=name, doctype_local=_(doctype))
+	meta = get_meta(doctype)
+	title = get_value(doctype, name, meta.get_title_field())
+
+	html = '<a href="/app/Form/{doctype}/{name}" style="font-weight: bold;">{doctype_local} {title_local}</a>'
+	return html.format(doctype=doctype, name=name, doctype_local=_(doctype), title_local=_(title))
 
 
 def bold(text):
