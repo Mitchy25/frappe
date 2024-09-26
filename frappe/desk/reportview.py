@@ -358,10 +358,8 @@ def export_query():
 	csv_params = pop_csv_params(form_params)
 	add_totals_row = 1 if form_params.pop("add_totals_row", None) == "1" else None
 
-	filter_export = form_params.pop("filter_export")
-	if filter_export != "0":
-		filter_export = form_params.pop("filter_export")
-	else:
+	filter_export = form_params.pop("filter_export", None)
+	if filter_export == "0":
 		filter_export = None
 
 	frappe.permissions.can_export(doctype, raise_exception=True)
