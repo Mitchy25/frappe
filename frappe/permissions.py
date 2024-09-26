@@ -118,8 +118,10 @@ def has_permission(
 		doc = doctype
 		doctype = doc.doctype
 
+	#TODO: Child table perm comment here
 	if frappe.is_table(doctype):
-		return has_child_permission(doctype, ptype, doc, user, raise_exception, parent_doctype)
+		return True
+	#	return has_child_permission(doctype, ptype, doc, user, raise_exception, parent_doctype)
 
 	meta = frappe.get_meta(doctype)
 
