@@ -131,7 +131,7 @@ class AssetManager {
 			return path;
 		}
 		return path;
-	},
+	}
 
 	include_style(file, base_url, is_rtl=null) {
 		let path = `${base_url}/assets/css/${file}`;
