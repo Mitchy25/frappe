@@ -1,12 +1,13 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and contributors
 # License: MIT. See LICENSE
 
+import imaplib
+import poplib
 import smtplib
 from functools import wraps
 
 import frappe
 from frappe import _
-from frappe.email.receive import Timed_IMAP4, Timed_IMAP4_SSL, Timed_POP3, Timed_POP3_SSL
 from frappe.email.utils import get_port
 from frappe.model.document import Document
 from frappe.utils import cint

@@ -146,7 +146,6 @@ class CustomField(Document):
 			self.fieldname = "".join(
 				[c for c in cstr(label).replace(" ", "_") if c.isdigit() or c.isalpha() or c == "_"]
 			)
-			self.fieldname = f"custom_{self.fieldname}"
 
 			# self.fieldname = f"custom_{self.fieldname}"
 
@@ -319,30 +318,6 @@ def create_custom_fields(custom_fields: dict, ignore_validate=False, update=True
 
 			for doctype in doctypes:
 				doctypes_to_update.add(doctype)
-
-				for df in fields:
-					field = frappe.db.get_value("Custom Field", {"dt": doctype, "fieldname": df["fieldname"]})
-					if not field:
-						try:
-							df = df.copy()
-							df["owner"] = "Administrator"
-							create_custom_field(doctype, df, ignore_validate=ignore_validate)
-
-						except frappe.exceptions.DuplicateEntryError:
-							pass
-
-					elif update:
-						custom_field = frappe.get_doc("Custom Field", field)
-						custom_field.flags.ignore_validate = ignore_validate
-						custom_field.update(df)
-						custom_field.save()
-
-		for doctype in doctypes_to_update:
-			frappe.clear_cache(doctype=doctype)
-			frappe.db.updatedb(doctype)
-
-	finally:
-		frappe.flags.in_create_custom_fields = False
 
 				for df in fields:
 					field = frappe.db.get_value("Custom Field", {"dt": doctype, "fieldname": df["fieldname"]})

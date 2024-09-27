@@ -95,7 +95,6 @@ def application(request: Request):
 
 	try:
 		rollback = True
-
 		init_request(request)
 
 		validate_auth()

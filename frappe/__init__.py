@@ -677,7 +677,7 @@ def create_folder(path, with_init=False):
 
 def set_user(username: str):
 	"""Set current user.
-
+	
 	:param username: **User** name to set as current user."""
 	local.session.user = username
 	local.session.sid = username
@@ -1219,6 +1219,7 @@ def get_cached_doc(*args, **kwargs) -> "Document":
 
 	_set_document_in_cache(key, doc)
 
+	return doc
 
 def _set_document_in_cache(key: str, doc: "Document") -> None:
 	cache.set_value(key, doc)
