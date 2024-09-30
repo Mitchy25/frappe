@@ -8,7 +8,7 @@ from logging.handlers import RotatingFileHandler
 import frappe
 from frappe.utils import get_sites
 
-default_log_level = logging.WARNING if frappe._dev_server else logging.ERROR
+default_log_level = getattr(logging, (frappe.get_site_config().logging_level or "").upper(), None) or logging.DEBUG
 
 
 def get_logger(
