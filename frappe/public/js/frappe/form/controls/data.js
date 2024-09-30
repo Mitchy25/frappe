@@ -3,7 +3,7 @@ frappe.provide("frappe.phone_call");
 frappe.ui.form.ControlData = class ControlData extends frappe.ui.form.ControlInput {
 	static html_element = "input";
 	static input_type = "text";
-	static trigger_change_on_input_event = true;
+	static trigger_change_on_input_event = false;
 	make_input() {
 		if (this.$input) return;
 
