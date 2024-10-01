@@ -603,6 +603,7 @@ frappe.ui.form.Form = class FrappeForm {
 			frappe.run_serially([
 				// header must be refreshed before client methods
 				// because add_custom_button
+				() => this.dashboard.remove_accounting_section(),
 				() => this.refresh_header(switched),
 				// trigger global trigger
 				// to use this
