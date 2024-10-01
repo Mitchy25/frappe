@@ -52,6 +52,23 @@ frappe.ui.form.ControlMultiSelectList = class ControlMultiSelectList extends (
 					let options = this._selected_values
 						.concat(filtered_options)
 						.uniqBy((opt) => opt.value);
+
+					const valuesArray = this.values.map(value => ({
+						value: value,
+						description: "",
+						label: value
+					}));
+				
+					// Combine the arrays
+					const combinedArray = [...valuesArray, ...options];
+				
+					// Deduplicate based on the 'value' property
+					options = combinedArray.reduce((acc, current) => {
+						if (!acc.some(item => item.value === current.value)) {
+							acc.push(current);
+						}
+						return acc;
+					}, []);
 					this.set_selectable_items(options);
 				});
 			}, 300)
@@ -80,8 +97,30 @@ frappe.ui.form.ControlMultiSelectList = class ControlMultiSelectList extends (
 
 		this.$list_wrapper.on("show.bs.dropdown", () => {
 			this.set_options().then(() => {
-				this.set_selectable_items(this._options);
+				// Convert this._values to an array of objects
+				const valuesArray = this.values.map(value => ({
+					value: value,
+					description: "",
+					label: value
+				}));
+			
+				// Combine the arrays
+				const combinedArray = [...valuesArray, ...this._options];
+			
+				// Deduplicate based on the 'value' property
+				const options = combinedArray.reduce((acc, current) => {
+					if (!acc.some(item => item.value === current.value)) {
+						acc.push(current);
+					}
+					return acc;
+				}, []);
+
+				this.set_selectable_items(options);
+			
+				// this.set_selectable_items(this._options);
 			});
+			
+
 		});
 
 		this.set_input_attributes();
