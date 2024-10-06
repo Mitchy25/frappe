@@ -49,6 +49,17 @@ desk_properties = (
 	"dashboard",
 )
 
+desk_properties = (
+	"search_bar",
+	"notifications",
+	"list_sidebar",
+	"bulk_actions",
+	"view_switcher",
+	"form_sidebar",
+	"timeline",
+	"dashboard",
+)
+
 
 class User(Document):
 	# begin: auto-generated types
