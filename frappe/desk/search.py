@@ -2,6 +2,8 @@
 # License: MIT. See LICENSE
 
 import json
+import datetime
+from dateutil.relativedelta import relativedelta
 import re
 from typing import TypedDict
 
@@ -56,7 +58,7 @@ def search_link(
 	)
 
 	if doctype == "Batch":
-		return build_batch_content(filters, txt.strip(), frappe.response["values"])
+		return build_batch_content(filters, txt.strip(), results)
 	else:
 		return build_for_autosuggest(results, doctype=doctype)
 
