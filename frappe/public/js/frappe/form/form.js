@@ -313,7 +313,7 @@ frappe.ui.form.Form = class FrappeForm {
 
 		// using $.each to preserve df via closure
 		$.each(table_fields, function (i, df) {
-			frappe.model.on(df.options, "*", function (fieldname, value, doc) {
+			frappe.model.on(df.options, "*", function (fieldname, value, doc, skip_dirty_trigger=false) {
 				if (doc.parent == me.docname && doc.parentfield === df.fieldname) {
 					if (!skip_dirty_trigger) {
 						me.dirty();
