@@ -33,7 +33,7 @@ def get(args=None):
 		filters={
 			"reference_type": args.get("doctype"),
 			"reference_name": args.get("name"),
-			"status": ("not in", ("Cancelled", "Closed")),
+			"status": ("not in", ("Canceled", "Closed")),
 		},
 		limit=5,
 	)
@@ -154,7 +154,7 @@ def close_all_assignments(doctype, name, ignore_permissions=False):
 	assignments = frappe.get_all(
 		"ToDo",
 		fields=["allocated_to", "name"],
-		filters=dict(reference_type=doctype, reference_name=name, status=("!=", "Cancelled")),
+		filters=dict(reference_type=doctype, reference_name=name, status=("!=", "Canceled")),
 	)
 	if not assignments:
 		return False
@@ -174,7 +174,7 @@ def close_all_assignments(doctype, name, ignore_permissions=False):
 
 @frappe.whitelist()
 def remove(doctype, name, assign_to, ignore_permissions=False):
-	return set_status(doctype, name, "", assign_to, status="Cancelled", ignore_permissions=ignore_permissions)
+	return set_status(doctype, name, "", assign_to, status="Canceled", ignore_permissions=ignore_permissions)
 
 
 @frappe.whitelist()
@@ -199,7 +199,7 @@ def close(doctype: str, name: str, assign_to: str, ignore_permissions=False):
 	return set_status(doctype, name, "", assign_to, status="Closed", ignore_permissions=ignore_permissions)
 
 
-def set_status(doctype, name, todo=None, assign_to=None, status="Cancelled", ignore_permissions=False):
+def set_status(doctype, name, todo=None, assign_to=None, status="Canceled", ignore_permissions=False):
 	"""remove from todo"""
 
 	if not ignore_permissions:
@@ -225,7 +225,7 @@ def set_status(doctype, name, todo=None, assign_to=None, status="Cancelled", ign
 		pass
 
 	# clear assigned_to if field exists
-	if frappe.get_meta(doctype).get_field("assigned_to") and status in ("Cancelled", "Closed"):
+	if frappe.get_meta(doctype).get_field("assigned_to") and status in ("Canceled", "Closed"):
 		frappe.db.set_value(doctype, name, "assigned_to", None)
 
 	return get({"doctype": doctype, "name": name})
@@ -249,7 +249,7 @@ def clear(doctype, name, ignore_permissions=False):
 			name,
 			todo=assign_to.name,
 			assign_to=assign_to.allocated_to,
-			status="Cancelled",
+			status="Canceled",
 			ignore_permissions=ignore_permissions,
 		)
 
