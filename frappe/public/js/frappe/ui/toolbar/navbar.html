@@ -121,6 +121,9 @@
 								{% if (!item.hidden) { %}
 									{% if (item.route) { %}
 										<a class="dropdown-item" href="{{ item.route }}">
+											{% if (item.svg) %}
+												{{ item.svg }}
+											{% endif %}
 											{%= __(item.item_label) %}
 										</a>
 									{% } else if (item.action) { %}
