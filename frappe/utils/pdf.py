@@ -210,7 +210,7 @@ def read_options_from_html(html):
 
 	toggle_visible_pdf(soup)
 
-	valid_styles = get_print_format_styles(soup)
+	# valid_styles = get_print_format_styles(soup)
 
 	attrs = (
 		"margin-top",
@@ -223,7 +223,7 @@ def read_options_from_html(html):
 		"page-width",
 		"page-height",
 	)
-	options |= {style.name: style.value for style in valid_styles if style.name in attrs}
+	# options |= {style.name: style.value for style in valid_styles if style.name in attrs}
 	return str(soup), options
 
 
