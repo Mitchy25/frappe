@@ -365,14 +365,14 @@ frappe.ui.form.on("User", {
 	setup_impersonation: function (frm) {
 		if (frappe.session.user === "Administrator" && frm.doc.name != "Administrator") {
 			frm.add_custom_button(__("Impersonate"), () => {
-				if (frm.doc.restrict_ip) {
-					frappe.msgprint({
-						message:
-							"There's IP restriction for this user, you can not impersonate as this user.",
-						title: "IP restriction is enabled",
-					});
-					return;
-				}
+				// if (frm.doc.restrict_ip) {
+				// 	frappe.msgprint({
+				// 		message:
+				// 			"There's IP restriction for this user, you can not impersonate as this user.",
+				// 		title: "IP restriction is enabled",
+				// 	});
+				// 	return;
+				// }
 				frappe.prompt(
 					[
 						{
