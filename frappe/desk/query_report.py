@@ -369,7 +369,7 @@ def format_duration_fields(data: frappe._dict) -> None:
 				row[index] = format_duration(row[index])
 
 
-def build_xlsx_data(data, visible_idx, include_indentation, include_filters=False, ignore_visible_idx=False):
+def build_xlsx_data(data, visible_idx, include_indentation, include_filters=False, ignore_visible_idx=False, filter_export=None):
 	EXCEL_TYPES = (
 		str,
 		bool,
