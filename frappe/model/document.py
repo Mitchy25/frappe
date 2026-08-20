@@ -1464,6 +1464,7 @@ class Document(BaseDocument):
 		text=None,
 		comment_email=None,
 		comment_by=None,
+		notify_on_load=False
 	):
 		"""Add a comment to this document.
 
@@ -1478,6 +1479,7 @@ class Document(BaseDocument):
 				"reference_doctype": self.doctype,
 				"reference_name": self.name,
 				"content": text or comment_type,
+				"notify_on_load": notify_on_load,
 			}
 		).insert(ignore_permissions=True)
 
