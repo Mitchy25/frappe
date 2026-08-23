@@ -390,8 +390,7 @@ class BaseDocument:
 					value['qty'] = 0
 					# batches.remove(current_batch)
 				value_copy['batch_no'] = current_batch['batch_id']
-				if shortdated:
-					value_copy['shortdated_batch'] = shortdated
+				value_copy['shortdated_batch'] = 1 if shortdated else 0
 				append_list.append(value_copy)
 			def try_batch(batches, shortdated):
 				"""
