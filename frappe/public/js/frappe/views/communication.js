@@ -862,6 +862,9 @@ frappe.views.CommunicationComposer = class {
 			return;
 		}
 
+		const sender = form_values.sender || me.sender;
+		const sender_full_name = form_values.sender_full_name || me.sender_full_name;
+
 		return frappe.call({
 			method: "frappe.core.doctype.communication.email.make",
 			args: {
@@ -876,8 +879,8 @@ frappe.views.CommunicationComposer = class {
 				print_html: print_html,
 				send_me_a_copy: form_values.send_me_a_copy,
 				print_format: print_format,
-				sender: form_values.sender,
-				sender_full_name: form_values.sender ? frappe.user.full_name() : undefined,
+				sender: sender || undefined,
+				sender_full_name: sender_full_name || undefined,
 				email_template: form_values.email_template,
 				attachments: selected_attachments,
 				read_receipt: form_values.send_read_receipt,
